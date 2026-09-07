@@ -1,0 +1,36 @@
+cabal-version:      2.4
+name:               pcbgen
+version:            0.1.0.0
+synopsis:           Generate KiCad projects for Eurorack modules from a Haskell description
+license:            NONE
+build-type:         Simple
+
+common shared
+    default-language: Haskell2010
+    ghc-options:      -Wall -Wno-name-shadowing
+    build-depends:
+        base >=4.14 && <5,
+        text,
+        containers,
+        directory,
+        filepath,
+        process
+
+library
+    import:           shared
+    hs-source-dirs:   src
+    exposed-modules:
+        Kicad.SExpr
+        Kicad.Library
+        Kicad.Uuid
+        Design
+        Emit.Schematic
+        Emit.Pcb
+        Emit.Project
+        Designs.Mult
+
+executable pcbgen
+    import:           shared
+    hs-source-dirs:   app
+    main-is:          Main.hs
+    build-depends:    pcbgen

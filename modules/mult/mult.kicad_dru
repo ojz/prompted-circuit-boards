@@ -1,18 +1,16 @@
 (version 1)
 
-# Thonkiconn (WQP-PJ398SM) official footprint carries a courtyard 14.4 mm long
-# (-1.42 .. 12.98 mm from the barrel), but the physical body is 10.5 mm and the
-# barrel sits on top of the body, so stacked jacks at 13 mm pitch do not collide.
-# Allow up to 1.5 mm courtyard overlap between jacks only; everything else keeps
-# the default zero-overlap check.
+# The official Thonkiconn footprint's courtyard is 14.4 mm long (-1.42 .. 12.98 mm
+# from the barrel) but the body is 10.5 mm and the barrel sits on top of it, so
+# stacked jacks at 13.7 mm pitch do not collide. Allow the overlap between jacks only.
 (rule "jack_column_courtyard_overlap"
   (condition "A.Reference == 'J*' && B.Reference == 'J*'")
   (constraint courtyard_clearance (min -1.5mm)))
 
-# The jack body outline (F.SilkS) touches the next jack's pin marker at 13.7 mm
-# pitch. Front silkscreen sits under the panel and is never visible, and the
-# lines merely touch, so silence silk-to-silk clearance between jacks only.
+# Jack body outline touches the next jack's pin marker on F.SilkS, which is
+# under the panel and never visible.
 (rule "jack_column_silk_touch"
   (severity ignore)
   (condition "A.Reference == 'J*' && B.Reference == 'J*'")
   (constraint silk_clearance (min 0mm)))
+

@@ -23,3 +23,7 @@ Thumbs.db
 
 # KiCad 10 built-in design history (embedded git repo)
 .history/
+
+# Generated verification output and Haskell build artefacts
+build/
+dist-newstyle/
