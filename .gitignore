@@ -20,3 +20,6 @@ konnect.log
 .DS_Store
 Thumbs.db
 .vscode/
+
+# KiCad 10 built-in design history (embedded git repo)
+.history/
