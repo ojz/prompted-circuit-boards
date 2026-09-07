@@ -6,7 +6,7 @@ Workstation bootstrap and verification: `SETUP.md`.
 
 ## Toolchain
 
-- **KiCad 10** at `C:\Program Files\KiCad\10.0`, `kicad-cli` on PATH.
+- **KiCad 10**. Install location differs per workstation (`C:\Program Files\KiCad\10.0` or `%LOCALAPPDATA%\Programs\KiCad\10.0`); `konnect.toml` holds the paths that apply here. `kicad-cli` lives in that `bin` directory and may not be on PATH in Git Bash.
 - **Konnect** MCP server (`.mcp.json`, settings in `konnect.toml`). Schematic edits go through it; PCB edits need KiCad open with the board loaded and the API enabled (Preferences > Plugins > Enable KiCad API).
 - **Freerouting** jar lives in KiCad's 3rdparty/plugins/freerouting; Java 25 (portable Temurin JRE) is on the user PATH. Use Konnect's `check_freerouting` → `export_specctra_dsn` → `route_specctra_dsn` → `apply_specctra_ses`.
 - **kicad-happy** skills (kicad, spice, emc, bom, lcsc, jlcpcb, ...) are installed globally for review and fab prep. Konnect's own skills (kicad-schematic, kicad-pcb, kicad-manufacture, kicad-review, kicad-library) are installed globally too.

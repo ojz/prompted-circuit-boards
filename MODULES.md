@@ -21,3 +21,9 @@ This file gives an overview of all the modules that I want to include in this pr
 - signal amplification
 - level control
 - stereo output
+
+## MULT
+
+- passive 2×4 multiple, 4HP, no power
+- solder jumper joins the two groups into 1×8
+- project: `modules/mult/`
