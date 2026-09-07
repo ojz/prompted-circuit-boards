@@ -1,0 +1,22 @@
+# KiCad
+*.kicad_prl
+*-backups/
+fp-info-cache
+*.lck
+_autosave-*
+*.bak
+*.kicad_sch-bak
+*.kicad_pcb-bak
+# Fabrication output (regenerate with kicad-cli / Fabrication Toolkit)
+production/
+gerbers/
+*.zip
+# Konnect / tooling
+.konnect/
+konnect.log
+*.dsn
+*.ses
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

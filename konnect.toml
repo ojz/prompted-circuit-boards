@@ -1,0 +1,8 @@
+# Konnect (KiCad MCP server) settings. Read from the working directory when
+# Claude Code launches the server. See https://github.com/mixelpixx/Konnect
+kicad_cli = 'C:\Program Files\KiCad\10.0\bin\kicad-cli.exe'
+kicad_binary = 'C:\Program Files\KiCad\10.0\bin\kicad.exe'
+# Socket shown under KiCad > Preferences > Plugins > "Enable KiCad API".
+# KiCad creates api.sock in the user's temp dir; verify it matches.
+ipc_address = 'ipc://C:\Users\ziarkol\AppData\Local\Temp\kicad\api.sock'
+log_level = "info"

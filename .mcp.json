@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "konnect": {
+      "command": "${USERPROFILE}\\OneDrive - Cronos\\Documents\\KiCad\\10.0\\3rdparty\\plugins\\com_github_mixelpixx_konnect\\bin\\konnect.exe",
+      "env": {
+        "KICAD10_3RD_PARTY": "${USERPROFILE}\\OneDrive - Cronos\\Documents\\KiCad\\10.0\\3rdparty"
+      }
+    }
+  }
+}
