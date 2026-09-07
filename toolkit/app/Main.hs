@@ -19,28 +19,34 @@ import           System.IO          (hPutStrLn, stderr)
 
 import           Design
 import           Designs.Mult       (mult)
+import           Designs.MultPanel  (multPanel)
 import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
 import           Kicad.Library
 
 designs :: [(String, Module)]
-designs = [ ("mult", mult) ]
+designs =
+  [ ("mult", mult)
+  , ("mult-panel", multPanel)
+  ]
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [name]              -> run name ("modules" </> name)
-    [name, "--out", d]  -> run name d
+    ["all"]             -> mapM_ (\(n, _) -> run n Nothing) designs
+    [name]              -> run name Nothing
+    [name, "--out", d]  -> run name (Just d)
     _ -> do
-      hPutStrLn stderr "usage: pcbgen <design> [--out DIR]"
+      hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
-run :: String -> FilePath -> IO ()
-run name outDir = do
+run :: String -> Maybe FilePath -> IO ()
+run name mOut = do
   m <- maybe (hPutStrLn stderr ("unknown design: " ++ name) >> exitFailure) pure (lookup name designs)
+  let outDir = maybe (".." </> modOutDir m) id mOut
   lc <- newLibCache
   share <- findKicadShare
   putStrLn ("KiCad libraries: " ++ share)

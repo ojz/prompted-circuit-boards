@@ -98,17 +98,17 @@ emitSchematic lc m = do
 
   let partItems = concatMap (emitPart symTable pinNet u sheetUuid name) (modParts m)
 
-  -- One PWR_FLAG + power symbol pair per power net, parked under the parts.
-  let maxY = maximum (0 : [ snd (partSchAt p) | p <- modParts m ])
-      flagBase = (63.5, fromIntegral (ceiling ((maxY + 25.4) / 2.54) :: Int) * 2.54)
+  -- One PWR_FLAG + power symbol pair per power net, parked at the right-hand
+  -- side of the A4 sheet, one below the other.
+  let flagBase = (228.6, 50.8)
       flags = concat
-        [ powerPair symTable u sheetUuid name ("FLG" <> T.pack (show i)) (netName n) (add flagBase (25.4 * fromIntegral (i - 1), 0))
+        [ powerPair symTable u sheetUuid name ("FLG" <> T.pack (show i)) (netName n) (add flagBase (0, 20.32 * fromIntegral (i - 1)))
         | (i, n) <- zip [1 :: Int ..] powerNets ]
 
-  let notesY = snd flagBase + 20.32
-      notes = [ List [ Atom "text", Str (T.intercalate "\n" (modNotes m))
+  -- Free text at the bottom-left corner of the A4 sheet, left of the title block.
+  let notes = [ List [ Atom "text", Str (T.intercalate "\n" (modNotes m))
                      , list "exclude_from_sim" [sym "no"]
-                     , list "at" [num 30.48, num notesY, num 0]
+                     , list "at" [num 25.4, num 190.5, num 0]
                      , list "effects" [list "font" [list "size" [num 2, num 2]], list "justify" [sym "left", sym "bottom"]]
                      , list "uuid" [Str (u "notes")] ]
               | not (null (modNotes m)) ]

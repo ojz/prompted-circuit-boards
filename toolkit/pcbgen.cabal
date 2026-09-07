@@ -28,6 +28,7 @@ library
         Emit.Pcb
         Emit.Project
         Designs.Mult
+        Designs.MultPanel
 
 executable pcbgen
     import:           shared

@@ -37,19 +37,25 @@ one-line command that produces byte-identical files.
 
 1. Describe or change a module in `toolkit/src/Designs/<Name>.hs` and write
    or update `modules/<name>/SPEC.md` with the panel geometry and intent.
-2. Generate the KiCad project:
+2. Generate the KiCad projects (`all`, or one design name):
    ```
-   cd toolkit && cabal run pcbgen -- <name>
+   cd toolkit && cabal run pcbgen -- all
    ```
-   Files land in `modules/<name>/`. Generated files are never edited by hand.
-3. Verify headlessly. This runs ERC, DRC with zone refill and schematic
-   parity, and writes renders to `modules/<name>/build/`:
+   Files land in `modules/<name>/` (and `modules/<name>/panel/` for a front
+   panel). Generated files are never edited by hand.
+3. Verify headlessly. This copies the project to `build/`, runs ERC, DRC with
+   zone refill and schematic parity, and renders both sides:
    ```
-   toolkit/check.sh <name>
+   toolkit/check.sh mult
+   toolkit/check.sh mult/panel
    ```
-4. Look at the renders, or open the project in KiCad to inspect it.
-5. Export for JLCPCB with KiKit (`kikit fab jlcpcb`), or panelize several
-   modules first. Fabrication output is regenerated, never committed.
+4. Look at the renders in `build/`, or open the project in KiCad to inspect it.
+5. Export for JLCPCB with KiKit. Output goes to `build/fab/` and is never
+   committed:
+   ```
+   toolkit/fab.sh mult
+   toolkit/fab.sh mult/panel
+   ```
 
 ## Repository layout
 
@@ -66,13 +72,18 @@ MODULES.md        module roadmap
 
 | Module | HP | Status |
 |--------|----|--------|
-| [mult](modules/mult/SPEC.md) | 4 | Generated. ERC clean, DRC clean, panel project pending. |
+| [mult](modules/mult/SPEC.md) | 6 | 2×6 passive multiple. Module and panel generated, ERC and DRC clean, JLCPCB bundle via KiKit. |
 
 ## Eurorack conventions baked in
 
-Doepfer 3U: panel height 128.5 mm, width `HP × 5.08 − 0.3` mm, rail slots
-3.2 mm wide at 3.0 mm from the top and bottom edges. Panel-mounted parts are
-placed from exact panel coordinates, never eyeballed. Power enters on a 2×5
-shrouded IDC header with series Schottky diodes on ±12 V and 10 µF + 100 nF per
-rail. Official KiCad footprints are used where they exist; the Thonkiconn jack
-is `Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles`.
+Doepfer 3U, from Doepfer's own construction notes: panel height 128.5 mm,
+width from Doepfer's table (4HP = 20.0, 6HP = 30.0, 8HP = 40.3 mm, roughly
+`HP × 5.08 − 0.3`), rail holes Ø3.2 mm at 3.0 mm from the top and bottom
+edges, first hole 7.5 mm from the left edge and further holes on the 5.08 mm
+grid. The PCB behind the panel is at most 108 mm tall and centred, so it clears
+the rails on every case, and at least 1 mm narrower than the panel per side.
+Panel-mounted parts are placed from exact panel coordinates, never eyeballed.
+Power enters on a 2×5 shrouded IDC header with series Schottky diodes on ±12 V
+and 10 µF + 100 nF per rail. Official KiCad footprints are used where they
+exist; the Thonkiconn jack is `Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles`,
+which forces a 13.7 mm pitch when jacks are stacked in a column.

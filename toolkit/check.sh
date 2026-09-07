@@ -2,13 +2,17 @@
 # Headless verification of a generated module: ERC, DRC with zone refill,
 # schematic parity, and renders. Exits non-zero on any violation.
 #
-#   toolkit/check.sh <module>          e.g. toolkit/check.sh mult
+#   toolkit/check.sh <module-dir> [stem]     e.g. toolkit/check.sh mult
+#                                                 toolkit/check.sh mult/panel
 #
-# Run from the repository root. Output lands in modules/<module>/build/.
+# <module-dir> is relative to modules/; the project file stem defaults to the
+# last path component. Run from the repository root. Output lands in
+# modules/<module-dir>/build/.
 set -euo pipefail
 
-MOD="${1:?usage: check.sh <module>}"
-SRC="modules/$MOD"
+REL="${1:?usage: check.sh <module-dir> [stem]}"
+MOD="${2:-$(basename "$REL")}"
+SRC="modules/$REL"
 OUT="$SRC/build"
 mkdir -p "$OUT"
 

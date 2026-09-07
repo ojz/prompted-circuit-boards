@@ -72,7 +72,7 @@ placeFootprint u pinNet sheetFile p raw si =
       uKey k = u (ref <> "/" <> k)
 
       setProps = ensureProps $
-        [ ("Reference", partRef p, False, "F.SilkS")
+        [ ("Reference", partRef p, not (partRefOnSilk p), "F.SilkS")
         , ("Value", partValue p, False, "F.Fab")
         , ("Footprint", fpId, True, "F.Fab")
         , ("Datasheet", fromMaybe "" (lookup "Datasheet" (partFields p)), True, "F.Fab")

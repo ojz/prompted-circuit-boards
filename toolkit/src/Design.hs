@@ -18,6 +18,7 @@ module Design
   , Module (..)
   , pcbNetName
   , eurorackPanelWidth
+  , eurorackPanelHeight
   ) where
 
 import           Data.Text (Text)
@@ -39,11 +40,12 @@ data Part = Part
   , partFields    :: [(Text, Text)]     -- ^ extra symbol/footprint fields, e.g. LCSC Part #
   , partSchAt     :: (Double, Double)   -- ^ schematic position
   , partSchRot    :: Double
+  , partRefOnSilk :: Bool               -- ^ print the reference on the board silkscreen
   } deriving (Show)
 
 -- | A front-side, unrotated part with no extra fields.
 part :: Text -> Text -> LibId -> LibId -> (Double, Double) -> (Double, Double) -> Part
-part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0
+part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True
 
 -- | Power nets become KiCad power symbols and global nets; signal nets become
 -- local net labels, which KiCad names with a leading slash on the board.
@@ -112,8 +114,9 @@ data Board = Board
   } deriving (Show)
 
 data Module = Module
-  { modName  :: Text       -- ^ file stem and directory name
-  , modTitle :: Text
+  { modName   :: Text       -- ^ file stem
+  , modOutDir :: FilePath   -- ^ where the generated project lives, relative to the repo root
+  , modTitle  :: Text
   , modHP    :: Int
   , modParts :: [Part]
   , modNets  :: [Net]
@@ -121,6 +124,27 @@ data Module = Module
   , modNotes :: [Text]     -- ^ free text placed on the schematic sheet
   } deriving (Show)
 
--- | Doepfer 3U panel width for a given HP count.
+-- | Doepfer A-100 front panel width for a given HP count. Doepfer's table
+-- (a100m_e.htm) rounds the nominal @HP × 5.08 − 0.3@ to these values; the
+-- formula is used for sizes the table does not list.
 eurorackPanelWidth :: Int -> Double
-eurorackPanelWidth hp = fromIntegral hp * 5.08 - 0.3
+eurorackPanelWidth hp = case hp of
+  1  -> 5.00
+  2  -> 9.80
+  4  -> 20.00
+  6  -> 30.00
+  8  -> 40.30
+  10 -> 50.50
+  12 -> 60.60
+  14 -> 70.80
+  16 -> 80.90
+  18 -> 91.30
+  20 -> 101.30
+  22 -> 111.40
+  28 -> 141.90
+  42 -> 213.00
+  _  -> fromIntegral hp * 5.08 - 0.3
+
+-- | Doepfer 3U front panel height.
+eurorackPanelHeight :: Double
+eurorackPanelHeight = 128.5

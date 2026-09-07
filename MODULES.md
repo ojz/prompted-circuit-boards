@@ -24,6 +24,6 @@ This file gives an overview of all the modules that I want to include in this pr
 
 ## MULT
 
-- passive 2×4 multiple, 4HP, no power
-- solder jumper joins the two groups into 1×8
+- passive 2×6 multiple, 6HP, no power (4HP × 8 jacks does not clear the rails with the official Thonkiconn footprint)
+- solder jumper joins the two groups into 1×12
 - project: `modules/mult/`

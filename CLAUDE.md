@@ -18,7 +18,9 @@ Workstation bootstrap and verification: `SETUP.md`.
 
 - Every schematic change must pass `kicad-cli sch erc --exit-code-violations` before moving to layout.
 - Every layout change must pass `kicad-cli pcb drc --schematic-parity --exit-code-violations` before export.
-- Panel-mounted parts (jacks, pots, switches, LEDs) are placed at exact panel coordinates, never eyeballed. Doepfer 3U: panel 128.5 mm high, width = HP × 5.08 mm − 0.3 mm.
+- Panel-mounted parts (jacks, pots, switches, LEDs) are placed at exact panel coordinates, never eyeballed. Doepfer 3U: panel 128.5 mm high, width from Doepfer's table (`eurorackPanelWidth`: 4HP = 20.0, 6HP = 30.0, 8HP = 40.3 mm), rail holes Ø3.2 at 3.0 mm from top and bottom edges, first hole 7.5 mm from the left edge, further holes on the 5.08 mm grid.
+- The PCB behind the panel is at most 108 mm tall (110 mm is the common limit, 108 clears every rail type), centred on the panel, and at least 1 mm narrower than the panel on each side. Components that stand between PCB and panel (jack bodies) must also stay inside that zone.
+- Thonkiconn jacks stacked in a column need a 13.6 mm minimum pitch with the official footprint (tip pad against the next sleeve pad); use 13.7 mm.
 - Power: 2×5 shrouded IDC header, series Schottky on ±12 V, 10 µF + 100 nF per rail.
 - Fill the `LCSC Part #` symbol field for anything JLCPCB should assemble. JLCPCB assembles one side per order.
 - Use official KiCad footprints where they exist: `Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles` (Thonkiconn), `Potentiometer_Alpha_RD901F-40-00D_Single_Vertical` (Alpha 9 mm).

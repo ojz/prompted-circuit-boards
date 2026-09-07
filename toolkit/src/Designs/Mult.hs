@@ -1,6 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | MULT: passive 2x4 multiple, 4HP. See modules/mult/SPEC.md.
-module Designs.Mult (mult) where
+-- | MULT: passive 2x6 multiple, 6HP. See modules/mult/SPEC.md.
+--
+-- Why 6HP and two columns rather than 4HP and one column: with the official
+-- Thonkiconn footprint the minimum vertical pitch is 13.6 mm (tip pad of one
+-- jack against sleeve pad of the next), and a rail-safe PCB is at most 108 mm
+-- tall, centred. Eight jacks in one column need 95 mm of pitch plus the
+-- barrel above the first and the 12.5 mm body below the last: 110.7 mm. It
+-- does not fit. Two columns of six fit with room to spare.
+module Designs.Mult
+  ( mult
+    -- * Geometry shared with the panel design
+  , hp, panelWidth, panelHeight
+  , colX, rowY, rows
+  , railHoleX, railHoleY
+  ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -10,46 +23,67 @@ import           Design
 -- Panel ----------------------------------------------------------------------
 
 hp :: Int
-hp = 4
+hp = 6
 
-panelWidth :: Double
-panelWidth = eurorackPanelWidth hp          -- 20.02
+panelWidth, panelHeight :: Double
+panelWidth = eurorackPanelWidth hp          -- 30.0 (Doepfer table)
+panelHeight = eurorackPanelHeight            -- 128.5
 
--- | Jack barrel centres on the panel, from the panel's top-left corner.
--- 13.7 mm is the minimum pitch the official Thonkiconn footprint allows:
--- tip pad of one jack (11.4 mm below the barrel) vs. sleeve pad of the next,
--- 0.2 mm clearance plus 0.5 mm hole-to-hole.
-jackPitch, firstJackY :: Double
+-- | Jack barrel centres on the panel, from its top-left corner.
+-- 13.7 mm pitch: the official footprint needs 13.6 mm minimum (tip pad of one
+-- jack vs. sleeve pad of the next, 0.2 mm clearance, 0.5 mm hole-to-hole).
+jackPitch, firstRowY :: Double
 jackPitch = 13.7
-firstJackY = 11.0
+firstRowY = 30.0
 
-panelJackY :: Int -> Double
-panelJackY k = firstJackY + jackPitch * fromIntegral k
+rows :: [Int]
+rows = [0 .. 5]
+
+rowY :: Int -> Double
+rowY k = firstRowY + jackPitch * fromIntegral k          -- 30.0 .. 98.5
+
+-- | Column centres, 15 mm apart: 9 mm bodies leave 6 mm between them.
+colX :: Int -> Double
+colX 0 = 7.5
+colX _ = 22.5
+
+-- | Doepfer: holes 3.0 mm from the top and bottom edges, first hole 7.5 mm
+-- from the left edge, further holes on the 5.08 mm grid.
+railHoleY :: [Double]
+railHoleY = [3.0, panelHeight - 3.0]
+
+railHoleX :: [Double]
+railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
 
 -- Board ----------------------------------------------------------------------
 
--- | The PCB hangs behind the panel with its top-left corner at panel (0.76, 9.0).
-boardOffsetX, boardOffsetY :: Double
-boardOffsetX = 0.76
-boardOffsetY = 9.0
-
+-- | Rail-safe board: 108 mm tall, centred on the 128.5 mm panel, 1 mm inside
+-- each side edge.
 boardW, boardH :: Double
-boardW = 18.5
-boardH = 111.5
+boardW = panelWidth - 2.0                                 -- 28.0
+boardH = 108.0
 
--- | Board coordinates of jack k (0..7): footprint origin is the barrel/sleeve pad.
-jackAt :: Int -> (Double, Double)
-jackAt k = (panelWidth / 2 - boardOffsetX, panelJackY k - boardOffsetY)   -- x = 9.25
+boardOffsetX, boardOffsetY :: Double
+boardOffsetX = 1.0
+boardOffsetY = (panelHeight - boardH) / 2                 -- 10.25
 
--- Thonkiconn pad offsets from the footprint origin (rotation 0, body pointing down).
+toBoard :: (Double, Double) -> (Double, Double)
+toBoard (x, y) = (x - boardOffsetX, y - boardOffsetY)
+
+-- | Footprint origin is the barrel / sleeve pad; body extends +y (downwards).
+jackAt :: Int -> Int -> (Double, Double)
+jackAt col k = toBoard (colX col, rowY k)                 -- x 6.5 / 21.5, y 19.75 + 13.7k
+
 tipPadDy :: Double
 tipPadDy = 11.4
 
-tipPad :: Int -> (Double, Double)
-tipPad k = let (x, y) = jackAt k in (x, y + tipPadDy)
+tipPad :: Int -> Int -> (Double, Double)
+tipPad col k = let (x, y) = jackAt col k in (x, y + tipPadDy)
 
+-- | Solder jumper on the back, on the tip-pad row of the third jacks, so both
+-- links are straight horizontal traces.
 jumperAt :: (Double, Double)
-jumperAt = (9.25, 50.0)   -- back side, in the free strip between J4's TN pad and tip pad
+jumperAt = (boardW / 2, snd (tipPad 0 2))                 -- (14.0, 58.55)
 
 -- Parts ------------------------------------------------------------------------
 
@@ -59,49 +93,50 @@ thonkiconnFp  = LibId "Connector_Audio" "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_
 jumperSym     = LibId "Jumper" "SolderJumper_2_Open"
 jumperFp      = LibId "Jumper" "SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
 
-jackRef :: Int -> Text
-jackRef k = "J" <> T.pack (show (k + 1))
+-- | J1..J6 are column A (left), J7..J12 column B (right), top to bottom.
+jackRef :: Int -> Int -> Text
+jackRef col k = "J" <> T.pack (show (col * 6 + k + 1))
 
 jacks :: [Part]
 jacks =
-  [ part (jackRef k) "Thonkiconn" thonkiconnSym thonkiconnFp (jackAt k) (schX, schY)
-  | k <- [0 .. 7]
-  , let schX = if k < 4 then 50.8 else 152.4
-  , let schY = 50.8 + 20.32 * fromIntegral (k `mod` 4)
+  [ part (jackRef col k) "Thonkiconn" thonkiconnSym thonkiconnFp (jackAt col k) (schX, schY)
+  | col <- [0, 1], k <- rows
+  , let schX = if col == 0 then 50.8 else 152.4
+  , let schY = 38.1 + 17.78 * fromIntegral k
   ]
 
 jumper :: Part
-jumper = (part "JP1" "LINK A-B" jumperSym jumperFp jumperAt (109.22, 134.62)) { partSide = Back }
+jumper = (part "JP1" "LINK A-B" jumperSym jumperFp jumperAt (101.6, 152.4)) { partSide = Back }
 
 -- Nets -----------------------------------------------------------------------
 
 nets :: [Net]
 nets =
-  [ Net "GND"    Power  [ (jackRef k, "S") | k <- [0 .. 7] ]
-  , Net "MULT_A" Signal ([ (jackRef k, "T") | k <- [0 .. 3] ] ++ [("JP1", "1")])
-  , Net "MULT_B" Signal ([ (jackRef k, "T") | k <- [4 .. 7] ] ++ [("JP1", "2")])
+  [ Net "GND"    Power  [ (jackRef c k, "S") | c <- [0, 1], k <- rows ]
+  , Net "MULT_A" Signal ([ (jackRef 0 k, "T") | k <- rows ] ++ [("JP1", "1")])
+  , Net "MULT_B" Signal ([ (jackRef 1 k, "T") | k <- rows ] ++ [("JP1", "2")])
   ]
   -- TN (switch) pins are intentionally unconnected.
 
 -- Copper ---------------------------------------------------------------------
 
-busX :: Double
-busX = 12.0
+-- | Each column's tips share a vertical bus 3 mm inboard of the pad column.
+busX :: Int -> Double
+busX 0 = fst (jackAt 0 0) + 3.0                           -- 9.5
+busX _ = fst (jackAt 1 0) - 3.0                           -- 18.5
 
--- | Each group's tips share a vertical bus to the right of the pad column.
-tipBus :: Text -> [Int] -> [Trace]
-tipBus net ks =
-  [ Trace net "F.Cu" 0.5 [tipPad k, (busX, snd (tipPad k))] | k <- ks ]
-  ++ [ Trace net "F.Cu" 0.5 [(busX, snd (tipPad (head ks))), (busX, snd (tipPad (last ks)))] ]
+tipBus :: Text -> Int -> [Trace]
+tipBus net col =
+  [ Trace net "F.Cu" 0.5 [tipPad col k, (busX col, snd (tipPad col k))] | k <- rows ]
+  ++ [ Trace net "F.Cu" 0.5 [(busX col, snd (tipPad col (head rows))), (busX col, snd (tipPad col (last rows)))] ]
 
--- | Jumper pads (rotation 0, back side) sit 0.65 mm left/right of the origin.
+-- | Jumper pads sit 0.65 mm left/right of its origin; each links straight to
+-- the tip pad of the third jack in its column on the back layer.
 jumperLinks :: [Trace]
 jumperLinks =
   let (jx, jy) = jumperAt
-      (ax, ay) = tipPad 3          -- last tip of group A
-      (bx, by) = tipPad 4          -- first tip of group B
-  in [ Trace "MULT_A" "B.Cu" 0.4 [(jx - 0.65, jy), (6.5, jy), (6.5, ay), (ax, ay)]
-     , Trace "MULT_B" "B.Cu" 0.4 [(jx + 0.65, jy), (busX, jy), (busX, by), (bx, by)]
+  in [ Trace "MULT_A" "B.Cu" 0.4 [(jx - 0.65, jy), tipPad 0 2]
+     , Trace "MULT_B" "B.Cu" 0.4 [(jx + 0.65, jy), tipPad 1 2]
      ]
 
 fullBoard :: [(Double, Double)]
@@ -113,14 +148,16 @@ board = Board
   , bdHeight = boardH
   , bdCornerRadius = 1.0
   , bdRules = defaultRules
-  , bdTraces = tipBus "MULT_A" [0 .. 3] ++ tipBus "MULT_B" [4 .. 7] ++ jumperLinks
+  , bdTraces = tipBus "MULT_A" 0 ++ tipBus "MULT_B" 1 ++ jumperLinks
   , bdZones =
       [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25
       , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25
       ]
   , bdTexts =
-      [ BoardText "MULT 2x4" "B.SilkS" (4.5, 60) 90 1.0
-      , BoardText "LINK A-B" "B.SilkS" (14.6, 50) 90 0.8
+      [ BoardText "MULT 2x6" "B.SilkS" (boardW / 2, 8.0) 0 1.5
+      , BoardText "A"        "B.SilkS" (fst (jackAt 0 0), 14.0) 0 1.5
+      , BoardText "B"        "B.SilkS" (fst (jackAt 1 0), 14.0) 0 1.5
+      , BoardText "LINK A-B" "B.SilkS" (fst jumperAt, snd jumperAt - 3.0) 0 0.8
       ]
   , bdCustomRules = T.unlines
       [ "# The official Thonkiconn footprint's courtyard is 14.4 mm long (-1.42 .. 12.98 mm"
@@ -142,15 +179,16 @@ board = Board
 mult :: Module
 mult = Module
   { modName = "mult"
-  , modTitle = "MULT - passive 2x4 multiple"
+  , modOutDir = "modules/mult"
+  , modTitle = "MULT - passive 2x6 multiple"
   , modHP = hp
   , modParts = jacks ++ [jumper]
   , modNets = nets
   , modBoard = board
   , modNotes =
-      [ "MULT - passive 2x4 multiple, 4HP"
-      , "J1-J4 = group A, J5-J8 = group B."
-      , "Bridge JP1 (back of PCB) to join both groups into one 1x8 multiple."
+      [ "MULT - passive 2x6 multiple, 6HP"
+      , "J1-J6 = group A (left column), J7-J12 = group B (right column)."
+      , "Bridge JP1 (back of PCB) to join both groups into one 1x12 multiple."
       , "Jack switch (TN) pins intentionally unconnected."
       ]
   }
