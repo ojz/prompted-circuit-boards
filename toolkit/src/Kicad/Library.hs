@@ -45,10 +45,10 @@ newLibCache = do
   LibCache share local <$> newIORef M.empty
 
 -- | The repository's own footprint libraries, @lib/footprints/<nick>.pretty@.
--- @PCBGEN_LIB@ overrides; the default assumes pcbgen runs from @toolkit/@.
+-- @PCBGEN_LIB@ overrides; the default assumes pcbgen runs from the repo root.
 -- KiCad finds the same directory through the per-module @fp-lib-table@.
 findLocalFootprints :: IO FilePath
-findLocalFootprints = fromMaybe (".." </> "lib" </> "footprints") <$> lookupEnv "PCBGEN_LIB"
+findLocalFootprints = fromMaybe ("lib" </> "footprints") <$> lookupEnv "PCBGEN_LIB"
 
 -- | Locate KiCad's @share/kicad@ directory. @PCBGEN_KICAD_SHARE@ overrides;
 -- otherwise the per-user and machine-wide Windows install paths are tried.

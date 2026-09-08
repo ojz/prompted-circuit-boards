@@ -7,7 +7,7 @@
 -- tall, centred. Eight jacks in one column need 95 mm of pitch plus the
 -- barrel above the first and the 12.5 mm body below the last: 110.7 mm. It
 -- does not fit. Two columns of six fit with room to spare.
-module Designs.Mult
+module Mult
   ( mult
   , handRouted
     -- * Geometry shared with the panel design
@@ -188,7 +188,7 @@ board = Board
 mult :: Module
 mult = Module
   { modName = "mult"
-  , modOutDir = "modules/mult"
+  , modOutDir = "modules/mult/kicad"
   , modTitle = "MULT - passive 2x6 multiple"
   , modHP = hp
   , modParts = jacks ++ [jumper]

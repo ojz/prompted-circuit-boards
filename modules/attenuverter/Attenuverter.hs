@@ -12,7 +12,7 @@
 --
 -- All SMD parts and the power header are on the back of the board (one
 -- JLCPCB assembly side); jacks and pots are through-hole on the front.
-module Designs.Attenuverter
+module Attenuverter
   ( attenuverter
     -- * Geometry shared with the panel design
   , hp, panelWidth, panelHeight
@@ -231,7 +231,7 @@ board = Board
 attenuverter :: Module
 attenuverter = Module
   { modName = "attenuverter"
-  , modOutDir = "modules/attenuverter"
+  , modOutDir = "modules/attenuverter/kicad"
   , modTitle = "UTIL-01 ATTENUVERTER - dual attenuverter / offset"
   , modHP = hp
   , modParts = parts

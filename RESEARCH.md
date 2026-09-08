@@ -94,6 +94,8 @@ Stack, first choice:
 
 Fallback if Konnect is unstable: atopile for schematic/netlist (agent writes `.ato`, compiler picks LCSC parts and emits the `.kicad_pcb`), then the same Go placement tool + Freerouting + kicad-cli loop.
 
+**Outcome (2026-09-08):** Konnect was unstable in exactly the way feared and was removed after the first module. Items 2, 4 and 5 were replaced by `pcbgen`, a Haskell generator with its own autorouter that writes the KiCad projects directly; kicad-cli and KiKit do verification and fabrication. See `README.md`.
+
 ## 6. First module candidates (simple, panel-heavy, low risk)
 
 1. **Passive mult / attenuator** (2-4 HP): jacks and pots only, no power. Tests the whole mechanical + fab pipeline with zero electrical risk.

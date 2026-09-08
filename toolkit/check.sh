@@ -2,12 +2,13 @@
 # Headless verification of a generated module: ERC, DRC with zone refill,
 # schematic parity, and renders. Exits non-zero on any violation.
 #
-#   toolkit/check.sh <module-dir> [stem]     e.g. toolkit/check.sh mult
-#                                                 toolkit/check.sh mult/panel
+#   toolkit/check.sh <module> [sub]     e.g. toolkit/check.sh mult
+#                                            toolkit/check.sh mult panel
 #
-# <module-dir> is relative to modules/; the project file stem defaults to the
-# last path component. Run from the repository root. Output lands in
-# modules/<module-dir>/build/.
+# <module> is a directory under modules/ whose generated project lives in
+# modules/<module>/kicad/; <sub> selects a sub-project such as the front
+# panel in modules/<module>/kicad/<sub>/. Run from the repository root.
+# Output lands in modules/<module>/build/[<sub>/].
 set -euo pipefail
 
 # Repository footprint library, referenced as ${PCBGEN_LIB} by each module's
@@ -18,10 +19,11 @@ else
   export PCBGEN_LIB="$PWD/lib/footprints"
 fi
 
-REL="${1:?usage: check.sh <module-dir> [stem]}"
-MOD="${2:-$(basename "$REL")}"
-SRC="modules/$REL"
-OUT="$SRC/build"
+MODULE="${1:?usage: check.sh <module> [sub]}"
+SUB="${2:-}"
+MOD="${SUB:-$(basename "$MODULE")}"
+SRC="modules/$MODULE/kicad${SUB:+/$SUB}"
+OUT="modules/$MODULE/build${SUB:+/$SUB}"
 mkdir -p "$OUT"
 [ -f "$SRC/fp-lib-table" ] && cp "$SRC/fp-lib-table" "$OUT/"
 

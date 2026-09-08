@@ -5,10 +5,11 @@ input jack, a centre-detent-free 100k pot and an output jack. With nothing
 patched the input is normalled to about +4.8 V, so the channel becomes a
 bipolar offset source.
 
-Design source: `toolkit/src/Designs/Attenuverter.hs` (module) and
-`toolkit/src/Designs/AttenuverterPanel.hs` (panel). Generated projects:
-`modules/attenuverter/` and `modules/attenuverter/panel/`. Do not edit the
-generated KiCad files.
+Design source: `Attenuverter.hs` (module) and `AttenuverterPanel.hs` (panel)
+in this directory. Generated projects: `kicad/` and `kicad/panel/`; regenerate
+with `cabal run pcbgen -- all` from the repo root, verify with
+`toolkit/check.sh attenuverter [panel]`, fab bundle with
+`toolkit/fab.sh attenuverter`. Do not edit the generated KiCad files.
 
 ## Circuit
 

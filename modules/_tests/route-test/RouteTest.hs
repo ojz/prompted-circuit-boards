@@ -3,7 +3,7 @@
 -- other across a field of resistors; header pins are cross-wired so the nets
 -- must cross, which is impossible on one layer and forces vias and
 -- negotiation. Output goes to modules/_tests/route-test.
-module Designs.RouteTest (routeTest) where
+module RouteTest (routeTest) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -66,7 +66,7 @@ nets = crossNets ++ resNets
 routeTest :: Module
 routeTest = Module
   { modName = "route-test"
-  , modOutDir = "modules/_tests/route-test"
+  , modOutDir = "modules/_tests/route-test/kicad"
   , modTitle = "Router stress test (not a module)"
   , modHP = 8
   , modParts = headers ++ resistors

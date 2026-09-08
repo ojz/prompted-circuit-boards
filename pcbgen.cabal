@@ -19,7 +19,10 @@ common shared
 
 library
     import:           shared
-    hs-source-dirs:   src
+    hs-source-dirs:   toolkit/src
+                      modules/mult
+                      modules/attenuverter
+                      modules/_tests/route-test
     exposed-modules:
         Kicad.SExpr
         Kicad.Library
@@ -31,14 +34,14 @@ library
         Route.Geometry
         Route.Router
         Route.Extract
-        Designs.Attenuverter
-        Designs.AttenuverterPanel
-        Designs.Mult
-        Designs.MultPanel
-        Designs.RouteTest
+        Attenuverter
+        AttenuverterPanel
+        Mult
+        MultPanel
+        RouteTest
 
 executable pcbgen
     import:           shared
-    hs-source-dirs:   app
+    hs-source-dirs:   toolkit/app
     main-is:          Main.hs
     build-depends:    pcbgen

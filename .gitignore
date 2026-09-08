@@ -11,11 +11,6 @@ _autosave-*
 production/
 gerbers/
 *.zip
-# Konnect / tooling
-.konnect/
-konnect.log
-*.dsn
-*.ses
 # OS / editor
 .DS_Store
 Thumbs.db

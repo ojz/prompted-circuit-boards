@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Front panel for UTIL-01 ATTENUVERTER as a PCB. Geometry comes from
 -- "Designs.Attenuverter" so the two can never disagree.
-module Designs.AttenuverterPanel (attenuverterPanel) where
+module AttenuverterPanel (attenuverterPanel) where
 
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 
 import           Design
-import           Designs.Attenuverter (jackPanelAt, panelHeight, panelWidth, potPanelAt, railHoleX, railHoleY)
+import           Attenuverter (jackPanelAt, panelHeight, panelWidth, potPanelAt, railHoleX, railHoleY)
 
 holeSym :: LibId
 holeSym = LibId "Mechanical" "MountingHole"
@@ -50,7 +50,7 @@ legend =
 attenuverterPanel :: Module
 attenuverterPanel = Module
   { modName = "panel"
-  , modOutDir = "modules/attenuverter/panel"
+  , modOutDir = "modules/attenuverter/kicad/panel"
   , modTitle = "UTIL-01 ATTENUVERTER front panel, 6HP"
   , modHP = 6
   , modParts = holes

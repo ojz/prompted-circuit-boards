@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Front panel for MULT as a PCB (aluminium or black FR4 from JLCPCB).
 -- Geometry comes from "Designs.Mult" so the two can never disagree.
-module Designs.MultPanel (multPanel) where
+module MultPanel (multPanel) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           Design
-import           Designs.Mult (colX, panelHeight, panelWidth, railHoleX, railHoleY, rowY, rows)
+import           Mult (colX, panelHeight, panelWidth, railHoleX, railHoleY, rowY, rows)
 
 holeSym :: LibId
 holeSym = LibId "Mechanical" "MountingHole"
@@ -46,7 +46,7 @@ legend =
 multPanel :: Module
 multPanel = Module
   { modName = "panel"
-  , modOutDir = "modules/mult/panel"
+  , modOutDir = "modules/mult/kicad/panel"
   , modTitle = "MULT front panel, 6HP"
   , modHP = 6
   , modParts = jackHoles ++ railHoles

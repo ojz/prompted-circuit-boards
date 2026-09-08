@@ -9,6 +9,7 @@
 module Main (main) where
 
 import           Control.Monad      (forM_, when)
+import           Data.Maybe         (fromMaybe)
 import           Data.Text          (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
@@ -19,11 +20,11 @@ import           System.FilePath    ((</>), (<.>))
 import           System.IO          (hPutStrLn, stderr)
 
 import           Design
-import           Designs.Attenuverter      (attenuverter)
-import           Designs.AttenuverterPanel (attenuverterPanel)
-import           Designs.Mult       (mult)
-import           Designs.MultPanel  (multPanel)
-import           Designs.RouteTest  (routeTest)
+import           Attenuverter      (attenuverter)
+import           AttenuverterPanel (attenuverterPanel)
+import           Mult       (mult)
+import           MultPanel  (multPanel)
+import           RouteTest  (routeTest)
 import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
@@ -53,7 +54,7 @@ main = do
 run :: String -> Maybe FilePath -> IO ()
 run name mOut = do
   m <- maybe (hPutStrLn stderr ("unknown design: " ++ name) >> exitFailure) pure (lookup name designs)
-  let outDir = maybe (".." </> modOutDir m) id mOut
+  let outDir = fromMaybe (modOutDir m) mOut
   lc <- newLibCache
   share <- findKicadShare
   putStrLn ("KiCad libraries: " ++ share)

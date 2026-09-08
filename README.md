@@ -19,7 +19,8 @@ The fix is to treat KiCad as a compile target. A design is a small Haskell
 value. A generator turns it into `.kicad_sch`, `.kicad_pcb`, `.kicad_pro` and
 `.kicad_dru` files that KiCad accepts as its own, and headless tools do the
 rest. Nothing depends on a window being open, and regenerating a module is a
-one-line command that produces byte-identical files.
+one-line command that produces byte-identical files. The MCP server has since
+been removed.
 
 ## What we use, and why
 
@@ -27,46 +28,57 @@ one-line command that produces byte-identical files.
 |------|------|-----|
 | **KiCad 10** | Symbol and footprint libraries, ERC/DRC, zone filling, Gerber/drill/position export, renders. | The libraries are the reference for real parts, the checks are the industry standard, and everything we need runs from `kicad-cli` without a GUI. `kicad-cli pcb drc --refill-zones --save-board` fills copper pours headlessly, which removed the last reason to open the editor. |
 | **pcbgen** (`toolkit/`, Haskell) | Turns a design description into a complete KiCad project. | Designs become reviewable code with stable diffs. Library symbols and footprints are embedded verbatim from KiCad's own files, so the generated project passes KiCad's "matches library" check. Deterministic UUIDs keep regenerated files identical. Haskell because the s-expression format maps cleanly onto algebraic data types and the type checker catches malformed output before KiCad does. |
+| **pcbgen router** (`toolkit/src/Route/`) | Autoroutes every board: two-layer grid A* per net with negotiated congestion, then string pulling into any-angle traces. | Written in Haskell to get to the bottom of the problem rather than treat routing as a black box. Every result is verified by KiCad's DRC, never by the router itself, and `route-report.md` next to each board scores every net (length, vias, detour ratio) so changes are comparable across commits. |
 | **kicad-cli** | ERC, DRC with schematic parity, zone refill, SVG/PNG renders, fabrication exports. | Exit codes gate commits. The repo rule is that no schematic or layout change lands without a clean ERC and DRC. |
 | **KiKit** | JLCPCB fabrication bundle (Gerbers, drill, BOM, CPL) and panelization of several modules into one order. | Headless, scriptable, supports KiCad 10 since v1.8.0, and replaces the GUI-only Fabrication Toolkit plugin. Runs on KiCad's bundled Python. |
-| **Konnect** MCP server | Read-only inspection: rendering a schematic, listing pins, searching libraries, checking a board. | Its library search and renders are useful during design. It is no longer used to edit files. |
 | **kicad-happy** skills | Design review, EMC and DFM checks, distributor lookups. | Independent second opinion on a generated design before ordering. |
-| **pcbgen router** (`toolkit/src/Route/`) | Autoroutes every board: two-layer grid A* per net with negotiated congestion, then string pulling into any-angle traces. | Written in Haskell to get to the bottom of the problem rather than treat routing as a black box. Every result is verified by KiCad's DRC, never by the router itself, and `modules/<name>/route-report.md` scores each net (length, vias, detour ratio) so changes are comparable across commits. |
 | **Freerouting** | Available as a fallback, unused. | Kept in case a board outgrows the in-house router. |
 
 ## Workflow
 
-1. Describe or change a module in `toolkit/src/Designs/<Name>.hs` and write
-   or update `modules/<name>/SPEC.md` with the panel geometry and intent.
-2. Generate the KiCad projects (`all`, or one design name):
+1. Describe or change a module in `modules/<name>/<Name>.hs` and write or
+   update `modules/<name>/SPEC.md` next to it with the panel geometry and
+   intent. The design file is the netlist and the placement; there is no other
+   input.
+2. Generate the KiCad projects from the repository root (`all`, or one design
+   name):
    ```
-   cd toolkit && cabal run pcbgen -- all
+   cabal run pcbgen -- all
    ```
-   Files land in `modules/<name>/` (and `modules/<name>/panel/` for a front
-   panel). Generated files are never edited by hand.
-3. Verify headlessly. This copies the project to `build/`, runs ERC, DRC with
-   zone refill and schematic parity, and renders both sides:
+   Files land in `modules/<name>/kicad/` (and `modules/<name>/kicad/panel/`
+   for a front panel), together with `route-report.md`. Generated files are
+   never edited by hand; they are committed so the repo shows the result.
+3. Verify headlessly. This copies the project to `modules/<name>/build/`, runs
+   ERC, DRC with zone refill and schematic parity, and renders both sides:
    ```
    toolkit/check.sh mult
-   toolkit/check.sh mult/panel
+   toolkit/check.sh mult panel
    ```
 4. Look at the renders in `build/`, or open the project in KiCad to inspect it.
 5. Export for JLCPCB with KiKit. Output goes to `build/fab/` and is never
    committed:
    ```
    toolkit/fab.sh mult
-   toolkit/fab.sh mult/panel
+   toolkit/fab.sh mult panel
    ```
 
 ## Repository layout
 
 ```
-toolkit/          pcbgen: Haskell generator, one module per design in src/Designs
-modules/<name>/   generated KiCad project + hand-written SPEC.md
-CLAUDE.md         rules the agent follows (panel geometry, power, footprints)
-SETUP.md          workstation bootstrap
-RESEARCH.md       background and tool survey
-MODULES.md        module roadmap
+pcbgen.cabal        the Haskell package; cabal runs from the repo root
+toolkit/src/        pcbgen: design model, KiCad emitters, router
+toolkit/app/        pcbgen executable and design registry
+toolkit/*.sh        check.sh (ERC/DRC/renders) and fab.sh (JLCPCB bundle)
+lib/footprints/     footprints the official KiCad library lacks
+modules/<name>/     one directory per module:
+  <Name>.hs           design source (module), <Name>Panel.hs (front panel)
+  SPEC.md             hand-written intent and geometry
+  kicad/, kicad/panel/  generated KiCad projects (committed)
+  build/              verification and fabrication output (ignored)
+CLAUDE.md           rules the agent follows (panel geometry, power, footprints)
+SETUP.md            workstation bootstrap
+RESEARCH.md         background and tool survey
+MODULES.md          module roadmap
 ```
 
 ## Modules

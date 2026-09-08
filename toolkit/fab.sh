@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Produce the JLCPCB fabrication bundle for a checked module with KiKit.
 #
-#   toolkit/fab.sh <module-dir> [stem]      e.g. toolkit/fab.sh mult
-#                                                toolkit/fab.sh mult/panel
+#   toolkit/fab.sh <module> [sub]      e.g. toolkit/fab.sh mult
+#                                           toolkit/fab.sh mult panel
 #
 # Requires toolkit/check.sh to have run first: KiKit works on the zone-filled
-# board in modules/<module-dir>/build/. Output: build/fab/gerbers.zip, plus
+# board in modules/<module>/build/. Output: build/fab/gerbers.zip, plus
 # bom.csv and pos.csv when the module has JLCPCB-assembled parts.
 #
 # KiKit lives in KiCad's bundled Python (pip install kikit from the KiCad
@@ -20,9 +20,10 @@ else
   export PCBGEN_LIB="$PWD/lib/footprints"
 fi
 
-REL="${1:?usage: fab.sh <module-dir> [stem]}"
-MOD="${2:-$(basename "$REL")}"
-BUILD="modules/$REL/build"
+MODULE="${1:?usage: fab.sh <module> [sub]}"
+SUB="${2:-}"
+MOD="${SUB:-$(basename "$MODULE")}"
+BUILD="modules/$MODULE/build${SUB:+/$SUB}"
 OUT="$BUILD/fab"
 
 if [ -n "${KIKIT_PYTHON:-}" ]; then
@@ -35,7 +36,7 @@ else
 fi
 : "${PY:?KiCad python.exe not found; set KIKIT_PYTHON}"
 
-[ -f "$BUILD/$MOD.kicad_pcb" ] || { echo "run toolkit/check.sh $REL first"; exit 1; }
+[ -f "$BUILD/$MOD.kicad_pcb" ] || { echo "run toolkit/check.sh $MODULE $SUB first"; exit 1; }
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
