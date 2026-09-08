@@ -571,23 +571,39 @@ toRouted g cfg lineOk net terms paths =
       (p : _) -> Just p
       []      -> Nothing
 
+    -- Cells where a later path of this net branches off an earlier one. They
+    -- must survive pulling and simplification as vertices, or the branch
+    -- would start in mid-air next to the straightened parent trace.
+    junctions = IS.fromList [ head p | p <- paths, not (null p) ]
+
     tracesOf path =
-      let cells = map (cellCoords g) path
-          runs = splitLayers cells
+      let runs = splitLayers [ (c, cellCoords g c) | c <- path ]
       in concat
-           [ let pts = map (\(_, x, y) -> cellCentre g x y) run
-                 pts' = pull l (simplify pts)
+           [ let tagged = [ (cellCentre g x y, IS.member c junctions) | (c, (_, x, y)) <- run ]
+                 pts' = pullKeep l tagged
                  startSnap = [ p | isFirst, Just p <- [padCentreOf (head path)], p /= head pts' ]
                  endSnap = [ p | isLast, Just p <- [padCentreOf (last path)], p /= last pts' ]
                  full = startSnap ++ pts' ++ endSnap
              in [ RTrace net (ixLayer l) (rcWidth cfg) full | length full >= 2 ]
-           | (i, run@((l, _, _) : _)) <- zip [0 :: Int ..] runs
+           | (i, run@((_, (l, _, _)) : _)) <- zip [0 :: Int ..] runs
            , let isFirst = i == 0, let isLast = i == length runs - 1 ]
 
     splitLayers [] = []
-    splitLayers (c@(l, _, _) : cs) =
-      let (same, rest) = span (\(l', _, _) -> l' == l) cs
+    splitLayers (c@(_, (l, _, _)) : cs) =
+      let (same, rest) = span (\(_, (l', _, _)) -> l' == l) cs
       in (c : same) : splitLayers rest
+
+    -- Straighten each stretch between kept vertices on its own.
+    pullKeep l tagged = joinPieces [ pull l (simplify (map fst piece)) | piece <- splitKeep tagged ]
+    splitKeep [] = []
+    splitKeep (x : xs) =
+      let (body, rest) = break snd xs
+      in case rest of
+           []       -> [x : body]
+           (k : ks) -> (x : body ++ [k]) : splitKeep (k : ks)
+    joinPieces []       = []
+    joinPieces [p]      = p
+    joinPieces (p : ps) = p ++ drop 1 (joinPieces ps)
 
     -- String pulling: from each point, jump to the farthest later point the
     -- trace can reach in a straight line. Turns grid staircases into the

@@ -12,6 +12,14 @@
 # Command Prompt); KIKIT_PYTHON overrides the interpreter.
 set -euo pipefail
 
+# Repository footprint library, referenced as ${PCBGEN_LIB} by each module's
+# fp-lib-table. KiCad wants a native Windows path under Git Bash.
+if command -v cygpath >/dev/null 2>&1; then
+  export PCBGEN_LIB="$(cygpath -m "$PWD")/lib/footprints"
+else
+  export PCBGEN_LIB="$PWD/lib/footprints"
+fi
+
 REL="${1:?usage: fab.sh <module-dir> [stem]}"
 MOD="${2:-$(basename "$REL")}"
 BUILD="modules/$REL/build"
@@ -33,6 +41,10 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 # Only request assembly files when some part carries an LCSC Part # field.
+# Parts without one (jacks, pots, the power header) are hand-soldered; pcbgen
+# marks their footprints exclude_from_pos_files, which keeps them out of the
+# CPL and, through KiKit, out of the assembly BOM. (KiKit's own --ignore
+# option crashes KiCad 10's plot bindings, so it is not used.)
 ASSEMBLY=()
 if grep -q '"LCSC Part #"' "$BUILD/$MOD.kicad_sch" 2>/dev/null; then
   ASSEMBLY=(--assembly --schematic "$BUILD/$MOD.kicad_sch" --field "LCSC Part #" --missingError)

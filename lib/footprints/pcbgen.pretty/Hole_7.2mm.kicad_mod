@@ -1,0 +1,86 @@
+(footprint "Hole_7.2mm"
+	(version 20241229)
+	(generator "pcbgen")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Plain 7.2 mm panel hole for a 9 mm Alpha potentiometer bushing (7 mm, M7x0.75)")
+	(tags "mounting hole 7.2mm potentiometer bushing panel")
+	(property "Reference" "REF**"
+		(at 0 -4.8 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a01")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "Hole_7.2mm"
+		(at 0 4.8 0)
+		(layer "F.Fab")
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a02")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a03")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a04")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom)
+	(fp_circle
+		(center 0 0)
+		(end 3.6 0)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(fill no)
+		(layer "Cmts.User")
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a05")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 3.85 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a06")
+	)
+	(pad "" np_thru_hole circle
+		(at 0 0)
+		(size 7.2 7.2)
+		(drill 7.2)
+		(layers "*.Cu" "*.Mask")
+		(uuid "0d9b1c4e-7a21-4f6b-9b3a-2e5f1c8d7a07")
+	)
+	(embedded_fonts no)
+)

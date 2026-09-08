@@ -142,9 +142,16 @@ emitPart symTable pinNet u sheetUuid proj p =
       ref = partRef p
       pos = partSchAt p
       rot = partSchRot p
-      instanceE = symbolInstance u sheetUuid proj (partSymbol p) s ref (partValue p) (Just (partFootprint p)) (partFields p) pos rot False
-      pins = symbolPins s
-      pinItems = concat
+      -- Multi-unit symbols (dual op-amps) become one instance per unit, all
+      -- sharing the reference. Unit 1 sits at partSchAt; the others at the
+      -- design's offsets or, failing that, stacked below.
+      unitPos k
+        | k <= 1 = pos
+        | otherwise = add pos $ case drop (k - 2) (partUnitOffsets p) of
+            (o : _) -> o
+            []      -> (0, 25.4 * fromIntegral (k - 1))
+      unitKey k = if k <= 1 then ref else ref <> "/u" <> T.pack (show k)
+      pinItems upos pins = concat
         [ case M.lookup (ref, pinNumber d) pinNet of
             Nothing -> [ List [Atom "no_connect", list "at" [num px, num py], list "uuid" [Str (u ("nc/" <> ref <> "/" <> pinNumber d))]] ]
             Just n | netKind n == Signal ->
@@ -152,28 +159,41 @@ emitPart symTable pinNet u sheetUuid proj p =
               in [ wire u (ref <> "/" <> pinNumber d <> "/stub") pt q
                  , label u (ref <> "/" <> pinNumber d) (netName n) q (labelAngle dir) ]
             Just n ->
-              powerDrop symTable u sheetUuid proj (ref <> "_" <> pinNumber d) (netName n) pt dir (snd pt < snd pos)
+              powerDrop symTable u sheetUuid proj (ref <> "_" <> pinNumber d) (netName n) pt dir (snd pt < snd upos)
         | d <- pins
-        , let pt@(px, py) = add pos (libToScreen rot (pinX d, pinY d))
+        , let pt@(px, py) = add upos (libToScreen rot (pinX d, pinY d))
         , let dir = outward rot d
         ]
-  in instanceE : pinItems
+  in concat
+       [ symbolInstance u sheetUuid proj (partSymbol p) s ref (partValue p) (Just (partFootprint p)) (partFields p) (unitPos k) rot False k (unitKey k) pins
+         : pinItems (unitPos k) pins
+       | k <- symbolUnits s
+       , let pins = symbolPinsOfUnit k s ]
 
--- | Stub away from a pin and a power symbol at its end. Horizontal pins get a
--- second, vertical stub so the symbol does not sit in the neighbouring pin's
--- label.
+-- | Stub away from a pin and the power net at its end: a power symbol on
+-- vertical pins, a global label on horizontal ones. Global labels join the
+-- power symbol's net by name, and unlike a symbol bent around the corner
+-- they cannot touch the stub of the pin 2.54 mm above or below (a header's
+-- GND pins next to its rail pins did exactly that).
 powerDrop :: M.Map LibId SExpr -> (Text -> Text) -> Text -> Text -> Text -> Text -> Pt -> Pt -> Bool -> [SExpr]
-powerDrop symTable u sheetUuid proj key net pt dir up
+powerDrop symTable u sheetUuid proj key net pt dir _up
   | snd dir == 0 =
-      let q1 = add pt (scale 2.54 dir)
-          q2 = add q1 (0, if up then -2.54 else 2.54)
-          rot = if up then 180 else 0
-      in [ wire u (key <> "/stub1") pt q1, wire u (key <> "/stub2") q1 q2
-         , powerSymbol symTable u sheetUuid proj ("PWR_" <> key) net q2 rot ]
+      let q = add pt (scale 2.54 dir)
+      in [ wire u (key <> "/stub") pt q
+         , globalLabel u key net q (labelAngle dir) ]
   | otherwise =
       let q = add pt (scale 2.54 dir)
       in [ wire u (key <> "/stub") pt q
          , powerSymbol symTable u sheetUuid proj ("PWR_" <> key) net q (powerRot dir) ]
+
+globalLabel :: (Text -> Text) -> Text -> Text -> Pt -> Double -> SExpr
+globalLabel u key net (x, y) angle =
+  let justify = if angle == 0 || angle == 90 then [sym "left"] else [sym "right"]
+  in List [ Atom "global_label", Str net
+          , list "shape" [sym "passive"]
+          , list "at" [num x, num y, num angle]
+          , list "effects" [list "font" [list "size" [num 1.27, num 1.27]], list "justify" justify]
+          , list "uuid" [Str (u ("glabel/" <> key))] ]
 
 -- | A power symbol whose pin lands exactly on @pt@.
 powerSymbol :: M.Map LibId SExpr -> (Text -> Text) -> Text -> Text -> Text -> Text -> Pt -> Double -> SExpr
@@ -184,7 +204,7 @@ powerSymbol symTable u sheetUuid proj ref net pt rot =
         (d : _) -> libToScreen rot (pinX d, pinY d)
         []      -> (0, 0)
       pos = add pt (scale (-1) pinOff)
-  in symbolInstance u sheetUuid proj lid s ("#" <> ref) net Nothing [] pos rot True
+  in symbolInstance u sheetUuid proj lid s ("#" <> ref) net Nothing [] pos rot True 1 ("#" <> ref) (symbolPins s)
 
 -- | PWR_FLAG and a power symbol sharing one point, for nets no output drives.
 powerPair :: M.Map LibId SExpr -> (Text -> Text) -> Text -> Text -> Text -> Text -> Pt -> [SExpr]
@@ -194,13 +214,15 @@ powerPair symTable u sheetUuid proj key net pt =
       pinOff = case symbolPins fs of
         (d : _) -> libToScreen 0 (pinX d, pinY d)
         []      -> (0, 0)
-  in [ symbolInstance u sheetUuid proj flagLid fs ("#" <> key) "PWR_FLAG" Nothing [] (add pt (scale (-1) pinOff)) 0 True
+  in [ symbolInstance u sheetUuid proj flagLid fs ("#" <> key) "PWR_FLAG" Nothing [] (add pt (scale (-1) pinOff)) 0 True 1 ("#" <> key) (symbolPins fs)
      , powerSymbol symTable u sheetUuid proj ("PWR_" <> key) net pt 0 ]
 
-symbolInstance :: (Text -> Text) -> Text -> Text -> LibId -> SExpr -> Text -> Text -> Maybe LibId -> [(Text, Text)] -> Pt -> Double -> Bool -> SExpr
-symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower =
+-- | One symbol instance: @unit@ and its pins, keyed for UUIDs by @key@
+-- (the reference for unit 1, so single-unit output is unchanged).
+symbolInstance :: (Text -> Text) -> Text -> Text -> LibId -> SExpr -> Text -> Text -> Maybe LibId -> [(Text, Text)] -> Pt -> Double -> Bool -> Int -> Text -> [PinDef] -> SExpr
+symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower unit key unitPins =
   let libId = libNick lid <> ":" <> libItem lid
-      symU = u ("sym/" <> ref)
+      symU = u ("sym/" <> key)
       propAt name = case symbolPropertyAt name s of
         Just (ox, oy, _) -> add pos (libToScreen rot (ox, oy))
         Nothing          -> pos
@@ -214,7 +236,7 @@ symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower =
       desc = fromMaybe "" (symbolPropertyValue "Description" s)
       datasheet = fromMaybe "" (lookup "Datasheet" extra)
       extraProps = [ prop k v True | (k, v) <- extra, k /= "Datasheet" ]
-      pins = [ List [Atom "pin", Str (pinNumber d), list "uuid" [Str (u ("pin/" <> ref <> "/" <> pinNumber d))]] | d <- symbolPins s ]
+      pins = [ List [Atom "pin", Str (pinNumber d), list "uuid" [Str (u ("pin/" <> key <> "/" <> pinNumber d))]] | d <- unitPins ]
       -- Library symbols carry their own BOM/simulation flags (solder jumpers
       -- are in_bom no); the instance must agree or the footprint parity check
       -- complains.
@@ -225,7 +247,7 @@ symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower =
        [ Atom "symbol"
        , list "lib_id" [Str libId]
        , list "at" [num x, num y, num rot]
-       , list "unit" [num 1]
+       , list "unit" [num (fromIntegral unit)]
        , list "exclude_from_sim" [sym (flag "exclude_from_sim" "no")]
        , list "in_bom" [sym (if isPower then "no" else flag "in_bom" "yes")]
        , list "on_board" [sym (flag "on_board" "yes")]
@@ -237,7 +259,7 @@ symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower =
        , prop "Datasheet" datasheet True
        , prop "Description" desc True
        ] ++ extraProps ++ pins ++
-       [ list "instances" [list "project" [Str proj, list "path" [Str ("/" <> sheetUuid), list "reference" [Str ref], list "unit" [num 1]]]] ]
+       [ list "instances" [list "project" [Str proj, list "path" [Str ("/" <> sheetUuid), list "reference" [Str ref], list "unit" [num (fromIntegral unit)]]]] ]
 
 wire :: (Text -> Text) -> Text -> Pt -> Pt -> SExpr
 wire u key (x1, y1) (x2, y2) =

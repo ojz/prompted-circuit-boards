@@ -5430,11 +5430,19 @@
 	)
 	(segment
 		(start 20.5 58.9)
-		(end 15.1 58.9)
+		(end 19.9 58.9)
 		(width 0.5)
 		(layer "B.Cu")
 		(net "/MULT_B")
 		(uuid "f504e206-9b74-5a55-912d-ccc7a3e4b910")
+	)
+	(segment
+		(start 19.9 58.9)
+		(end 15.1 58.9)
+		(width 0.5)
+		(layer "B.Cu")
+		(net "/MULT_B")
+		(uuid "f504e506-9b74-577c-9ece-84e2d8be87e3")
 	)
 	(segment
 		(start 15.1 58.9)
@@ -5442,7 +5450,7 @@
 		(width 0.5)
 		(layer "B.Cu")
 		(net "/MULT_B")
-		(uuid "f504e506-9b74-577c-9ece-84e2d8be87e3")
+		(uuid "f504e406-9b74-5dcb-8735-b2499869995b")
 	)
 	(segment
 		(start 19.9 58.9)

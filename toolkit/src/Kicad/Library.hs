@@ -11,6 +11,8 @@ module Kicad.Library
   , loadFootprint
   , PinDef (..)
   , symbolPins
+  , symbolUnits
+  , symbolPinsOfUnit
   , symbolPropertyAt
   , symbolPropertyValue
   , isPowerSymbol
@@ -32,13 +34,21 @@ import           Kicad.SExpr
 
 data LibCache = LibCache
   { lcShare :: FilePath
+  , lcLocal :: FilePath                   -- repo footprint libraries (lib/footprints)
   , lcSyms  :: IORef (M.Map Text SExpr)   -- parsed .kicad_sym files by nickname
   }
 
 newLibCache :: IO LibCache
 newLibCache = do
   share <- findKicadShare
-  LibCache share <$> newIORef M.empty
+  local <- findLocalFootprints
+  LibCache share local <$> newIORef M.empty
+
+-- | The repository's own footprint libraries, @lib/footprints/<nick>.pretty@.
+-- @PCBGEN_LIB@ overrides; the default assumes pcbgen runs from @toolkit/@.
+-- KiCad finds the same directory through the per-module @fp-lib-table@.
+findLocalFootprints :: IO FilePath
+findLocalFootprints = fromMaybe (".." </> "lib" </> "footprints") <$> lookupEnv "PCBGEN_LIB"
 
 -- | Locate KiCad's @share/kicad@ directory. @PCBGEN_KICAD_SHARE@ overrides;
 -- otherwise the per-user and machine-wide Windows install paths are tried.
@@ -106,17 +116,30 @@ loadSymbol lc nick name = do
     merge base derived =
       let dProps = [ p | p <- children derived, headSym p == Just "property" ]
           dNames = mapMaybe propName dProps
-          keep c = case headSym c of
+          -- 'children' includes the base's own name string; drop it along
+          -- with the extends link and any property the derived one redefines.
+          keep c@(List (Atom _ : _)) = case headSym c of
             Just "property" -> maybe True (`notElem` dNames) (propName c)
             Just "extends"  -> False
             _               -> True
+          keep _ = False
           baseKept = filter keep (children base)
           -- sub-symbols are named after the base; rename to the derived name
           fixUnit (List (Atom "symbol" : Str u : r))
             | Just suffix <- T.stripPrefix (symName base) u
             = List (Atom "symbol" : Str (symName derived <> suffix) : r)
           fixUnit c = c
-      in List (Atom "symbol" : Str (symName derived) : dProps ++ map fixUnit baseKept)
+          isProp c = headSym c == Just "property"
+          isSub c = headSym c == Just "symbol"
+          isFonts c = headSym c == Just "embedded_fonts"
+          -- Same order KiCad writes: pin settings and flags, properties,
+          -- unit bodies, embedded_fonts. KiCad refuses to load a schematic
+          -- whose lib symbol has properties ahead of pin_names.
+          settings = [ c | c <- baseKept, not (isProp c), not (isSub c), not (isFonts c) ]
+          props = dProps ++ filter isProp baseKept
+          units = map fixUnit (filter isSub baseKept)
+          fonts = filter isFonts baseKept
+      in List (Atom "symbol" : Str (symName derived) : settings ++ props ++ units ++ fonts)
 
     symName (List (Atom "symbol" : Str n : _)) = n
     symName _                                  = ""
@@ -136,28 +159,57 @@ data PinDef = PinDef
   , pinType   :: Text
   } deriving (Show)
 
--- | Every pin of unit 1 (plus the shared unit 0) of a symbol.
+-- | Unit numbers of a symbol, ascending; @[1]@ for a single-unit symbol.
+-- Sub-symbols are named @Name_unit_style@; unit 0 is shared by all units.
+symbolUnits :: SExpr -> [Int]
+symbolUnits s =
+  case [ un | u <- children s, headSym u == Just "symbol", let (un, st) = unitStyle u, un > 0, st <= 1 ] of
+    [] -> [1]
+    us -> uniqSorted us
+  where
+    uniqSorted = foldr (\x acc -> if x `elem` acc then acc else x : acc) [] . sortInts
+    sortInts xs = [ x | x <- [minimum xs .. maximum xs], x `elem` xs ]
+
+-- | Every pin of one unit, including the pins of the shared unit 0. Only the
+-- primary body style is used (style 2 is the De Morgan alternate).
+symbolPinsOfUnit :: Int -> SExpr -> [PinDef]
+symbolPinsOfUnit k s =
+  [ p
+  | u <- children s
+  , headSym u == Just "symbol"
+  , let (un, st) = unitStyle u
+  , un `elem` [0, k], st <= 1
+  , c <- children u
+  , headSym c == Just "pin"
+  , Just p <- [pinDef c]
+  ]
+
+-- | Every pin of a symbol across all its units.
 symbolPins :: SExpr -> [PinDef]
 symbolPins s =
   [ p
   | u <- children s
   , headSym u == Just "symbol"
-  , unitOf u `elem` [0, 1]
+  , let (_, st) = unitStyle u
+  , st <= 1
   , c <- children u
   , headSym c == Just "pin"
   , Just p <- [pinDef c]
   ]
-  where
-    unitOf (List (Atom "symbol" : Str n : _)) =
-      case reverse (T.splitOn "_" n) of
-        (_style : unit : _) -> readInt unit
-        _                   -> 1 :: Int
-    unitOf _ = 1
-    readInt t = case reads (T.unpack t) of
-      [(n, "")] -> n
-      _         -> 1
 
-    pinDef (List (Atom "pin" : Atom ty : _style : rest)) =
+unitStyle :: SExpr -> (Int, Int)
+unitStyle (List (Atom "symbol" : Str n : _)) =
+  case reverse (T.splitOn "_" n) of
+    (style : unit : _) -> (readInt unit, readInt style)
+    _                  -> (1, 1)
+  where
+    readInt t = case reads (T.unpack t) of
+      [(v, "")] -> v
+      _         -> 1 :: Int
+unitStyle _ = (1, 1)
+
+pinDef :: SExpr -> Maybe PinDef
+pinDef (List (Atom "pin" : Atom ty : _style : rest)) =
       let e = List (Atom "pin" : rest)
           at = findChild "at" e
           (x, y, a) = case at of
@@ -171,10 +223,10 @@ symbolPins s =
           nm  = maybe "" strArg (findChild "name" e)
           num = maybe "" strArg (findChild "number" e)
       in Just (PinDef num nm x y a len ty)
-    pinDef _ = Nothing
-
+  where
     strArg (List (_ : Str t : _)) = t
     strArg _                      = ""
+pinDef _ = Nothing
 
 readD :: Text -> Double
 readD t = case reads (fixup (T.unpack t)) of
@@ -215,7 +267,10 @@ isPowerSymbol s = any (\c -> headSym c == Just "power") (children s)
 -- qualified id, version/generator dropped).
 loadFootprint :: LibCache -> Text -> Text -> IO SExpr
 loadFootprint lc nick name = do
-  let path = lcShare lc </> "footprints" </> (T.unpack nick <.> "pretty") </> (T.unpack name <.> "kicad_mod")
+  let official = lcShare lc </> "footprints" </> (T.unpack nick <.> "pretty") </> (T.unpack name <.> "kicad_mod")
+      local = lcLocal lc </> (T.unpack nick <.> "pretty") </> (T.unpack name <.> "kicad_mod")
+  isLocal <- doesFileExist local
+  let path = if isLocal then local else official
   ok <- doesFileExist path
   if not ok then fail ("footprint not found: " ++ path) else do
     txt <- TIO.readFile path

@@ -10,11 +10,20 @@
 # modules/<module-dir>/build/.
 set -euo pipefail
 
+# Repository footprint library, referenced as ${PCBGEN_LIB} by each module's
+# fp-lib-table. KiCad wants a native Windows path under Git Bash.
+if command -v cygpath >/dev/null 2>&1; then
+  export PCBGEN_LIB="$(cygpath -m "$PWD")/lib/footprints"
+else
+  export PCBGEN_LIB="$PWD/lib/footprints"
+fi
+
 REL="${1:?usage: check.sh <module-dir> [stem]}"
 MOD="${2:-$(basename "$REL")}"
 SRC="modules/$REL"
 OUT="$SRC/build"
 mkdir -p "$OUT"
+[ -f "$SRC/fp-lib-table" ] && cp "$SRC/fp-lib-table" "$OUT/"
 
 # DRC with --refill-zones --save-board rewrites the board with filled copper.
 # Work on a copy so the module directory stays exactly what pcbgen produced

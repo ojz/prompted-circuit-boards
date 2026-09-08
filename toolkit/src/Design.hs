@@ -43,11 +43,14 @@ data Part = Part
   , partSchAt     :: (Double, Double)   -- ^ schematic position
   , partSchRot    :: Double
   , partRefOnSilk :: Bool               -- ^ print the reference on the board silkscreen
+  , partUnitOffsets :: [(Double, Double)]
+    -- ^ schematic offset of units 2, 3, ... from 'partSchAt' for multi-unit
+    -- symbols (dual op-amps); units without an entry stack 25.4 mm apart below.
   } deriving (Show)
 
 -- | A front-side, unrotated part with no extra fields.
 part :: Text -> Text -> LibId -> LibId -> (Double, Double) -> (Double, Double) -> Part
-part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True
+part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True []
 
 -- | Power nets become KiCad power symbols and global nets; signal nets become
 -- local net labels, which KiCad names with a leading slash on the board.

@@ -38,10 +38,12 @@ emitPcb lc m info = do
       netByName = M.fromList [ (netName n, pcbNetName n) | n <- modNets m ]
       resolveNet t = fromMaybe ("/" <> t) (M.lookup t netByName)
 
+  -- A module with any LCSC part is one JLCPCB assembles.
+  let assembled = any (isJust . lookup "LCSC Part #" . partFields) (modParts m)
   fps <- mapM (\p -> do
                   raw <- loadFootprint lc (libNick (partFootprint p)) (libItem (partFootprint p))
                   let si = M.lookup (partRef p) (siSymbols info)
-                  pure (placeFootprint u pinNet (name <> ".kicad_sch") p raw si))
+                  pure (placeFootprint u pinNet (name <> ".kicad_sch") assembled p raw si))
               (modParts m)
 
   setup <- either (\e -> fail ("internal setup block: " ++ e)) pure (parseSExprs setupBlock)
@@ -104,8 +106,8 @@ emitPcb lc m info = do
 
 -- Footprints -----------------------------------------------------------------
 
-placeFootprint :: (Text -> Text) -> M.Map (Text, Text) Text -> Text -> Part -> SExpr -> Maybe SymInfo -> SExpr
-placeFootprint u pinNet sheetFile p raw si =
+placeFootprint :: (Text -> Text) -> M.Map (Text, Text) Text -> Text -> Bool -> Part -> SExpr -> Maybe SymInfo -> SExpr
+placeFootprint u pinNet sheetFile assembled p raw si =
   let ref = partRef p
       (x, y) = partAt p
       rot = partRot p
@@ -127,8 +129,21 @@ placeFootprint u pinNet sheetFile p raw si =
         , ("Description", desc, True, "F.Fab")
         ] ++ [ (k, v, True, "F.Fab") | (k, v) <- partFields p, k /= "Datasheet" ]
 
-      kids2 = setProps kids1
+      kids2 = markHandSoldered (setProps kids1)
       kids3 = map (netPad pinNet ref pinNames) kids2
+      -- On a board JLCPCB assembles, a part without an LCSC field is
+      -- hand-soldered: keep it out of the position file so KiKit leaves it
+      -- out of the assembly BOM as well. KiCad's library-mismatch check
+      -- ignores these per-instance placement flags.
+      handSoldered = assembled && isNothing (lookup "LCSC Part #" (partFields p))
+      markHandSoldered kids
+        | not handSoldered = kids
+        | any ((== Just "attr") . headSym) kids = map addExclude kids
+        | otherwise = kids ++ [list "attr" [sym "through_hole", sym "exclude_from_pos_files"]]
+      addExclude (List (Atom "attr" : flags))
+        | Atom "exclude_from_pos_files" `elem` flags = List (Atom "attr" : flags)
+        | otherwise = List (Atom "attr" : flags ++ [sym "exclude_from_pos_files"])
+      addExclude e = e
       -- Flip first, then rotate: KiCad stores a back-side pad's angle as the
       -- footprint rotation minus the library angle, so the mirror must be
       -- applied to the library angle alone.
@@ -178,6 +193,9 @@ propName _                                    = Nothing
 -- | Attach the net to a pad. Pads in no net get KiCad's unconnected name so
 -- the schematic parity check is satisfied.
 netPad :: M.Map (Text, Text) Text -> Text -> [(Text, Text)] -> SExpr -> SExpr
+-- Unnumbered pads (mounting lugs, pegs) belong to no net at all; giving them
+-- a shared "unconnected" name would make KiCad demand a connection between them.
+netPad _ _ _ e@(List (Atom "pad" : Str "" : _)) = e
 netPad pinNet ref pinNames (List (Atom "pad" : Str padNum : rest)) =
   let net = case M.lookup (ref, padNum) pinNet of
         Just n  -> n
