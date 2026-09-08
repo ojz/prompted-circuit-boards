@@ -7,16 +7,21 @@
 -- fills them headlessly afterwards.
 module Emit.Pcb (emitPcb) where
 
+import           Control.Monad   (unless, when)
 import qualified Data.Map.Strict as M
 import           Data.Maybe      (fromMaybe, isJust, isNothing)
 import           Data.Text       (Text)
 import qualified Data.Text       as T
+import           System.IO       (hPutStrLn, stderr)
 
 import           Design
 import           Emit.Schematic  (SchInfo (..), SymInfo (..))
 import           Kicad.Library
 import           Kicad.SExpr
 import           Kicad.Uuid
+import           Route.Extract
+import           Route.Geometry  (Layer (..), Outline (..))
+import           Route.Router
 
 type Pt = (Double, Double)
 
@@ -37,8 +42,41 @@ emitPcb lc m info = do
 
   setup <- either (\e -> fail ("internal setup block: " ++ e)) pure (parseSExprs setupBlock)
 
+  -- Autorouting works in board net names ("/MULT_A"); map back to design names
+  -- so the emitted traces go through the same path as hand-drawn ones.
+  let designName = M.fromList [ (pcbNetName n, netName n) | n <- modNets m ]
+      layerName F = "F.Cu"
+      layerName B = "B.Cu"
+      layerOf t = if t == "B.Cu" then B else F
+  (autoTraces, autoVias) <- case bdAutoRoute bd of
+    Nothing -> pure ([], [])
+    Just ar -> do
+      let rules = bdRules bd
+          cfg = (defaultRouteConfig (map resolveNet (arNets ar)))
+                  { rcPitch = arPitch ar, rcWidth = arWidth ar
+                  , rcClearance = drClearance rules, rcEdgeClearance = drEdgeClearance rules
+                  , rcViaDiameter = arViaDiameter ar, rcViaDrill = arViaDrill ar }
+          pre = [ (resolveNet (trNet t), layerOf (trLayer t), trWidth t, trPath t) | t <- bdTraces bd ]
+          prob = RouteProblem
+            { rpOutline = Outline (bdWidth bd) (bdHeight bd) (bdCornerRadius bd)
+            , rpPads = concatMap padsOfFootprint fps
+            , rpKeepouts = concatMap keepoutsOfFootprint fps
+            , rpPreRouted = pre }
+          res = autoroute cfg prob
+      mapM_ (putStrLn . ("autoroute: " ++) . T.unpack) (rrLog res)
+      unless (null (rrFailed res)) $
+        hPutStrLn stderr ("autoroute: could not complete nets: " ++ T.unpack (T.intercalate ", " (rrFailed res)))
+      when (rrConflicts res > 0) $
+        hPutStrLn stderr ("autoroute: " ++ show (rrConflicts res) ++ " contested cells remain; DRC will report them")
+      let toDesign n = fromMaybe n (M.lookup n designName)
+          traces = [ Trace (toDesign (rtNet t)) (layerName (rtLayer t)) (rtWidth t) (rtPath t)
+                   | rn <- rrNets res, t <- rnTraces rn ]
+          vias = [ (rvNet v, rvAt v, rvDiameter v, rvDrill v) | rn <- rrNets res, v <- rnVias rn ]
+      pure (traces, vias)
+
   let outline = boardOutline u bd
-      segments = concat [ segmentsFor u resolveNet i t | (i, t) <- zip [0 :: Int ..] (bdTraces bd) ]
+      segments = concat [ segmentsFor u resolveNet i t | (i, t) <- zip [0 :: Int ..] (bdTraces bd ++ autoTraces) ]
+      viaItems = [ viaFor u i v | (i, v) <- zip [0 :: Int ..] autoVias ]
       zones = [ zoneFor u resolveNet z | z <- bdZones bd ]
       texts = [ textFor u i t | (i, t) <- zip [0 :: Int ..] (bdTexts bd) ]
 
@@ -50,7 +88,7 @@ emitPcb lc m info = do
         , list "general" [list "thickness" [num 1.6], list "legacy_teardrops" [sym "no"]]
         , list "paper" [Str "A4"]
         , list "title_block" [list "title" [Str (modTitle m)]]
-        ] ++ setup ++ fps ++ outline ++ segments ++ zones ++ texts ++
+        ] ++ setup ++ fps ++ outline ++ segments ++ viaItems ++ zones ++ texts ++
         [ list "embedded_fonts" [sym "no"] ]
   pure (render pcb)
 
@@ -263,6 +301,16 @@ segmentsFor u resolveNet i t =
          , list "net" [Str (resolveNet (trNet t))]
          , list "uuid" [Str (u ("seg/" <> T.pack (show i) <> "/" <> T.pack (show j)))] ]
   | (j, ((x1, y1), (x2, y2))) <- zip [0 :: Int ..] (zip (trPath t) (drop 1 (trPath t))) ]
+
+viaFor :: (Text -> Text) -> Int -> (Text, (Double, Double), Double, Double) -> SExpr
+viaFor u i (net, (x, y), d, drill) =
+  List [ Atom "via"
+       , list "at" [num x, num y]
+       , list "size" [num d]
+       , list "drill" [num drill]
+       , list "layers" [Str "F.Cu", Str "B.Cu"]
+       , list "net" [Str net]
+       , list "uuid" [Str (u ("via/" <> T.pack (show i)))] ]
 
 zoneFor :: (Text -> Text) -> (Text -> Text) -> Zone -> SExpr
 zoneFor u resolveNet z =

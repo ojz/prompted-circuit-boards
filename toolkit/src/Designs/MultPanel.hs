@@ -57,6 +57,7 @@ multPanel = Module
       , bdCornerRadius = 1.0
       , bdRules = defaultRules
       , bdTraces = []
+      , bdAutoRoute = Nothing
       , bdZones = []
       , bdTexts = legend
       , bdCustomRules = ""

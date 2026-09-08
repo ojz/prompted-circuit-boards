@@ -14,6 +14,8 @@ module Design
   , BoardText (..)
   , DesignRules (..)
   , defaultRules
+  , AutoRoute (..)
+  , autoRoute
   , Board (..)
   , Module (..)
   , pcbNetName
@@ -102,12 +104,26 @@ defaultRules = DesignRules
   { drClearance = 0.2, drTrackWidth = 0.2, drViaDiameter = 0.6, drViaDrill = 0.3
   , drHoleToHole = 0.5, drEdgeClearance = 0.5 }
 
+-- | Which nets the grid router should connect, and with what copper.
+-- Hand-drawn 'bdTraces' stay and count as existing copper of their net.
+data AutoRoute = AutoRoute
+  { arNets        :: [Text]     -- ^ design net names
+  , arPitch       :: Double     -- ^ grid cell, mm
+  , arWidth       :: Double     -- ^ trace width, mm
+  , arViaDiameter :: Double
+  , arViaDrill    :: Double
+  } deriving (Show)
+
+autoRoute :: [Text] -> AutoRoute
+autoRoute nets = AutoRoute nets 0.2 0.3 0.6 0.3
+
 data Board = Board
   { bdWidth        :: Double
   , bdHeight       :: Double
   , bdCornerRadius :: Double
   , bdRules        :: DesignRules
   , bdTraces       :: [Trace]
+  , bdAutoRoute    :: Maybe AutoRoute
   , bdZones        :: [Zone]
   , bdTexts        :: [BoardText]
   , bdCustomRules  :: Text          -- ^ body of the .kicad_dru file (may be empty)

@@ -9,6 +9,7 @@
 -- does not fit. Two columns of six fit with room to spare.
 module Designs.Mult
   ( mult
+  , handRouted
     -- * Geometry shared with the panel design
   , hp, panelWidth, panelHeight
   , colX, rowY, rows
@@ -120,6 +121,11 @@ nets =
 
 -- Copper ---------------------------------------------------------------------
 
+-- | Hand routing, available via 'handRouted' if the autorouter is ever
+-- switched off for this board.
+handRouted :: [Trace]
+handRouted = tipBus "MULT_A" 0 ++ tipBus "MULT_B" 1 ++ jumperLinks
+
 -- | Each column's tips share a vertical bus 3 mm inboard of the pad column.
 busX :: Int -> Double
 busX 0 = fst (jackAt 0 0) + 3.0                           -- 9.5
@@ -148,7 +154,10 @@ board = Board
   , bdHeight = boardH
   , bdCornerRadius = 1.0
   , bdRules = defaultRules
-  , bdTraces = tipBus "MULT_A" 0 ++ tipBus "MULT_B" 1 ++ jumperLinks
+    -- The hand routing (tipBus, jumperLinks) is kept as a reference; the
+    -- board is routed by the grid router so the mult doubles as its test.
+  , bdTraces = []
+  , bdAutoRoute = Just (autoRoute ["MULT_A", "MULT_B"]) { arWidth = 0.5 }
   , bdZones =
       [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25
       , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25

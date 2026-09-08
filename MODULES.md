@@ -1,6 +1,6 @@
 # Modules
 
-This file gives an overview of all the modules that I want to include in this project.
+- eurorack compatible
 
 ## POW-01
 
@@ -32,5 +32,8 @@ This file gives an overview of all the modules that I want to include in this pr
 
 - SMT remake of Gijs Gieskes' 3TrinsRGB+1c video synthesizer, assembled by JLCPCB
 - more capable MCU than the original
-- standalone device, not Eurorack: needs its own panel and enclosure conventions
+- standalone device, Eurorack compatible.
+- lasercut wood enclosure
+- open source hardware, open source software
+- built-in monitor + speaker
 - check the original's licence/permission before publishing derivative files
