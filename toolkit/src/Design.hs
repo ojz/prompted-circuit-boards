@@ -21,6 +21,8 @@ module Design
   , pcbNetName
   , eurorackPanelWidth
   , eurorackPanelHeight
+  , eurorackPcbHeight
+  , eurorackPcbTop
   ) where
 
 import           Data.Text (Text)
@@ -167,3 +169,13 @@ eurorackPanelWidth hp = case hp of
 -- | Doepfer 3U front panel height.
 eurorackPanelHeight :: Double
 eurorackPanelHeight = 128.5
+
+-- | Tallest PCB that clears the mounting rails on every 3U case. Doepfer
+-- lists 110 mm as the usable height behind the panel; 108 mm also clears
+-- the deeper rail profiles, so it is the repo default. Centred on the panel.
+eurorackPcbHeight :: Double
+eurorackPcbHeight = 108.0
+
+-- | Where the PCB's top edge sits below the panel's top edge when centred.
+eurorackPcbTop :: Double
+eurorackPcbTop = (eurorackPanelHeight - eurorackPcbHeight) / 2   -- 10.25

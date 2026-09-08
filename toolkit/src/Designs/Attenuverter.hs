@@ -56,11 +56,11 @@ railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
 
 boardW, boardH :: Double
 boardW = panelWidth - 2.0                                 -- 28.0
-boardH = 108.0
+boardH = eurorackPcbHeight                                -- 108.0
 
 boardOffsetX, boardOffsetY :: Double
 boardOffsetX = 1.0
-boardOffsetY = (panelHeight - boardH) / 2                 -- 10.25
+boardOffsetY = eurorackPcbTop                             -- 10.25
 
 toBoard :: (Double, Double) -> (Double, Double)
 toBoard (x, y) = (x - boardOffsetX, y - boardOffsetY)
