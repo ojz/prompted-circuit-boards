@@ -84,6 +84,7 @@ data Grid = Grid
   , gPitch  :: !Double
   , gOwner  :: !(UArray Int Int)   -- ^ 0 free, n>0 pad copper of net n, -1 hard obstacle
   , gNear   :: !(UArray Int Int)   -- ^ 0 none, n>0 within clearance of net n only, -1 of several
+  , gViaNear :: !(UArray Int Int)  -- ^ same, inflated for a via's larger radius
   }
 
 nLayers :: Int
@@ -124,9 +125,11 @@ buildGrid cfg prob netIds =
       w = ceiling (olWidth ol / pitch)
       h = ceiling (olHeight ol / pitch)
       size = nLayers * w * h
-      g0 = Grid w h pitch (listArray (0, size - 1) (replicate size 0)) (listArray (0, size - 1) (replicate size 0))
+      blank = listArray (0, size - 1) (replicate size 0) :: UArray Int Int
+      g0 = Grid w h pitch blank blank blank
       halfW = rcWidth cfg / 2
       infl = halfW + rcClearance cfg
+      viaInfl = rcViaDiameter cfg / 2 + rcClearance cfg + 0.75 * pitch
 
       netId n = fromMaybe 0 (M.lookup n netIds)
 
@@ -164,7 +167,15 @@ buildGrid cfg prob netIds =
         | old == new = old
         | otherwise = -1
       nearArr = accumArray merge 0 (0, size - 1) nearWrites :: UArray Int Int
-  in g0 { gOwner = ownerArr, gNear = nearArr }
+      -- A via is a through-hole: it must clear pads on both layers, with its
+      -- own, larger radius. Hard obstacles block vias too.
+      viaWrites = concat
+        [ [ (cellIdx g0 l x y, nid)
+          | l <- [0 .. nLayers - 1], (x, y) <- cellsAround g0 (pgAt p) (shapeRadius (pgShape p) + viaInfl + pitch)
+          , distToShape (pgShape p) (pgAt p) (cellCentre g0 x y) <= viaInfl ]
+        | p <- rpPads prob, let nid = maybe (-1) netId (pgNet p), nid /= 0 ]
+      viaArr = accumArray merge 0 (0, size - 1) viaWrites :: UArray Int Int
+  in g0 { gOwner = ownerArr, gNear = nearArr, gViaNear = viaArr }
 
 -- Occupancy of routed copper --------------------------------------------------
 
@@ -175,7 +186,7 @@ type Occ = IM.IntMap (IM.IntMap Int)
 stampCells :: Grid -> RouteConfig -> [(Int, Int, Int)] -> [(Int, Int, Int)] -> [Int]
 stampCells g cfg pathCells viaCells =
   let rTrace = rcWidth cfg + rcClearance cfg + rcPitch cfg      -- centre-to-centre minimum plus one cell of slack for smoothing
-      rVia = rcViaDiameter cfg / 2 + rcWidth cfg / 2 + rcClearance cfg
+      rVia = rcViaDiameter cfg / 2 + rcWidth cfg / 2 + rcClearance cfg + rcPitch cfg
       disc l (cx, cy) r = [ cellIdx g l x y | (x, y) <- cellsAround g (cellCentre g cx cy) r
                           , dist (cellCentre g x y) (cellCentre g cx cy) <= r ]
   in concat [ disc l (x, y) rTrace | (l, x, y) <- pathCells ]
@@ -253,6 +264,7 @@ astar s sources targets targetCentre targetRadius = go open0 g0 IM.empty IS.empt
 
     relax c gc (open, gScore, parent) (nc, stepCost)
       | not (traversable s nc) = (open, gScore, parent)
+      | isVia c nc && not (viaOk c && viaOk nc) = (open, gScore, parent)
       | otherwise =
           let tentative = gc + stepCost * (1 + cellPenalty s nc)
           in case IM.lookup nc gScore of
@@ -260,6 +272,10 @@ astar s sources targets targetCentre targetRadius = go open0 g0 IM.empty IS.empt
                _ -> ( S.insert (tentative + heur nc, nc) open
                     , IM.insert nc tentative gScore
                     , IM.insert nc c parent )
+
+    isVia a b = let (la, _, _) = cellCoords g a; (lb, _, _) = cellCoords g b in la /= lb
+    viaOk c = let v = gViaNear g ! c; o = gOwner g ! c
+              in (v == 0 || v == sNet s) && (o == 0 || o == sNet s)
 
     neighbours c =
       let (l, x, y) = cellCoords g c
@@ -357,7 +373,7 @@ autoroute cfg prob =
         | otherwise =
             let pres = 0.5 * fromIntegral iter
                 (occ', states') = foldl' (routeOne iter pres hist) (occ, states) order
-                contested = [ c | (c, m) <- IM.toList occ', IM.size m > 1 ]
+                contested = contestedCells occ' states'
                 hist' = foldl' (\h c -> IM.insertWith (+) c 1 h) hist contested
                 msg = T.pack ("iteration " ++ show iter ++ ": " ++ show (length contested) ++ " contested cells")
             in if null contested
@@ -377,8 +393,18 @@ autoroute cfg prob =
                    stamps = stampCells grid cfg cells vias
                in (addStamps nid stamps occNo, M.insert n (NetState paths stamps vias False) states)
 
+      -- A conflict is a trace centre (or via) of one net lying inside the
+      -- clearance halo another net has stamped. Halos overlapping each other
+      -- is normal for two legally spaced traces.
+      contestedCells occ states =
+        [ c
+        | (n, st) <- M.toList states, not (nsFailed st)
+        , let nid = netIds M.! n
+        , c <- concat (nsPaths st) ++ [ cellIdx grid l x y | (_, x, y) <- nsVias st, l <- [0 .. nLayers - 1] ]
+        , otherNetsAt occ nid c > 0 ]
+
       finish iter occ states logAcc =
-        let contested = length [ () | (_, m) <- IM.toList occ, IM.size m > 1 ]
+        let contested = length (contestedCells occ states)
             -- A straight run between two points is acceptable when every
             -- sample along it is free terrain for this net and untouched by
             -- other nets' copper.

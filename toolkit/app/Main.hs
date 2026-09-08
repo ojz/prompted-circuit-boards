@@ -20,6 +20,7 @@ import           System.IO          (hPutStrLn, stderr)
 import           Design
 import           Designs.Mult       (mult)
 import           Designs.MultPanel  (multPanel)
+import           Designs.RouteTest  (routeTest)
 import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
@@ -29,6 +30,7 @@ designs :: [(String, Module)]
 designs =
   [ ("mult", mult)
   , ("mult-panel", multPanel)
+  , ("route-test", routeTest)
   ]
 
 main :: IO ()

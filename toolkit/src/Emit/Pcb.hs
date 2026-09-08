@@ -119,8 +119,11 @@ placeFootprint u pinNet sheetFile p raw si =
 
       kids2 = setProps kids1
       kids3 = map (netPad pinNet ref pinNames) kids2
-      kids4 = map (rotateChild rot) kids3
-      kids5 = if side == Back then map flipChild kids4 else kids4
+      -- Flip first, then rotate: KiCad stores a back-side pad's angle as the
+      -- footprint rotation minus the library angle, so the mirror must be
+      -- applied to the library angle alone.
+      kids4 = if side == Back then map flipChild kids3 else kids3
+      kids5 = map (rotateChild rot) kids4
       kids5' = map (absolutizeZone rot (x, y)) kids5
       kids6 = zipWith (addUuid uKey) [0 :: Int ..] kids5'
       atE = list "at" ([num x, num y] ++ [ num rot | rot /= 0 ])

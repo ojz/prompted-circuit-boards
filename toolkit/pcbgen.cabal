@@ -33,6 +33,7 @@ library
         Route.Extract
         Designs.Mult
         Designs.MultPanel
+        Designs.RouteTest
 
 executable pcbgen
     import:           shared
