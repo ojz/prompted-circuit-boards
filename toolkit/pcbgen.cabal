@@ -31,6 +31,8 @@ library
         Route.Geometry
         Route.Router
         Route.Extract
+        Designs.Attenuverter
+        Designs.AttenuverterPanel
         Designs.Mult
         Designs.MultPanel
         Designs.RouteTest

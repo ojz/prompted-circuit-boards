@@ -8,12 +8,14 @@
 - power distribution
 - voltage regulation
 
-## UTIL-01
+## UTIL-01 ATTENUVERTER
 
-- voltage source
-- attenuverter
-- status LED
-- push button
+- dual attenuverter, 6HP: `Vout = (2k − 1) · Vin` per channel, one TL072
+- unpatched inputs normalled to +4.8 V, so each channel doubles as a bipolar offset source
+- SMD on the back for JLCPCB assembly; Thonkiconn jacks, Alpha 9 mm pots and power header hand-soldered
+- first module routed entirely by pcbgen's autorouter
+- project: `modules/attenuverter/`, spec: `modules/attenuverter/SPEC.md`
+- later ideas from the original UTIL-01 sketch, not in this board: status LED, push button
 
 ## OUT-01
 

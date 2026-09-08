@@ -31,7 +31,8 @@ one-line command that produces byte-identical files.
 | **KiKit** | JLCPCB fabrication bundle (Gerbers, drill, BOM, CPL) and panelization of several modules into one order. | Headless, scriptable, supports KiCad 10 since v1.8.0, and replaces the GUI-only Fabrication Toolkit plugin. Runs on KiCad's bundled Python. |
 | **Konnect** MCP server | Read-only inspection: rendering a schematic, listing pins, searching libraries, checking a board. | Its library search and renders are useful during design. It is no longer used to edit files. |
 | **kicad-happy** skills | Design review, EMC and DFM checks, distributor lookups. | Independent second opinion on a generated design before ordering. |
-| **Freerouting** | Available, unused so far. | Utility modules route by hand from explicit coordinates in the design. Kept for larger boards. |
+| **pcbgen router** (`toolkit/src/Route/`) | Autoroutes every board: two-layer grid A* per net with negotiated congestion, then string pulling into any-angle traces. | Written in Haskell to get to the bottom of the problem rather than treat routing as a black box. Every result is verified by KiCad's DRC, never by the router itself, and `modules/<name>/route-report.md` scores each net (length, vias, detour ratio) so changes are comparable across commits. |
+| **Freerouting** | Available as a fallback, unused. | Kept in case a board outgrows the in-house router. |
 
 ## Workflow
 
@@ -73,6 +74,7 @@ MODULES.md        module roadmap
 | Module | HP | Status |
 |--------|----|--------|
 | [mult](modules/mult/SPEC.md) | 6 | 2×6 passive multiple. Module and panel generated, ERC and DRC clean, JLCPCB bundle via KiKit. |
+| [attenuverter](modules/attenuverter/SPEC.md) | 6 | UTIL-01: dual attenuverter with offset normalling, TL072. Autorouted (16 nets, 6 vias), ERC and DRC clean, JLCPCB assembly bundle for the SMD side. Not yet built. |
 
 ## Eurorack conventions baked in
 

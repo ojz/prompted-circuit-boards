@@ -9,6 +9,7 @@
 module Main (main) where
 
 import           Control.Monad      (forM_, when)
+import           Data.Text          (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
 import           System.Directory   (createDirectoryIfMissing)
@@ -18,6 +19,8 @@ import           System.FilePath    ((</>), (<.>))
 import           System.IO          (hPutStrLn, stderr)
 
 import           Design
+import           Designs.Attenuverter      (attenuverter)
+import           Designs.AttenuverterPanel (attenuverterPanel)
 import           Designs.Mult       (mult)
 import           Designs.MultPanel  (multPanel)
 import           Designs.RouteTest  (routeTest)
@@ -28,7 +31,9 @@ import           Kicad.Library
 
 designs :: [(String, Module)]
 designs =
-  [ ("mult", mult)
+  [ ("attenuverter", attenuverter)
+  , ("attenuverter-panel", attenuverterPanel)
+  , ("mult", mult)
   , ("mult-panel", multPanel)
   , ("route-test", routeTest)
   ]
@@ -64,7 +69,20 @@ run name mOut = do
         ]
         -- Routing score next to the board so quality is diffable across commits.
         ++ [ (outDir </> "route-report.md", "# Routing report: " <> modName m <> "\n\n" <> r) | Just r <- [report] ]
+        -- Footprints from the repository's own library need a project
+        -- library table so KiCad's library-mismatch check can find them.
+        ++ [ (outDir </> "fp-lib-table", fpLibTable) | any ((== "pcbgen") . libNick . partFootprint) (modParts m) ]
   forM_ files $ \(path, txt) -> do
     TIO.writeFile path txt
     putStrLn ("wrote " ++ path)
   when (null (modParts m)) $ hPutStrLn stderr "warning: design has no parts"
+
+-- | Project footprint library table pointing at lib/footprints. KiCad expands
+-- PCBGEN_LIB from the environment; check.sh and fab.sh export it.
+fpLibTable :: Text
+fpLibTable = T.unlines
+  [ "(fp_lib_table"
+  , "  (version 7)"
+  , "  (lib (name \"pcbgen\")(type \"KiCad\")(uri \"${PCBGEN_LIB}/pcbgen.pretty\")(options \"\")(descr \"prompted-circuit-boards footprints\"))"
+  , ")"
+  ]
