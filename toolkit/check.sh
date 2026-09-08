@@ -64,9 +64,10 @@ echo "== Renders"
      -o "$OUT/$MOD-front.svg" "$DIR/$MOD.kicad_pcb" >/dev/null
 "$KCLI" pcb export svg --layers "B.Cu,B.SilkS,Edge.Cuts" --page-size-mode 2 --mirror \
      -o "$OUT/$MOD-back.svg" "$DIR/$MOD.kicad_pcb" >/dev/null
-"$KCLI" pcb render --side top    --width 600 --height 2400 --background opaque \
+# Square frame: kicad-cli fits the whole board inside it whatever its aspect.
+"$KCLI" pcb render --side top    --width 1600 --height 1600 --background opaque \
      -o "$OUT/$MOD-top.png"    "$DIR/$MOD.kicad_pcb" >/dev/null
-"$KCLI" pcb render --side bottom --width 600 --height 2400 --background opaque \
+"$KCLI" pcb render --side bottom --width 1600 --height 1600 --background opaque \
      -o "$OUT/$MOD-bottom.png" "$DIR/$MOD.kicad_pcb" >/dev/null
 echo "   $OUT/"
 
