@@ -7,11 +7,14 @@
 -- fills them headlessly afterwards.
 module Emit.Pcb (emitPcb) where
 
+import           Control.Exception (evaluate)
 import           Control.Monad   (unless, when)
 import qualified Data.Map.Strict as M
 import           Data.Maybe      (fromMaybe, isJust, isNothing)
 import           Data.Text       (Text)
 import qualified Data.Text       as T
+import           Numeric         (showFFloat)
+import           System.CPUTime  (getCPUTime)
 import           System.IO       (hPutStrLn, stderr)
 
 import           Design
@@ -25,7 +28,8 @@ import           Route.Router
 
 type Pt = (Double, Double)
 
-emitPcb :: LibCache -> Module -> SchInfo -> IO Text
+-- | The board text and, when the design is autorouted, the score report.
+emitPcb :: LibCache -> Module -> SchInfo -> IO (Text, Maybe Text)
 emitPcb lc m info = do
   let name = modName m
       u s = uuidFor (name <> "/pcb/" <> s)
@@ -48,8 +52,8 @@ emitPcb lc m info = do
       layerName F = "F.Cu"
       layerName B = "B.Cu"
       layerOf t = if t == "B.Cu" then B else F
-  (autoTraces, autoVias) <- case bdAutoRoute bd of
-    Nothing -> pure ([], [])
+  (autoTraces, autoVias, report) <- case bdAutoRoute bd of
+    Nothing -> pure ([], [], Nothing)
     Just ar -> do
       let rules = bdRules bd
           cfg = (defaultRouteConfig (map resolveNet (arNets ar)))
@@ -63,16 +67,22 @@ emitPcb lc m info = do
             , rpKeepouts = concatMap keepoutsOfFootprint fps
             , rpPreRouted = pre }
           res = autoroute cfg prob
+      t0 <- getCPUTime
+      _ <- evaluate (rrIterations res)
+      t1 <- getCPUTime
       mapM_ (putStrLn . ("autoroute: " ++) . T.unpack) (rrLog res)
+      putStrLn ("autoroute: " ++ showFFloat (Just 1) (fromIntegral (t1 - t0) / 1e12 :: Double) " s CPU")
       unless (null (rrFailed res)) $
         hPutStrLn stderr ("autoroute: could not complete nets: " ++ T.unpack (T.intercalate ", " (rrFailed res)))
       when (rrConflicts res > 0) $
         hPutStrLn stderr ("autoroute: " ++ show (rrConflicts res) ++ " contested cells remain; DRC will report them")
       let toDesign n = fromMaybe n (M.lookup n designName)
+          rep = routeReport toDesign res
           traces = [ Trace (toDesign (rtNet t)) (layerName (rtLayer t)) (rtWidth t) (rtPath t)
                    | rn <- rrNets res, t <- rnTraces rn ]
           vias = [ (rvNet v, rvAt v, rvDiameter v, rvDrill v) | rn <- rrNets res, v <- rnVias rn ]
-      pure (traces, vias)
+      putStrLn (T.unpack rep)
+      pure (traces, vias, Just rep)
 
   let outline = boardOutline u bd
       segments = concat [ segmentsFor u resolveNet i t | (i, t) <- zip [0 :: Int ..] (bdTraces bd ++ autoTraces) ]
@@ -90,7 +100,7 @@ emitPcb lc m info = do
         , list "title_block" [list "title" [Str (modTitle m)]]
         ] ++ setup ++ fps ++ outline ++ segments ++ viaItems ++ zones ++ texts ++
         [ list "embedded_fonts" [sym "no"] ]
-  pure (render pcb)
+  pure (render pcb, report)
 
 -- Footprints -----------------------------------------------------------------
 

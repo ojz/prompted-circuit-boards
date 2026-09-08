@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts, OverloadedStrings, ScopedTypeVariables #-}
 -- | Grid autorouter: A* per net over a two-layer occupancy grid, with
 -- negotiated congestion (PathFinder-style) to resolve conflicts between nets.
 --
@@ -16,12 +16,18 @@ module Route.Router
   , RTrace (..)
   , RVia (..)
   , autoroute
+  , routeReport
   ) where
 
+import           Control.Monad      (forM_, unless, when)
+import           Control.Monad.ST   (ST, runST)
+import           Data.Array.ST      (STUArray, newArray, readArray, writeArray, getBounds)
 import           Data.Array.Unboxed
 import qualified Data.IntMap.Strict as IM
+import           Data.STRef         (STRef, newSTRef, readSTRef, writeSTRef)
 import qualified Data.IntSet        as IS
 import           Data.List          (foldl', minimumBy, sortOn)
+import           Numeric            (showFFloat)
 import qualified Data.Map.Strict    as M
 import           Data.Maybe         (fromMaybe, mapMaybe)
 import           Data.Ord           (comparing)
@@ -66,6 +72,7 @@ data RoutedNet = RoutedNet
   { rnNet    :: Text
   , rnTraces :: [RTrace]
   , rnVias   :: [RVia]
+  , rnIdeal  :: Double     -- ^ Euclidean minimum spanning tree of the pad centres, mm
   } deriving (Show)
 
 data RouteResult = RouteResult
@@ -212,9 +219,7 @@ data Search = Search
   { sGrid   :: Grid
   , sCfg    :: RouteConfig
   , sNet    :: !Int
-  , sOcc    :: Occ
-  , sHist   :: IM.IntMap Double
-  , sPres   :: !Double          -- ^ present-sharing penalty factor for this iteration
+  , sPen    :: !(UArray Int Double)  -- ^ per-cell congestion penalty for this net and iteration
   }
 
 traversable :: Search -> Int -> Bool
@@ -223,69 +228,163 @@ traversable s c =
       n = gNear (sGrid s) ! c
   in (o == 0 || o == sNet s) && (n == 0 || n == sNet s)
 
-cellPenalty :: Search -> Int -> Double
-cellPenalty s c =
-  let others = otherNetsAt (sOcc s) (sNet s) c
-      h = fromMaybe 0 (IM.lookup c (sHist s))
-  in sPres s * fromIntegral others + h
+-- | Flatten the negotiated-congestion state into one array per route call:
+-- present-sharing penalty for every other net's copper here, plus the
+-- accumulated history of past conflicts. The search then does one array
+-- read per cell instead of two map lookups.
+penaltyArray :: Grid -> Occ -> IM.IntMap Double -> Int -> Double -> UArray Int Double
+penaltyArray g occ hist nid pres =
+  let size = nLayers * gW g * gH g
+      occW = [ (c, pres * fromIntegral k) | (c, m) <- IM.toList occ, let k = IM.size (IM.delete nid m), k > 0 ]
+  in accumArray (+) 0 (0, size - 1) (occW ++ IM.toList hist)
+
+-- Binary min-heap on (key, cell) in unboxed mutable arrays, growing by
+-- doubling. Stale entries are tolerated: A* skips a popped cell that is
+-- already closed.
+data Heap s = Heap
+  { hKeys :: STRef s (STUArray s Int Double)
+  , hVals :: STRef s (STUArray s Int Int)
+  , hSize :: STRef s Int
+  }
+
+newHeap :: Int -> ST s (Heap s)
+newHeap cap = do
+  ks <- newArray (0, cap - 1) 0
+  vs <- newArray (0, cap - 1) 0
+  Heap <$> newSTRef ks <*> newSTRef vs <*> newSTRef 0
+
+heapPush :: Heap s -> Double -> Int -> ST s ()
+heapPush h key val = do
+  n <- readSTRef (hSize h)
+  ks0 <- readSTRef (hKeys h)
+  (_, hi) <- getBounds ks0
+  when (n > hi) $ do
+    vs0 <- readSTRef (hVals h)
+    let cap' = 2 * (hi + 1)
+    ks' <- newArray (0, cap' - 1) 0
+    vs' <- newArray (0, cap' - 1) 0
+    forM_ [0 .. hi] $ \i -> do
+      readArray ks0 i >>= writeArray ks' i
+      readArray vs0 i >>= writeArray vs' i
+    writeSTRef (hKeys h) ks'
+    writeSTRef (hVals h) vs'
+  ks <- readSTRef (hKeys h)
+  vs <- readSTRef (hVals h)
+  writeSTRef (hSize h) (n + 1)
+  let up i
+        | i == 0 = writeArray ks i key >> writeArray vs i val
+        | otherwise = do
+            let p = (i - 1) `div` 2
+            pk <- readArray ks p
+            if pk <= key
+              then writeArray ks i key >> writeArray vs i val
+              else do
+                readArray vs p >>= writeArray vs i
+                writeArray ks i pk
+                up p
+  up n
+
+heapPop :: Heap s -> ST s (Maybe (Double, Int))
+heapPop h = do
+  n <- readSTRef (hSize h)
+  if n == 0 then return Nothing else do
+    ks <- readSTRef (hKeys h)
+    vs <- readSTRef (hVals h)
+    topK <- readArray ks 0
+    topV <- readArray vs 0
+    let n' = n - 1
+    writeSTRef (hSize h) n'
+    when (n' > 0) $ do
+      lastK <- readArray ks n'
+      lastV <- readArray vs n'
+      let down i = do
+            let l = 2 * i + 1; r = l + 1
+            if l >= n' then writeArray ks i lastK >> writeArray vs i lastV else do
+              lk <- readArray ks l
+              (ck, ci) <- if r < n'
+                            then do rk <- readArray ks r
+                                    return (if rk < lk then (rk, r) else (lk, l))
+                            else return (lk, l)
+              if ck < lastK
+                then do writeArray ks i ck
+                        readArray vs ci >>= writeArray vs i
+                        down ci
+                else writeArray ks i lastK >> writeArray vs i lastV
+      down 0
+    return (Just (topK, topV))
 
 -- | Route from any source cell to any target cell. Returns the cell path,
--- source first.
+-- source first. Mutable arrays throughout: this is the inner loop of the
+-- whole router.
 astar :: Search -> IS.IntSet -> IS.IntSet -> Pt -> Double -> Maybe [Int]
-astar s sources targets targetCentre targetRadius = go open0 g0 IM.empty IS.empty
-  where
-    g = sGrid s
-    cfg = sCfg s
-    pitch = gPitch g
-    heur c = let (_, x, y) = cellCoords g c
-                 d = dist (cellCentre g x y) targetCentre
-             in max 0 (d - targetRadius) / pitch
-    g0 = IM.fromList [ (c, 0) | c <- IS.toList sources ]
-    open0 = S.fromList [ (heur c, c) | c <- IS.toList sources ]
-
-    go open gScore parent closed
-      | S.null open = Nothing
-      | otherwise =
-          let ((_, c), open') = S.deleteFindMin open
-          in if IS.member c targets
-               then Just (reverse (walk c parent))
-               else if IS.member c closed
-                 then go open' gScore parent closed
-                 else
-                   let gc = fromMaybe 0 (IM.lookup c gScore)
-                       closed' = IS.insert c closed
-                       (open'', gScore', parent') = foldl' (relax c gc) (open', gScore, parent)
-                                                     (neighbours c)
-                   in go open'' gScore' parent' closed'
-
-    walk c parent = case IM.lookup c parent of
-      Nothing -> [c]
-      Just p  -> c : walk p parent
-
-    relax c gc (open, gScore, parent) (nc, stepCost)
-      | not (traversable s nc) = (open, gScore, parent)
-      | isVia c nc && not (viaOk c && viaOk nc) = (open, gScore, parent)
-      | otherwise =
-          let tentative = gc + stepCost * (1 + cellPenalty s nc)
-          in case IM.lookup nc gScore of
-               Just old | old <= tentative -> (open, gScore, parent)
-               _ -> ( S.insert (tentative + heur nc, nc) open
-                    , IM.insert nc tentative gScore
-                    , IM.insert nc c parent )
-
-    isVia a b = let (la, _, _) = cellCoords g a; (lb, _, _) = cellCoords g b in la /= lb
-    viaOk c = let v = gViaNear g ! c; o = gOwner g ! c
-              in (v == 0 || v == sNet s) && (o == 0 || o == sNet s)
-
-    neighbours c =
-      let (l, x, y) = cellCoords g c
-          inLayer = [ (cellIdx g l nx ny, len)
-                    | (dx, dy, len) <- [(1,0,1),(-1,0,1),(0,1,1),(0,-1,1),(1,1,s2),(1,-1,s2),(-1,1,s2),(-1,-1,s2)]
-                    , let nx = x + dx, let ny = y + dy
-                    , nx >= 0, ny >= 0, nx < gW g, ny < gH g ]
-          via = [ (cellIdx g l' x y, rcViaCost cfg) | l' <- [0 .. nLayers - 1], l' /= l ]
-      in inLayer ++ via
-    s2 = sqrt 2
+astar s sources targets targetCentre targetRadius = runST $ do
+  let g = sGrid s
+      w = gW g
+      h = gH g
+      size = nLayers * w * h
+      pitch = gPitch g
+      nid = sNet s
+      owner = gOwner g
+      near = gNear g
+      viaNear = gViaNear g
+      pen = sPen s
+      viaCost = rcViaCost (sCfg s)
+      layerStride = w * h
+      -- Octile distance: exact for an eight-direction grid, so A* expands
+      -- far fewer cells than with the Euclidean estimate. The target is a
+      -- disc of cells; shrinking by its radius (times the worst-case
+      -- octile/Euclidean ratio, 1.09) keeps the estimate admissible.
+      (tx, ty) = targetCentre
+      tr = 1.09 * targetRadius / pitch
+      s2 = sqrt 2 :: Double
+      heurXY x y = let (cx, cy) = cellCentre g x y
+                       dx = abs (cx - tx) / pitch
+                       dy = abs (cy - ty) / pitch
+                   in max 0 (max dx dy + (s2 - 1) * min dx dy - tr)
+      free c = let o = owner ! c; n = near ! c in (o == 0 || o == nid) && (n == 0 || n == nid)
+      viaOk c = let v = viaNear ! c; o = owner ! c in (v == 0 || v == nid) && (o == 0 || o == nid)
+      dirs = [(1,0,1),(-1,0,1),(0,1,1),(0,-1,1),(1,1,s2),(1,-1,s2),(-1,1,s2),(-1,-1,s2)] :: [(Int, Int, Double)]
+  gScore <- newArray (0, size - 1) (1 / 0) :: ST s (STUArray s Int Double)
+  parent <- newArray (0, size - 1) (-1) :: ST s (STUArray s Int Int)
+  closed <- newArray (0, size - 1) False :: ST s (STUArray s Int Bool)
+  heap <- newHeap 4096
+  forM_ (IS.toList sources) $ \c -> do
+    let (_, x, y) = cellCoords g c
+    writeArray gScore c 0
+    heapPush heap (heurXY x y) c
+  let relax c gc nc nx ny stepCost = when (free nc) $ do
+        cl <- readArray closed nc
+        unless cl $ do
+          let tentative = gc + stepCost * (1 + pen ! nc)
+          old <- readArray gScore nc
+          when (tentative < old) $ do
+            writeArray gScore nc tentative
+            writeArray parent nc c
+            heapPush heap (tentative + heurXY nx ny) nc
+      walk c acc = do
+        p <- readArray parent c
+        if p < 0 then return (c : acc) else walk p (c : acc)
+      loop = do
+        mb <- heapPop heap
+        case mb of
+          Nothing -> return Nothing
+          Just (_, c) -> do
+            cl <- readArray closed c
+            if cl then loop
+            else if IS.member c targets then Just <$> walk c []
+            else do
+              writeArray closed c True
+              gc <- readArray gScore c
+              let (l, x, y) = cellCoords g c
+              forM_ dirs $ \(dx, dy, len) -> do
+                let nx = x + dx
+                    ny = y + dy
+                when (nx >= 0 && ny >= 0 && nx < w && ny < h) $
+                  relax c gc (c + dy * w + dx) nx ny len
+              let other = if l == 0 then c + layerStride else c - layerStride
+              when (viaOk c && viaOk other) $ relax c gc other x y viaCost
+              loop
+  loop
 
 -- Per-net routing -------------------------------------------------------------
 
@@ -371,20 +470,25 @@ autoroute cfg prob =
       loop iter occ hist states logAcc
         | iter > rcMaxIterations cfg = finish iter occ states (T.pack ("stopped after " ++ show (iter - 1) ++ " iterations") : logAcc)
         | otherwise =
-            let pres = 0.5 * fromIntegral iter
-                (occ', states') = foldl' (routeOne iter pres hist) (occ, states) order
+            let pres = 0.5 * 1.4 ^^ (iter - 1)
+                -- Rip up and reroute only the nets that are in conflict (or
+                -- failed); settled nets keep their copper. Iteration one
+                -- routes everything.
+                redo = [ n | n <- order, iter == 1 || nsFailed (states M.! n) || netContested occ n (states M.! n) ]
+                (occ', states') = foldl' (routeOne pres hist) (occ, states) redo
                 contested = contestedCells occ' states'
                 hist' = foldl' (\h c -> IM.insertWith (+) c 1 h) hist contested
-                msg = T.pack ("iteration " ++ show iter ++ ": " ++ show (length contested) ++ " contested cells")
+                msg = T.pack ("iteration " ++ show iter ++ ": rerouted " ++ show (length redo) ++ ", "
+                              ++ show (length contested) ++ " contested cells")
             in if null contested
                  then finish iter occ' states' (msg : logAcc)
                  else loop (iter + 1) occ' hist' states' (msg : logAcc)
 
-      routeOne _iter pres hist (occ, states) n =
+      routeOne pres hist (occ, states) n =
         let nid = netIds M.! n
             st = states M.! n
             occNo = removeStamps nid (nsStamps st) occ
-            search = Search grid cfg nid occNo hist pres
+            search = Search grid cfg nid (penaltyArray grid occNo hist nid pres)
         in case routeNet search (terms M.! n) (preCellsOf n) of
              Left _ -> (occNo, M.insert n (NetState [] [] [] True) states)
              Right paths ->
@@ -396,11 +500,13 @@ autoroute cfg prob =
       -- A conflict is a trace centre (or via) of one net lying inside the
       -- clearance halo another net has stamped. Halos overlapping each other
       -- is normal for two legally spaced traces.
+      copperCells st = concat (nsPaths st) ++ [ cellIdx grid l x y | (_, x, y) <- nsVias st, l <- [0 .. nLayers - 1] ]
+      netContested occ n st = any (\c -> otherNetsAt occ (netIds M.! n) c > 0) (copperCells st)
       contestedCells occ states =
         [ c
         | (n, st) <- M.toList states, not (nsFailed st)
         , let nid = netIds M.! n
-        , c <- concat (nsPaths st) ++ [ cellIdx grid l x y | (_, x, y) <- nsVias st, l <- [0 .. nLayers - 1] ]
+        , c <- copperCells st
         , otherNetsAt occ nid c > 0 ]
 
       finish iter occ states logAcc =
@@ -415,7 +521,7 @@ autoroute cfg prob =
             infl = rcWidth cfg / 2 + rcClearance cfg + 0.01
             lineOk nid l p q =
               let n = max 1 (ceiling (dist p q / (rcPitch cfg / 3))) :: Int
-                  search = Search grid cfg nid occ IM.empty 0
+                  search = Search grid cfg nid (listArray (0, -1) [])
                   netName = head ([ nm | (nm, i) <- M.toList netIds, i == nid ] ++ [T.empty])
                   foreignPads = [ pd | pd <- rpPads prob, pgNet pd /= Just netName, ixLayer l `elem` pgLayers pd ]
                   ok pt@(x, y) =
@@ -457,7 +563,9 @@ viasOf g paths =
 -- pad centres so the copper lands where KiCad expects it.
 toRouted :: Grid -> RouteConfig -> (Int -> Pt -> Pt -> Bool) -> Text -> [Terminal] -> [[Int]] -> RoutedNet
 toRouted g cfg lineOk net terms paths =
-  RoutedNet net (concatMap tracesOf paths) [ RVia net (cellCentre g x y) (rcViaDiameter cfg) (rcViaDrill cfg) | (_, x, y) <- viasOf g paths ]
+  RoutedNet net (concatMap tracesOf paths)
+            [ RVia net (cellCentre g x y) (rcViaDiameter cfg) (rcViaDrill cfg) | (_, x, y) <- viasOf g paths ]
+            (mstLength (map tCentre terms))
   where
     padCentreOf c = case [ tCentre t | t <- terms, IS.member c (tCells t) ] of
       (p : _) -> Just p
@@ -499,3 +607,39 @@ toRouted g cfg lineOk net terms paths =
     simplify xs = xs
     collinear (x1, y1) (x2, y2) (x3, y3) =
       abs ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)) < 1e-9
+
+-- Score report ----------------------------------------------------------------
+
+-- | Length of the Euclidean minimum spanning tree over a point set (Prim).
+-- The shortest any routing of the net could possibly be, so a natural
+-- yardstick for detours.
+mstLength :: [Pt] -> Double
+mstLength [] = 0
+mstLength (p0 : ps) = go [p0] ps 0
+  where
+    go _ [] acc = acc
+    go tree rest acc =
+      let (d, q) = minimum [ (dist t r, r) | r <- rest, t <- tree ]
+      in go (q : tree) (filter (/= q) rest) (acc + d)
+
+-- | Markdown table with one row per routed net plus totals. The name mapper
+-- turns board net names back into design names.
+routeReport :: (Text -> Text) -> RouteResult -> Text
+routeReport nameOf res = T.unlines $
+  [ "| Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |"
+  , "|---|---|--:|--:|--:|--:|--:|" ]
+  ++ [ row (nameOf (rnNet rn)) (layersOf rn) (segs rn) (length (rnVias rn)) (len rn) (rnIdeal rn) | rn <- nets ]
+  ++ [ row "**total**" "" (sum (map segs nets)) (sum (map (length . rnVias) nets)) (sum (map len nets)) (sum (map rnIdeal nets)) ]
+  ++ [ ""
+     , T.pack ("Iterations: " ++ show (rrIterations res) ++ ". Contested cells left: " ++ show (rrConflicts res) ++ ".")
+     ]
+  ++ [ "Failed nets: " <> T.intercalate ", " (map nameOf (rrFailed res)) | not (null (rrFailed res)) ]
+  where
+    nets = sortOn rnNet (rrNets res)
+    segs rn = sum [ length (rtPath t) - 1 | t <- rnTraces rn ]
+    len rn = sum [ dist a b | t <- rnTraces rn, (a, b) <- zip (rtPath t) (drop 1 (rtPath t)) ]
+    layersOf rn = T.intercalate "+" [ l | (l, ly) <- [("F", F), ("B", B)], any ((== ly) . rtLayer) (rnTraces rn) ]
+    f2 x = T.pack (showFFloat (Just 2) x "")
+    ratio a b = if b <= 0 then "-" else f2 (a / b)
+    row n ls sg vs l ideal = T.concat
+      [ "| ", n, " | ", ls, " | ", T.pack (show sg), " | ", T.pack (show vs), " | ", f2 l, " | ", f2 ideal, " | ", ratio l ideal, " |" ]

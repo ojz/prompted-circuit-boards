@@ -53,7 +53,7 @@ run name mOut = do
   share <- findKicadShare
   putStrLn ("KiCad libraries: " ++ share)
   (schTxt, info) <- emitSchematic lc m
-  pcbTxt <- emitPcb lc m info
+  (pcbTxt, report) <- emitPcb lc m info
   createDirectoryIfMissing True outDir
   let stem = T.unpack (modName m)
       files =
@@ -62,6 +62,8 @@ run name mOut = do
         , (outDir </> stem <.> "kicad_pro", emitProject m (siSheetUuid info))
         , (outDir </> stem <.> "kicad_dru", emitDru m)
         ]
+        -- Routing score next to the board so quality is diffable across commits.
+        ++ [ (outDir </> "route-report.md", "# Routing report: " <> modName m <> "\n\n" <> r) | Just r <- [report] ]
   forM_ files $ \(path, txt) -> do
     TIO.writeFile path txt
     putStrLn ("wrote " ++ path)
