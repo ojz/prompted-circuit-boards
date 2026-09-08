@@ -1,0 +1,6 @@
+# Store everything with LF line endings, whatever the workstation's autocrlf
+# setting is. KiCad writes LF itself and Git Bash scripts need LF to run.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
