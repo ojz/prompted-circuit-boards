@@ -18,6 +18,7 @@ Commits: `6ffcdb6` (design model, empty test suite), `7c9e2b5` (the work below).
 | Invalid designs are rejected before emission | `toolkit/src/Validate.hs`; `cabal test` 40/40; an invalid design exits 1 and leaves every generated file byte-identical (verified by hashing before and after) |
 | The four wiring faults ERC accepted now fail | tests name the pin: `U1.8` removed, `U1.88` mistyped, `U1.8` on both rails, `D2.1` dropped |
 | No via sits in or against a pad | `Route.Check.viaPadViolations` recomputed on emitted geometry; both boards report 0; generation aborts otherwise |
+| The roadmap's four via-in-pad locations were real | The checker run against the pre-fix board (commit `1ede48e`) reports exactly 4 violations, at `R4.1`, `R3.2`, `C4.2` and `C1.2`, overlapping by 0.30 to 0.45 mm. All four were same-net vias, which is why neither the router nor KiCad objected |
 | A hand-drawn trace cannot fake a finished net | pre-routed copper is one terminal per island; synthetic island test plus per-net connectivity check |
 | Export cannot come from stale or failed input | `check.ok` hashes; `toolkit/test-scripts.sh` 42 passed, 0 failed |
 
@@ -61,10 +62,8 @@ disconnected nets.
 
 ### Not run, not done, not proven
 
-- The roadmap's claim of four specific via-in-pad violations (`C1.2`, `C4.2`,
-  `R3.2`, `R4.1`) was **not** reproduced against the old router. The old board
-  had 6 vias and the new checker reports none on the new one; the checker's
-  ability to detect real violations is covered by synthetic tests only.
+- The checker's ability to catch real violations is otherwise covered by
+  synthetic tests only; the pre-fix board is not committed as a fixture.
 - `toolkit/fab.sh <name> panel` has never been run. No panel gerber bundle exists.
 - M3's remaining items are untouched: CI, pinned or reproducibly retrieved
   dependencies, headless SPICE, and removing reliance on globally installed
