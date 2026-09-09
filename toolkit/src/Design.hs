@@ -5,6 +5,7 @@
 module Design
   ( LibId (..)
   , Side (..)
+  , Assembly (..)
   , Part (..)
   , part
   , NetKind (..)
@@ -33,6 +34,17 @@ data LibId = LibId { libNick :: Text, libItem :: Text }
 data Side = Front | Back
   deriving (Eq, Show)
 
+-- | Who installs a part, and whether it is installed at all. Declared per
+-- part rather than inferred from a sourcing field, so a missing supplier
+-- number cannot silently turn a factory part into a hand-soldered one
+-- (validation rejects a 'Factory' part without an LCSC Part #).
+data Assembly
+  = Factory      -- ^ placed by the board house from BOM and CPL; needs an LCSC Part #
+  | Hand         -- ^ soldered by hand after delivery (jacks, pots, headers)
+  | DNP          -- ^ footprint on the board, nothing installed
+  | Mechanical   -- ^ holes and other items that are not components at all
+  deriving (Eq, Ord, Show)
+
 data Part = Part
   { partRef       :: Text
   , partValue     :: Text
@@ -48,11 +60,16 @@ data Part = Part
   , partUnitOffsets :: [(Double, Double)]
     -- ^ schematic offset of units 2, 3, ... from 'partSchAt' for multi-unit
     -- symbols (dual op-amps); units without an entry stack 25.4 mm apart below.
+  , partNoConnect :: [Text]
+    -- ^ pin numbers deliberately left unconnected. Every other pin must be on
+    -- a net; validation rejects a pin that is neither.
+  , partAssembly  :: Assembly
   } deriving (Show)
 
--- | A front-side, unrotated part with no extra fields.
+-- | A front-side, unrotated, hand-installed part with no extra fields and
+-- no deliberately unconnected pins.
 part :: Text -> Text -> LibId -> LibId -> (Double, Double) -> (Double, Double) -> Part
-part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True []
+part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True [] [] Hand
 
 -- | Power nets become KiCad power symbols and global nets; signal nets become
 -- local net labels, which KiCad names with a leading slash on the board.

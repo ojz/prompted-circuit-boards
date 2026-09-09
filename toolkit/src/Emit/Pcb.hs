@@ -38,12 +38,10 @@ emitPcb lc m info = do
       netByName = M.fromList [ (netName n, pcbNetName n) | n <- modNets m ]
       resolveNet t = fromMaybe ("/" <> t) (M.lookup t netByName)
 
-  -- A module with any LCSC part is one JLCPCB assembles.
-  let assembled = any (isJust . lookup "LCSC Part #" . partFields) (modParts m)
   fps <- mapM (\p -> do
                   raw <- loadFootprint lc (libNick (partFootprint p)) (libItem (partFootprint p))
                   let si = M.lookup (partRef p) (siSymbols info)
-                  pure (placeFootprint u pinNet (name <> ".kicad_sch") assembled p raw si))
+                  pure (placeFootprint u pinNet (name <> ".kicad_sch") p raw si))
               (modParts m)
 
   setup <- either (\e -> fail ("internal setup block: " ++ e)) pure (parseSExprs setupBlock)
@@ -106,8 +104,8 @@ emitPcb lc m info = do
 
 -- Footprints -----------------------------------------------------------------
 
-placeFootprint :: (Text -> Text) -> M.Map (Text, Text) Text -> Text -> Bool -> Part -> SExpr -> Maybe SymInfo -> SExpr
-placeFootprint u pinNet sheetFile assembled p raw si =
+placeFootprint :: (Text -> Text) -> M.Map (Text, Text) Text -> Text -> Part -> SExpr -> Maybe SymInfo -> SExpr
+placeFootprint u pinNet sheetFile p raw si =
   let ref = partRef p
       (x, y) = partAt p
       rot = partRot p
@@ -129,21 +127,25 @@ placeFootprint u pinNet sheetFile assembled p raw si =
         , ("Description", desc, True, "F.Fab")
         ] ++ [ (k, v, True, "F.Fab") | (k, v) <- partFields p, k /= "Datasheet" ]
 
-      kids2 = markHandSoldered (setProps kids1)
+      kids2 = markAssembly (setProps kids1)
       kids3 = map (netPad pinNet ref pinNames) kids2
-      -- On a board JLCPCB assembles, a part without an LCSC field is
-      -- hand-soldered: keep it out of the position file so KiKit leaves it
-      -- out of the assembly BOM as well. KiCad's library-mismatch check
-      -- ignores these per-instance placement flags.
-      handSoldered = assembled && isNothing (lookup "LCSC Part #" (partFields p))
-      markHandSoldered kids
-        | not handSoldered = kids
-        | any ((== Just "attr") . headSym) kids = map addExclude kids
-        | otherwise = kids ++ [list "attr" [sym "through_hole", sym "exclude_from_pos_files"]]
-      addExclude (List (Atom "attr" : flags))
-        | Atom "exclude_from_pos_files" `elem` flags = List (Atom "attr" : flags)
-        | otherwise = List (Atom "attr" : flags ++ [sym "exclude_from_pos_files"])
-      addExclude e = e
+      -- Placement attributes follow the part's declared assembly class, never
+      -- the presence of a sourcing field. Anything not factory-placed stays
+      -- out of the position file, so KiKit leaves it out of the assembly BOM
+      -- as well; DNP and mechanical items leave the BOM too. KiCad's
+      -- library-mismatch check ignores these per-instance flags.
+      extraAttrs = case partAssembly p of
+        Factory    -> []
+        Hand       -> ["exclude_from_pos_files"]
+        DNP        -> ["exclude_from_pos_files", "exclude_from_bom", "dnp"]
+        Mechanical -> ["exclude_from_pos_files", "exclude_from_bom"]
+      markAssembly kids
+        | null extraAttrs = kids
+        | any ((== Just "attr") . headSym) kids = map addAttrs kids
+        | otherwise = kids ++ [list "attr" (sym "through_hole" : map sym extraAttrs)]
+      addAttrs (List (Atom "attr" : flags)) =
+        List (Atom "attr" : flags ++ [ sym a | a <- extraAttrs, Atom a `notElem` flags ])
+      addAttrs e = e
       -- Flip first, then rotate: KiCad stores a back-side pad's angle as the
       -- footprint rotation minus the library angle, so the mirror must be
       -- applied to the library angle alone.

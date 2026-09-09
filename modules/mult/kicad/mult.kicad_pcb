@@ -153,7 +153,7 @@
 			)
 			(uuid "bdff4878-62c9-53a9-adef-3c0c80c0ea3c")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -546,7 +546,7 @@
 			)
 			(uuid "793e88f0-1f7c-5efa-8a55-9fa17bfd35c5")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -939,7 +939,7 @@
 			)
 			(uuid "7bb9ac30-5c61-5261-be0b-2a16cb66589c")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -1332,7 +1332,7 @@
 			)
 			(uuid "b054276d-6f04-58fc-bb28-19582e484a8c")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -1725,7 +1725,7 @@
 			)
 			(uuid "2af7aa34-5583-59d2-ad47-e986e16b0f7d")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -2118,7 +2118,7 @@
 			)
 			(uuid "ea18a02f-f6f6-5630-9bd2-d48bff08bff7")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -2511,7 +2511,7 @@
 			)
 			(uuid "22705b3a-c05e-5f79-8689-9dc50ac4f0b4")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -2904,7 +2904,7 @@
 			)
 			(uuid "5664c6c3-9352-5866-a39d-f7357f5753b1")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -3297,7 +3297,7 @@
 			)
 			(uuid "0ccec689-6a0d-51ff-aa4a-760e166e4a86")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -3690,7 +3690,7 @@
 			)
 			(uuid "29c5b607-0180-58da-bf57-1151dc9b3433")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -4083,7 +4083,7 @@
 			)
 			(uuid "c9d3eb9e-3fc3-51f3-a6f7-62422276a5e7")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)
@@ -4476,7 +4476,7 @@
 			)
 			(uuid "17ed27d7-d48a-5d8b-bad4-cc55be95b310")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.5 1.98)

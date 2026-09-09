@@ -163,7 +163,7 @@
 			)
 			(uuid "99e5c2f0-ae2a-5705-9f8c-d996bd79869d")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -553,7 +553,7 @@
 			)
 			(uuid "e30df641-2d05-57d6-8a36-ada4f9d7b978")
 		)
-		(attr through_hole)
+		(attr through_hole exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -943,7 +943,7 @@
 			)
 			(uuid "0ec2a078-f195-5115-8975-80499263850e")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -1106,7 +1106,7 @@
 			)
 			(uuid "db130907-0aae-5066-86da-2b398a38fbee")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -1269,7 +1269,7 @@
 			)
 			(uuid "a2d09b1a-cc9f-555b-891f-3f5d0196b676")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -1438,7 +1438,7 @@
 			)
 			(uuid "1e8c978d-6401-5b5d-aa12-73daf10a0574")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 0.735)
@@ -1608,7 +1608,7 @@
 			)
 			(uuid "7ad44640-7402-58da-8342-6de484d65410")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 0.735)
@@ -1778,7 +1778,7 @@
 			)
 			(uuid "e9fd98cc-8c14-552e-b1fd-b379ee051b19")
 		)
-		(attr smd)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 0.735)

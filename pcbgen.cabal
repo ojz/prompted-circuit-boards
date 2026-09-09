@@ -45,3 +45,13 @@ executable pcbgen
     hs-source-dirs:   toolkit/app
     main-is:          Main.hs
     build-depends:    pcbgen
+
+test-suite pcbgen-test
+    import:           shared
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   toolkit/test
+    main-is:          Main.hs
+    other-modules:    Harness
+                      ValidateTests
+                      RouteTests
+    build-depends:    pcbgen

@@ -165,7 +165,7 @@ emitPart symTable pinNet u sheetUuid proj p =
         , let dir = outward rot d
         ]
   in concat
-       [ symbolInstance u sheetUuid proj (partSymbol p) s ref (partValue p) (Just (partFootprint p)) (partFields p) (unitPos k) rot False k (unitKey k) pins
+       [ symbolInstance u sheetUuid proj (partSymbol p) s ref (partValue p) (Just (partFootprint p)) (partFields p) (unitPos k) rot False (partAssembly p) k (unitKey k) pins
          : pinItems (unitPos k) pins
        | k <- symbolUnits s
        , let pins = symbolPinsOfUnit k s ]
@@ -204,7 +204,7 @@ powerSymbol symTable u sheetUuid proj ref net pt rot =
         (d : _) -> libToScreen rot (pinX d, pinY d)
         []      -> (0, 0)
       pos = add pt (scale (-1) pinOff)
-  in symbolInstance u sheetUuid proj lid s ("#" <> ref) net Nothing [] pos rot True 1 ("#" <> ref) (symbolPins s)
+  in symbolInstance u sheetUuid proj lid s ("#" <> ref) net Nothing [] pos rot True Mechanical 1 ("#" <> ref) (symbolPins s)
 
 -- | PWR_FLAG and a power symbol sharing one point, for nets no output drives.
 powerPair :: M.Map LibId SExpr -> (Text -> Text) -> Text -> Text -> Text -> Text -> Pt -> [SExpr]
@@ -214,13 +214,13 @@ powerPair symTable u sheetUuid proj key net pt =
       pinOff = case symbolPins fs of
         (d : _) -> libToScreen 0 (pinX d, pinY d)
         []      -> (0, 0)
-  in [ symbolInstance u sheetUuid proj flagLid fs ("#" <> key) "PWR_FLAG" Nothing [] (add pt (scale (-1) pinOff)) 0 True 1 ("#" <> key) (symbolPins fs)
+  in [ symbolInstance u sheetUuid proj flagLid fs ("#" <> key) "PWR_FLAG" Nothing [] (add pt (scale (-1) pinOff)) 0 True Mechanical 1 ("#" <> key) (symbolPins fs)
      , powerSymbol symTable u sheetUuid proj ("PWR_" <> key) net pt 0 ]
 
 -- | One symbol instance: @unit@ and its pins, keyed for UUIDs by @key@
 -- (the reference for unit 1, so single-unit output is unchanged).
-symbolInstance :: (Text -> Text) -> Text -> Text -> LibId -> SExpr -> Text -> Text -> Maybe LibId -> [(Text, Text)] -> Pt -> Double -> Bool -> Int -> Text -> [PinDef] -> SExpr
-symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower unit key unitPins =
+symbolInstance :: (Text -> Text) -> Text -> Text -> LibId -> SExpr -> Text -> Text -> Maybe LibId -> [(Text, Text)] -> Pt -> Double -> Bool -> Assembly -> Int -> Text -> [PinDef] -> SExpr
+symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower asm unit key unitPins =
   let libId = libNick lid <> ":" <> libItem lid
       symU = u ("sym/" <> key)
       propAt name = case symbolPropertyAt name s of
@@ -249,9 +249,9 @@ symbolInstance u sheetUuid proj lid s ref val fp extra pos@(x, y) rot isPower un
        , list "at" [num x, num y, num rot]
        , list "unit" [num (fromIntegral unit)]
        , list "exclude_from_sim" [sym (flag "exclude_from_sim" "no")]
-       , list "in_bom" [sym (if isPower then "no" else flag "in_bom" "yes")]
+       , list "in_bom" [sym (if isPower || asm `elem` [DNP, Mechanical] then "no" else flag "in_bom" "yes")]
        , list "on_board" [sym (flag "on_board" "yes")]
-       , list "dnp" [sym "no"]
+       , list "dnp" [sym (if asm == DNP then "yes" else "no")]
        , list "uuid" [Str symU]
        , prop "Reference" ref isPower
        , prop "Value" val False
