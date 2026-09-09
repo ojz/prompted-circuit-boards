@@ -1,7 +1,7 @@
 # prompted-circuit-boards
 
 Prompt-driven design of Eurorack modules. Designs are Haskell; KiCad 10 files are generated from them and are the verification format; JLCPCB is the fab.
-Background and tool survey: `RESEARCH.md`.
+Background and tool survey: `RESEARCH.md`. Current state and next action: `HANDOFF.md`.
 Workstation bootstrap and verification: `SETUP.md`.
 
 ## Toolchain

@@ -67,30 +67,32 @@ dependency of this roadmap.
 
 | Capability | Actual state |
 |---|---|
-| Generator | Builds; fresh mult and attenuverter generation matched current working-tree artifacts byte-for-byte on that workstation |
+| Generator | Builds; validates every design before emission and refuses to write an invalid or unroutable one; regeneration is byte-stable |
 | Native checks | Both circuit boards, both front panels, and the routing fixture passed ERC, DRC with zone refill, and schematic parity |
-| Export | KiCad CLI 10.0.3 and KiKit 1.8.1 produced attenuverter Gerbers, a seven-line BOM, and 16 matching SMD placements |
-| Test suite | `cabal test all` reported no test suites; the routing fixture is not a substitute for assertions |
+| Export | Gated by `check.ok`; `toolkit/pipeline.sh attenuverter --fab` produced Gerbers, BOM and 16 placements with a hashed manifest, 2026-09-09 |
+| Test suite | 40 assertions in `toolkit/test/` (validation and routing geometry); 2026-09-09 |
 | Electrical evidence | No completed manufacturer-datasheet audit, supported SPICE executable, or measured prototype |
 | Procurement | No approved equipment list, chosen mechanical stack, or approved prototype order |
 
 Carry these review findings into tracked regression tests, not just a narrative:
 
-| Finding | Reproduction / source | Required outcome |
-|---|---|---|
-| Implicit no-connects and power flags hide errors | Removing U1.8, mistyping it as U1.88, assigning it to both rails, or removing D2.1 from the positive rail all passed ERC. See [toolkit/src/Emit/Schematic.hs](toolkit/src/Emit/Schematic.hs). | Design validation rejects each fault before emission; intentional NC and power sourcing are explicit |
-| SMD pad drills | Native KiCad geometry found 0.3 mm via drills inside C1.2, C4.2, R3.2, and R4.1 solder lands. See [toolkit/src/Route/Router.hs](toolkit/src/Route/Router.hs). | Ordinary assembly forbids these intersections; fix the four current locations |
-| Pre-route connectivity | Pads at (2,5) and (18,5), with an existing trace only from (15,5) to (18,5), produced router success without connecting the first pad. | Treat copper islands as separate components to connect, and test the final connectivity |
-| Export accepts stale or failed inputs | [toolkit/fab.sh](toolkit/fab.sh) only requires a build PCB; [toolkit/check.sh](toolkit/check.sh) leaves copied files after failures. | Export requires successful checks on exactly the artifacts being exported |
-| Sourcing omission changes assembly | [toolkit/src/Emit/Pcb.hs](toolkit/src/Emit/Pcb.hs) interprets a missing LCSC field as hand assembly. | Missing data for an intended factory-installed part fails validation |
+Status added 2026-09-09; see [HANDOFF.md](HANDOFF.md) for the evidence.
+
+| Finding | Reproduction / source | Required outcome | Status |
+|---|---|---|---|
+| Implicit no-connects and power flags hide errors | Removing U1.8, mistyping it as U1.88, assigning it to both rails, or removing D2.1 from the positive rail all passed ERC. See [toolkit/src/Emit/Schematic.hs](toolkit/src/Emit/Schematic.hs). | Design validation rejects each fault before emission; intentional NC and power sourcing are explicit | Rejected by `Validate` before emission; four faults covered by tests |
+| SMD pad drills | Native KiCad geometry found 0.3 mm via drills inside C1.2, C4.2, R3.2, and R4.1 solder lands. See [toolkit/src/Route/Router.hs](toolkit/src/Route/Router.hs). | Ordinary assembly forbids these intersections; fix the four current locations | Vias in or against any pad, own net included, abort generation; boards report 0 |
+| Pre-route connectivity | Pads at (2,5) and (18,5), with an existing trace only from (15,5) to (18,5), produced router success without connecting the first pad. | Treat copper islands as separate components to connect, and test the final connectivity | Each pre-routed island is its own terminal; per-net connectivity recomputed on emitted geometry |
+| Export accepts stale or failed inputs | [toolkit/fab.sh](toolkit/fab.sh) only requires a build PCB; [toolkit/check.sh](toolkit/check.sh) leaves copied files after failures. | Export requires successful checks on exactly the artifacts being exported | `check.ok` hashes gate `fab.sh`; stale copies removed first; fault-injection tests pass |
+| Sourcing omission changes assembly | [toolkit/src/Emit/Pcb.hs](toolkit/src/Emit/Pcb.hs) interprets a missing LCSC field as hand assembly. | Missing data for an intended factory-installed part fails validation | `partAssembly` is declared per part; `Factory` without an LCSC number is rejected |
 
 ## Delivery Sequence
 
 ```text
 M0 Direction recorded [DONE]
-  -> M1 Explicit design intent and rejection tests [NEXT]
-  -> M2 Routing and assembly correctness
-  -> M3 Reproducible, fail-closed pipeline
+  -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
+  -> M2 Routing and assembly correctness [DONE 2026-09-09]
+  -> M3 Reproducible, fail-closed pipeline [PART DONE; CI, pinning, SPICE open]
   -> M4 Circuit evidence and complete prototype package
   -> human approval -> order -> delivery -> M5 guided build and measurements
   -> M6 one DUSG core, then the complete module
@@ -272,7 +274,7 @@ scaffolding. The first M1 work item should start the compact session handoff.
 | Artifact | Purpose / owner |
 |---|---|
 | This roadmap | Agreed priorities, constraints, milestone status; update at material decisions |
-| Tracked session handoff and artifact index | Agent-maintained current/blocked/next state, actual outputs, evidence locations, and missing prerequisites |
+| [HANDOFF.md](HANDOFF.md) | Agent-maintained current/blocked/next state, actual outputs, evidence locations, and missing prerequisites; started 2026-09-09 |
 | Stack decision and toolchain record | Agent-maintained versions, installation checks, tested library inputs, and reasons for any migration; build on [SETUP.md](SETUP.md) |
 | Per-module specification and tests | Musical intent translated into numerical limits, simulations, and measurement assertions; build on the existing specifications |
 | Part evidence and manufacturing recipe | Exact identities/ratings, sourcing checks, assembly intent, approved process options, and complete order list |
@@ -289,14 +291,13 @@ and model redistribution terms.
 
 ## Next Work Item
 
-**M1, first slice: explicit unassigned/NC handling and rejected pin references.**
-Add the test harness, make the missing-U1.8 and nonexistent-U1.88 cases fail at
-design validation, and preserve the existing intentionally unused jack switch
-pins. Run the focused tests and required native checks after regeneration.
-Record the result in the tracked handoff. Address duplicate assignments and
-explicit power-source validation as the following small slices, rather than
-attempting a complete compiler redesign in one session.
+M1 and M2 are closed and M3 is partly done; see [HANDOFF.md](HANDOFF.md) for
+what was run, the judgement calls made, and what was explicitly not proven.
+The tracked handoff is now the place to look for current state, and it names
+the next slice: M3's reproducibility items (CI on a clean checkout, pinned or
+reproducibly retrieved dependencies, headless SPICE), which need a decision
+about where CI runs, since the test suite needs KiCad 10 and its libraries.
 
-After M1, progress through the gates above. Further technical questions should
+After M3, progress through the gates above. Further technical questions should
 be asked when they control the next decision, not presented to the user as a
 prerequisite to learning the entire engineering discipline.
