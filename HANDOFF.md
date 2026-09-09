@@ -9,7 +9,8 @@ session first. Each entry records what was actually run, what passed, what was
 
 ## 2026-09-09, session 2: M1 and M2 closed, M3 partly
 
-Commits: `6ffcdb6` (design model, empty test suite), `7c9e2b5` (the work below).
+Commits: `6ffcdb6` design model and empty test suite, `7c9e2b5` the work below,
+`4f2ea64` this file and the roadmap status, `fea9a34` the pre-fix confirmation.
 
 ### What now holds
 
