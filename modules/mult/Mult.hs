@@ -98,16 +98,20 @@ jumperFp      = LibId "Jumper" "SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
 jackRef :: Int -> Int -> Text
 jackRef col k = "J" <> T.pack (show (col * 6 + k + 1))
 
+-- | Hand-soldered Thonkiconns. A passive multiple has nothing to normal an
+-- unpatched jack to, so every switch pin (TN) is declared unconnected.
 jacks :: [Part]
 jacks =
-  [ part (jackRef col k) "Thonkiconn" thonkiconnSym thonkiconnFp (jackAt col k) (schX, schY)
+  [ (part (jackRef col k) "Thonkiconn" thonkiconnSym thonkiconnFp (jackAt col k) (schX, schY))
+      { partNoConnect = ["TN"] }
   | col <- [0, 1], k <- rows
   , let schX = if col == 0 then 50.8 else 152.4
   , let schY = 38.1 + 17.78 * fromIntegral k
   ]
 
+-- | Solder jumper: bridged by hand, nothing for the factory to place.
 jumper :: Part
-jumper = (part "JP1" "LINK A-B" jumperSym jumperFp jumperAt (101.6, 152.4)) { partSide = Back }
+jumper = (part "JP1" "LINK A-B" jumperSym jumperFp jumperAt (101.6, 152.4)) { partSide = Back, partAssembly = Hand }
 
 -- Nets -----------------------------------------------------------------------
 
@@ -117,7 +121,7 @@ nets =
   , Net "MULT_A" Signal ([ (jackRef 0 k, "T") | k <- rows ] ++ [("JP1", "1")])
   , Net "MULT_B" Signal ([ (jackRef 1 k, "T") | k <- rows ] ++ [("JP1", "2")])
   ]
-  -- TN (switch) pins are intentionally unconnected.
+  -- TN (switch) pins are intentionally unconnected: see 'jacks' (partNoConnect).
 
 -- Copper ---------------------------------------------------------------------
 
@@ -159,8 +163,10 @@ board = Board
   , bdTraces = []
   , bdAutoRoute = Just (autoRoute ["MULT_A", "MULT_B"]) { arWidth = 0.5 }
   , bdZones =
-      [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25
-      , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25
+      -- GND is not routed as copper here: the jack sleeves are connected by
+      -- these pours alone, so the pours must bond to their pads.
+      [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25 ThermalRelief
+      , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25 ThermalRelief
       ]
   , bdTexts =
       [ BoardText "MULT 2x6" "B.SilkS" (boardW / 2, 8.0) 0 1.5

@@ -11,8 +11,12 @@ Workstation bootstrap and verification: `SETUP.md`.
   - Boards are routed by pcbgen's own grid router (`toolkit/src/Route/`): set `bdAutoRoute` and list the nets; `modules/<name>/kicad/route-report.md` records per-net length, vias and detour ratio. Route GND as copper too and add the pours on top, so a pour cut into islands never strands a pad.
   - Multi-unit symbols (dual op-amps) work: one instance per unit, placed with `partUnitOffsets`. Horizontal power pins get global labels, vertical ones power symbols.
   - Footprints the official library lacks live in `lib/footprints/<nick>.pretty/` (`LibId "pcbgen" "Hole_7.2mm"`). pcbgen writes an `fp-lib-table` into such a project referencing `${PCBGEN_LIB}`; check.sh and fab.sh export it. To view those projects in the KiCad GUI, define `PCBGEN_LIB` in Preferences → Configure Paths.
-  - SMD passives carry no silkscreen reference (`partRefOnSilk = False`); JLCPCB places from BOM and CPL. Parts without an `LCSC Part #` field are treated as hand-soldered and left out of the assembly files.
+  - SMD passives carry no silkscreen reference (`partRefOnSilk = False`); JLCPCB places from BOM and CPL. Assembly intent is declared per part with `partAssembly` (`Factory` needs an `LCSC Part #` field and is placed by JLCPCB; `Hand`, `DNP` and `Mechanical` must not carry one and are left out of the assembly files). `part` defaults to `Hand`.
+  - Every design is validated before anything is written (`toolkit/src/Validate.hs`): unique references and net names, every `(ref, pin)` must exist on the library symbol, every symbol pin must be on exactly one net or listed in `partNoConnect` (e.g. `partNoConnect = ["TN"]` for a jack's unused switch pin), assembly class and LCSC field must agree, dimensions and routing settings must be positive. On any diagnostic pcbgen prints them to stderr and exits non-zero without touching the project.
+  - `cabal test` runs the regression suite in `toolkit/test/` (needs KiCad's libraries). Every validation fault or router bug that gets fixed gets a test there.
 - **KiKit** (installed into KiCad's bundled Python, run from the KiCad Command Prompt) produces the JLCPCB fabrication bundle via `toolkit/fab.sh <name> [panel]` and can panelize modules headlessly. Its own DRC and `--ignore` crash in KiCad 10's bindings; the scripts avoid both.
+- **One entry point**: `toolkit/pipeline.sh <name> [--fab]` runs preflight, generation, `check.sh` for the module and its panel, then `fab.sh`, and prints a PASS/FAIL/SKIPPED table. It fails closed: `check.sh` writes `modules/<name>/build/[panel/]check.ok` (tool versions, git provenance, sha256 of every source and of the zone-filled board) only when ERC and DRC are both clean, and `fab.sh` refuses to export unless every one of those hashes still matches, builds into a temporary directory and publishes `build/fab/` only after KiKit and `toolkit/fabcheck.py` pass, so no bundle can come from stale or unchecked input. `build/fab/manifest.txt` hashes every output.
+- "Generated", "checks passed" and "reviewed prototype candidate" are three different states; the scripts only ever claim the first two. `toolkit/test-scripts.sh` fault-injects the attenuverter fixture (tampered source byte, tampered filled board, missing `check.ok`, a board fattened until DRC fails) to prove the refusals fire, and must end in `0 failed`.
 - **Freerouting** jar lives in KiCad's 3rdparty/plugins/freerouting; Java 25 (portable Temurin JRE) is on the user PATH. Unused fallback in case a board outgrows the in-house router.
 - **kicad-happy** skills (kicad, spice, emc, bom, lcsc, jlcpcb, ...) are installed globally for review and fab prep.
 - No MCP server is used. Konnect was dropped after the first module; everything runs through `kicad-cli`.
@@ -35,7 +39,10 @@ Workstation bootstrap and verification: `SETUP.md`.
 pcbgen.cabal, cabal.project   the Haskell package (run cabal from here)
 toolkit/src/                  generator: Design model, KiCad emitters, router
 toolkit/app/Main.hs           registry of designs by name
-toolkit/check.sh, fab.sh      verification and fabrication scripts
+toolkit/pipeline.sh           preflight, generate, check, export: the entry point
+toolkit/check.sh, fab.sh      verification and fabrication, gated by check.ok
+toolkit/tools.sh, fabcheck.py shared shell helpers, assembly/gerber checks
+toolkit/test-scripts.sh       fault-injection tests for those scripts
 lib/footprints/               repository footprint libraries
 modules/<name>/
   <Name>.hs, <Name>Panel.hs   the design (source of truth), a Haskell module per project
@@ -45,4 +52,4 @@ modules/<name>/
   build/                      check.sh and fab.sh output (ignored)
 ```
 
-Adding a module: create `modules/<name>/<Name>.hs`, add its directory to `hs-source-dirs` and its module to `exposed-modules` in `pcbgen.cabal`, register it in `toolkit/app/Main.hs`, write `SPEC.md`.
+Adding a module: create `modules/<name>/<Name>.hs`, add its directory to `hs-source-dirs` and its module to `exposed-modules` in `pcbgen.cabal`, register it in `toolkit/app/Main.hs`, write `SPEC.md`, and add it to the valid-design cases in `toolkit/test/ValidateTests.hs`.

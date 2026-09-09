@@ -8,8 +8,14 @@ module Route.Geometry
   , PadGeom (..)
   , Keepout (..)
   , Outline (..)
+  , RTrace (..)
+  , RVia (..)
   , distToShape
   , shapeRadius
+  , shapeInRadius
+  , segPointDist
+  , segSegDist
+  , minSegShapeDist
   , distOutsideOutline
   , pointInPolygon
   , distToPolygonEdge
@@ -56,6 +62,14 @@ data Outline = Outline
   , olRadius :: Double
   } deriving (Show)
 
+-- | A copper polyline on one layer, board coordinates.
+data RTrace = RTrace { rtNet :: Text, rtLayer :: Layer, rtWidth :: Double, rtPath :: [Pt] }
+  deriving (Show)
+
+-- | A through via: a copper disc on both layers.
+data RVia = RVia { rvNet :: Text, rvAt :: Pt, rvDiameter :: Double, rvDrill :: Double }
+  deriving (Show)
+
 addPt, subPt :: Pt -> Pt -> Pt
 addPt (a, b) (c, d) = (a + c, b + d)
 subPt (a, b) (c, d) = (a - c, b - d)
@@ -98,6 +112,50 @@ shapeRadius (Circle r)          = r
 shapeRadius (Rect w h _)        = sqrt (w * w + h * h) / 2
 shapeRadius (RoundRect w h _ _) = sqrt (w * w + h * h) / 2
 
+-- | Radius of the largest circle inside the shape.
+shapeInRadius :: Shape -> Double
+shapeInRadius (Circle r)          = r
+shapeInRadius (Rect w h _)        = min w h / 2
+shapeInRadius (RoundRect w h _ _) = min w h / 2
+
+-- | Distance from a point to a segment.
+segPointDist :: Pt -> Pt -> Pt -> Double
+segPointDist (x1, y1) (x2, y2) (px, py) =
+  let dx = x2 - x1; dy = y2 - y1
+      l2 = dx * dx + dy * dy
+      t = if l2 == 0 then 0 else max 0 (min 1 (((px - x1) * dx + (py - y1) * dy) / l2))
+  in dist (px, py) (x1 + t * dx, y1 + t * dy)
+
+-- | Distance between two segments (zero when they cross).
+segSegDist :: (Pt, Pt) -> (Pt, Pt) -> Double
+segSegDist (p1, p2) (q1, q2)
+  | intersects = 0
+  | otherwise = minimum [ segPointDist p1 p2 q1, segPointDist p1 p2 q2
+                        , segPointDist q1 q2 p1, segPointDist q1 q2 p2 ]
+  where
+    cross (ax, ay) (bx, by) = ax * by - ay * bx
+    d1 = cross (subPt q2 q1) (subPt p1 q1)
+    d2 = cross (subPt q2 q1) (subPt p2 q1)
+    d3 = cross (subPt p2 p1) (subPt q1 p1)
+    d4 = cross (subPt p2 p1) (subPt q2 p1)
+    intersects = ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
+              && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+
+-- | Minimum signed distance from a pad shape to a segment (negative when the
+-- segment enters the shape). The signed distance to a convex shape is convex
+-- along a line, so a ternary search over the segment finds it.
+minSegShapeDist :: Shape -> Pt -> Pt -> Pt -> Double
+minSegShapeDist sh centre p1 p2 = go (0 :: Int) 0 1
+  where
+    at t = let (x1, y1) = p1; (x2, y2) = p2 in (x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)
+    f t = distToShape sh centre (at t)
+    go n lo hi
+      | n >= 80 = min (f lo) (f hi)
+      | otherwise =
+          let m1 = lo + (hi - lo) / 3
+              m2 = hi - (hi - lo) / 3
+          in if f m1 < f m2 then go (n + 1) lo m2 else go (n + 1) m1 hi
+
 -- | Signed distance to the outline edge: negative inside the board.
 distOutsideOutline :: Outline -> Pt -> Double
 distOutsideOutline (Outline w h r) (x, y) =
@@ -113,11 +171,6 @@ pointInPolygon poly (px, py) = odd (length crossings)
                      , px < xi ]
 
 distToPolygonEdge :: [Pt] -> Pt -> Double
-distToPolygonEdge poly p = minimum (map (segDist p) edges)
+distToPolygonEdge poly p = minimum [ segPointDist a b p | (a, b) <- edges ]
   where
     edges = zip poly (drop 1 poly ++ take 1 poly)
-    segDist (px, py) ((x1, y1), (x2, y2)) =
-      let dx = x2 - x1; dy = y2 - y1
-          l2 = dx * dx + dy * dy
-          t = if l2 == 0 then 0 else max 0 (min 1 (((px - x1) * dx + (py - y1) * dy) / l2))
-      in dist (px, py) (x1 + t * dx, y1 + t * dy)

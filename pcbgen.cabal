@@ -28,10 +28,12 @@ library
         Kicad.Library
         Kicad.Uuid
         Design
+        Validate
         Emit.Schematic
         Emit.Pcb
         Emit.Project
         Route.Geometry
+        Route.Check
         Route.Router
         Route.Extract
         Attenuverter

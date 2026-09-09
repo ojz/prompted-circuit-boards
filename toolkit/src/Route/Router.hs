@@ -17,6 +17,7 @@ module Route.Router
   , RVia (..)
   , autoroute
   , routeReport
+  , preRoutedBlocked
   ) where
 
 import           Control.Monad      (forM_, unless, when)
@@ -35,6 +36,7 @@ import qualified Data.Set           as S
 import           Data.Text          (Text)
 import qualified Data.Text          as T
 
+import           Route.Check
 import           Route.Geometry
 
 data RouteConfig = RouteConfig
@@ -62,12 +64,6 @@ data RouteProblem = RouteProblem
   , rpPreRouted :: [(Text, Layer, Double, [Pt])]  -- ^ hand-drawn traces: (net, layer, width, path)
   }
 
-data RTrace = RTrace { rtNet :: Text, rtLayer :: Layer, rtWidth :: Double, rtPath :: [Pt] }
-  deriving (Show)
-
-data RVia = RVia { rvNet :: Text, rvAt :: Pt, rvDiameter :: Double, rvDrill :: Double }
-  deriving (Show)
-
 data RoutedNet = RoutedNet
   { rnNet    :: Text
   , rnTraces :: [RTrace]
@@ -79,6 +75,10 @@ data RouteResult = RouteResult
   { rrNets       :: [RoutedNet]
   , rrFailed     :: [Text]      -- ^ nets with a terminal that could not be reached
   , rrConflicts  :: Int         -- ^ contested cells left after the last iteration
+  , rrViaPad     :: [ViaPadViolation]
+    -- ^ vias inside or against any pad (checked on the final geometry, not the grid)
+  , rrDisconnected :: [Text]
+    -- ^ routed nets whose pads, traces (hand-drawn included) and vias do not form one copper island
   , rrIterations :: Int
   , rrLog        :: [Text]
   }
@@ -190,9 +190,11 @@ buildGrid cfg prob netIds =
 -- another trace centre must keep from it.
 type Occ = IM.IntMap (IM.IntMap Int)
 
-stampCells :: Grid -> RouteConfig -> [(Int, Int, Int)] -> [(Int, Int, Int)] -> [Int]
-stampCells g cfg pathCells viaCells =
-  let rTrace = rcWidth cfg + rcClearance cfg + rcPitch cfg      -- centre-to-centre minimum plus one cell of slack for smoothing
+-- | The width is that of the copper being stamped; the halo keeps another
+-- net's trace centre (of the configured width) clear of it.
+stampCells :: Grid -> RouteConfig -> Double -> [(Int, Int, Int)] -> [(Int, Int, Int)] -> [Int]
+stampCells g cfg width pathCells viaCells =
+  let rTrace = width / 2 + rcWidth cfg / 2 + rcClearance cfg + rcPitch cfg   -- centre-to-centre minimum plus one cell of slack for smoothing
       rVia = rcViaDiameter cfg / 2 + rcWidth cfg / 2 + rcClearance cfg + rcPitch cfg
       disc l (cx, cy) r = [ cellIdx g l x y | (x, y) <- cellsAround g (cellCentre g cx cy) r
                           , dist (cellCentre g x y) (cellCentre g cx cy) <= r ]
@@ -342,7 +344,11 @@ astar s sources targets targetCentre targetRadius = runST $ do
                        dy = abs (cy - ty) / pitch
                    in max 0 (max dx dy + (s2 - 1) * min dx dy - tr)
       free c = let o = owner ! c; n = near ! c in (o == 0 || o == nid) && (n == 0 || n == nid)
-      viaOk c = let v = viaNear ! c; o = owner ! c in (v == 0 || v == nid) && (o == 0 || o == nid)
+      -- A via may only go where both layers are clear of every pad, its own
+      -- net's included: a drill in an SMD solder land is not assemblable, and
+      -- a via touching a through-hole pad is not the copper the design asked
+      -- for either. gViaNear is inflated by via radius + clearance.
+      viaOk c = viaNear ! c == 0 && owner ! c == 0
       dirs = [(1,0,1),(-1,0,1),(0,1,1),(0,-1,1),(1,1,s2),(1,-1,s2),(-1,1,s2),(-1,-1,s2)] :: [(Int, Int, Double)]
   gScore <- newArray (0, size - 1) (1 / 0) :: ST s (STUArray s Int Double)
   parent <- newArray (0, size - 1) (-1) :: ST s (STUArray s Int Int)
@@ -391,34 +397,63 @@ astar s sources targets targetCentre targetRadius = runST $ do
 data Terminal = Terminal
   { tCells  :: IS.IntSet
   , tCentre :: Pt
-  , tRadius :: Double
+  , tRadius :: Double            -- ^ every cell centre lies within this of tCentre (A* heuristic)
+  , tPads   :: [(IS.IntSet, Pt)] -- ^ pad cells and centre of each pad in this terminal, for snapping
   }
 
--- | Pad cells of one net, grouped per pad. Pads too small to own a cell
--- centre get their centre cell.
-terminalsFor :: Grid -> M.Map Text Int -> Text -> [PadGeom] -> [Terminal]
-terminalsFor g netIds net pads =
-  [ Terminal cells (pgAt p) (shapeRadius (pgShape p))
-  | p <- pads, pgNet p == Just net
-  , let nid = fromMaybe 0 (M.lookup net netIds)
-  , let owned = IS.fromList [ cellIdx g (layerIx l) x y
-                            | l <- pgLayers p, (x, y) <- cellsAround g (pgAt p) (shapeRadius (pgShape p) + gPitch g)
-                            , gOwner g ! cellIdx g (layerIx l) x y == nid
-                            , distToShape (pgShape p) (pgAt p) (cellCentre g x y) <= 0 ]
-  , let (cx, cy) = pgAt p
-        centreCell = IS.fromList [ cellIdx g (layerIx l) (clampX (floor (cx / gPitch g))) (clampY (floor (cy / gPitch g))) | l <- pgLayers p ]
-  , let cells = if IS.null owned then centreCell else owned
-  ]
+-- | Cells of one pad. Pads too small to own a cell centre get their centre
+-- cell.
+padCells :: Grid -> Int -> PadGeom -> IS.IntSet
+padCells g nid p =
+  let owned = IS.fromList [ cellIdx g (layerIx l) x y
+                          | l <- pgLayers p, (x, y) <- cellsAround g (pgAt p) (shapeRadius (pgShape p) + gPitch g)
+                          , gOwner g ! cellIdx g (layerIx l) x y == nid
+                          , distToShape (pgShape p) (pgAt p) (cellCentre g x y) <= 0 ]
+      (cx, cy) = pgAt p
+      centreCell = IS.fromList [ cellIdx g (layerIx l) (clampX (floor (cx / gPitch g))) (clampY (floor (cy / gPitch g))) | l <- pgLayers p ]
+  in if IS.null owned then centreCell else owned
   where
     clampX v = max 0 (min (gW g - 1) v)
     clampY v = max 0 (min (gH g - 1) v)
 
+-- | The terminals of one net: every copper island the design already has.
+-- A pad on its own is one terminal; pads joined by hand-drawn traces form one
+-- terminal together with those traces; a hand-drawn trace touching no pad is
+-- a terminal of its own and must be picked up too. Islands are found on the
+-- real geometry ('copperComponents'), not on the grid.
+terminalsFor :: Grid -> M.Map Text Int -> Text -> [PadGeom] -> [(Text, Layer, Double, [Pt])] -> [Terminal]
+terminalsFor g netIds net allPads preRouted =
+  let nid = fromMaybe 0 (M.lookup net netIds)
+      pads = [ p | p <- allPads, pgNet p == Just net ]
+      traces = [ (l, w, path) | (n, l, w, path) <- preRouted, n == net, length path >= 2 ]
+      items = map CPad pads
+           ++ [ CSeg l w a b | (l, w, path) <- traces, (a, b) <- zip path (drop 1 path) ]
+      nPads = length pads
+      -- segment index -> its trace index
+      segTrace = concat [ replicate (length path - 1) ti | (ti, (_, _, path)) <- zip [0 :: Int ..] traces ]
+      traceCells (l, _, path) = IS.fromList
+        [ cellIdx g (layerIx l) x y | (p1, p2) <- zip path (drop 1 path), (x, y) <- rasterSegment g p1 p2 ]
+      terminal comp =
+        let padIxs = [ i | i <- comp, i < nPads ]
+            traceIxs = S.toList (S.fromList [ segTrace !! (i - nPads) | i <- comp, i >= nPads ])
+            padParts = [ (padCells g nid p, pgAt p) | i <- padIxs, let p = pads !! i ]
+            cells = IS.unions (map fst padParts ++ [ traceCells (traces !! ti) | ti <- traceIxs ])
+        in case (padIxs, traceIxs) of
+             ([i], []) -> let p = pads !! i in Terminal cells (pgAt p) (shapeRadius (pgShape p)) padParts
+             _ ->
+               let pts = [ cellCentre g x y | c <- IS.toList cells, let (_, x, y) = cellCoords g c ]
+                   xs = map fst pts; ys = map snd pts
+                   centre = ((minimum xs + maximum xs) / 2, (minimum ys + maximum ys) / 2)
+                   radius = maximum (0 : [ dist centre q | q <- pts ]) + gPitch g
+               in Terminal cells centre radius padParts
+  in if null items then [] else map terminal (copperComponents items)
+
 -- | Connect all terminals of a net into one tree. Returns the cells of every
 -- path segment (each path source-first), or the index of the terminal that
 -- could not be reached.
-routeNet :: Search -> [Terminal] -> IS.IntSet -> Either Int [[Int]]
-routeNet _ [] _ = Right []
-routeNet s (t0 : rest) preCells = go (IS.union (tCells t0) preCells) rest []
+routeNet :: Search -> [Terminal] -> Either Int [[Int]]
+routeNet _ [] = Right []
+routeNet s (t0 : rest) = go (tCells t0) rest []
   where
     go _ [] acc = Right (reverse acc)
     go tree remaining acc =
@@ -447,20 +482,12 @@ autoroute cfg prob =
       grid = buildGrid cfg prob netIds
       toRoute = [ n | n <- rcNets cfg, M.member n netIds ]
       missing = [ n | n <- rcNets cfg, not (M.member n netIds) ]
-      terms = M.fromList [ (n, terminalsFor grid netIds n (rpPads prob)) | n <- toRoute ]
+      terms = M.fromList [ (n, terminalsFor grid netIds n (rpPads prob) (rpPreRouted prob)) | n <- toRoute ]
+      padCentres n = [ pgAt p | p <- rpPads prob, pgNet p == Just n ]
 
-      -- Hand-drawn traces count as existing copper of their net.
-      preCellsOf n = IS.fromList
-        [ cellIdx grid (layerIx l) x y
-        | (pn, l, _, path) <- rpPreRouted prob, pn == n
-        , (p1, p2) <- zip path (drop 1 path)
-        , (x, y) <- rasterSegment grid p1 p2 ]
-      occ0 = foldl' (\o (n, l, _, path) ->
-                       let nid = netIds M.! n
-                           cells = [ (layerIx l, x, y) | (p1, p2) <- zip path (drop 1 path), (x, y) <- rasterSegment grid p1 p2 ]
-                       in addStamps nid (stampCells grid cfg cells []) o)
-                    IM.empty
-                    [ t | t@(n, _, _, _) <- rpPreRouted prob, M.member n netIds ]
+      -- Hand-drawn traces count as existing copper of their net, each with
+      -- its own width.
+      occ0 = preRoutedOcc cfg prob grid netIds
 
       -- Short nets first: they have the fewest alternatives.
       order = sortOn (\n -> negate (length (terms M.! n))) toRoute
@@ -489,12 +516,12 @@ autoroute cfg prob =
             st = states M.! n
             occNo = removeStamps nid (nsStamps st) occ
             search = Search grid cfg nid (penaltyArray grid occNo hist nid pres)
-        in case routeNet search (terms M.! n) (preCellsOf n) of
+        in case routeNet search (terms M.! n) of
              Left _ -> (occNo, M.insert n (NetState [] [] [] True) states)
              Right paths ->
                let cells = [ cellCoords grid c | p <- paths, c <- p ]
                    vias = viasOf grid paths
-                   stamps = stampCells grid cfg cells vias
+                   stamps = stampCells grid cfg (rcWidth cfg) cells vias
                in (addStamps nid stamps occNo, M.insert n (NetState paths stamps vias False) states)
 
       -- A conflict is a trace centre (or via) of one net lying inside the
@@ -532,15 +559,48 @@ autoroute cfg prob =
                        && all (\pd -> distToShape (pgShape pd) (pgAt pd) pt > infl) foreignPads
               in all ok [ (fst p + (fst q - fst p) * t, snd p + (snd q - snd p) * t)
                         | i <- [0 .. n], let t = fromIntegral i / fromIntegral n ]
+            routed = [ toRouted grid cfg (lineOk (netIds M.! n)) n (terms M.! n) (padCentres n) (nsPaths st)
+                     | (n, st) <- M.toList states, not (nsFailed st) ]
+            -- Final geometry checks, independent of the grid bookkeeping:
+            -- vias against every pad, and one copper island per net over
+            -- pads, hand-drawn traces (their own widths), routed traces
+            -- and vias.
+            preTraces = [ RTrace n l w path | (n, l, w, path) <- rpPreRouted prob ]
+            disconnected = [ rnNet rn | rn <- routed
+                           , not (isConnected (netCopper (rnNet rn) (rpPads prob) (preTraces ++ rnTraces rn) (rnVias rn))) ]
         in RouteResult
-             { rrNets = [ toRouted grid cfg (lineOk (netIds M.! n)) n (terms M.! n) (nsPaths st)
-                        | (n, st) <- M.toList states, not (nsFailed st) ]
+             { rrNets = routed
              , rrFailed = [ n | (n, st) <- M.toList states, nsFailed st ] ++ missing
              , rrConflicts = contested
+             , rrViaPad = viaPadViolations (rcClearance cfg) (rpPads prob) (concatMap rnVias routed)
+             , rrDisconnected = disconnected
              , rrIterations = iter
              , rrLog = reverse logAcc
              }
   in loop 1 occ0 IM.empty initial []
+
+-- | Occupancy stamped by the hand-drawn traces, each with its own width.
+preRoutedOcc :: RouteConfig -> RouteProblem -> Grid -> M.Map Text Int -> Occ
+preRoutedOcc cfg prob grid netIds =
+  foldl' (\o (n, l, w, path) ->
+            let nid = netIds M.! n
+                cells = [ (layerIx l, x, y) | (p1, p2) <- zip path (drop 1 path), (x, y) <- rasterSegment grid p1 p2 ]
+            in addStamps nid (stampCells grid cfg w cells []) o)
+         IM.empty
+         [ t | t@(n, _, _, _) <- rpPreRouted prob, M.member n netIds ]
+
+-- | Would a trace centre of the configured width at this point contest the
+-- hand-drawn copper of some net? Exposes the pre-routed stamping (and so the
+-- manual trace widths) to tests without running the router.
+preRoutedBlocked :: RouteConfig -> RouteProblem -> Layer -> Pt -> Bool
+preRoutedBlocked cfg prob l (x, y) =
+  let allNets = S.toList (S.fromList (mapMaybe pgNet (rpPads prob) ++ [ n | (n, _, _, _) <- rpPreRouted prob ]))
+      netIds = M.fromList (zip allNets [1 ..])
+      grid = buildGrid cfg prob netIds
+      occ = preRoutedOcc cfg prob grid netIds
+      cx = floor (x / gPitch grid); cy = floor (y / gPitch grid)
+  in cx >= 0 && cy >= 0 && cx < gW grid && cy < gH grid
+     && otherNetsAt occ 0 (cellIdx grid (layerIx l) cx cy) > 0
 
 -- | Cells a straight hand-drawn segment passes through (Bresenham-ish
 -- sampling at half a cell).
@@ -561,13 +621,13 @@ viasOf g paths =
 
 -- | Turn cell paths into straight traces and vias, snapping the ends onto
 -- pad centres so the copper lands where KiCad expects it.
-toRouted :: Grid -> RouteConfig -> (Int -> Pt -> Pt -> Bool) -> Text -> [Terminal] -> [[Int]] -> RoutedNet
-toRouted g cfg lineOk net terms paths =
+toRouted :: Grid -> RouteConfig -> (Int -> Pt -> Pt -> Bool) -> Text -> [Terminal] -> [Pt] -> [[Int]] -> RoutedNet
+toRouted g cfg lineOk net terms padPts paths =
   RoutedNet net (concatMap tracesOf paths)
             [ RVia net (cellCentre g x y) (rcViaDiameter cfg) (rcViaDrill cfg) | (_, x, y) <- viasOf g paths ]
-            (mstLength (map tCentre terms))
+            (mstLength padPts)
   where
-    padCentreOf c = case [ tCentre t | t <- terms, IS.member c (tCells t) ] of
+    padCentreOf c = case [ centre | t <- terms, (cells, centre) <- tPads t, IS.member c cells ] of
       (p : _) -> Just p
       []      -> Nothing
 
@@ -650,6 +710,9 @@ routeReport nameOf res = T.unlines $
      , T.pack ("Iterations: " ++ show (rrIterations res) ++ ". Contested cells left: " ++ show (rrConflicts res) ++ ".")
      ]
   ++ [ "Failed nets: " <> T.intercalate ", " (map nameOf (rrFailed res)) | not (null (rrFailed res)) ]
+  ++ [ T.pack ("Via/pad violations: " ++ show (length (rrViaPad res)) ++ ".") ]
+  ++ [ "  " <> describeViaPad v | v <- rrViaPad res ]
+  ++ [ "Disconnected nets: " <> (if null (rrDisconnected res) then "none" else T.intercalate ", " (map nameOf (rrDisconnected res))) <> "." ]
   where
     nets = sortOn rnNet (rrNets res)
     segs rn = sum [ length (rtPath t) - 1 | t <- rnTraces rn ]

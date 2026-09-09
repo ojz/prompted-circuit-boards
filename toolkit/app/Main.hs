@@ -8,7 +8,7 @@
 -- else in the directory are left alone.
 module Main (main) where
 
-import           Control.Monad      (forM_, when)
+import           Control.Monad      (forM_, unless, when)
 import           Data.Maybe         (fromMaybe)
 import           Data.Text          (Text)
 import qualified Data.Text          as T
@@ -29,6 +29,7 @@ import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
 import           Kicad.Library
+import           Validate
 
 designs :: [(String, Module)]
 designs =
@@ -58,6 +59,13 @@ run name mOut = do
   lc <- newLibCache
   share <- findKicadShare
   putStrLn ("KiCad libraries: " ++ share)
+  -- Validate before emitting: an incomplete or contradictory design writes
+  -- nothing, so a stale project can never look like a fresh one.
+  diags <- validateModule lc m
+  unless (null diags) $ do
+    hPutStrLn stderr ("design " ++ name ++ " is invalid (" ++ show (length diags) ++ " diagnostics); nothing written")
+    mapM_ (TIO.hPutStrLn stderr . ("  " <>) . formatDiagnostic) diags
+    exitFailure
   (schTxt, info) <- emitSchematic lc m
   (pcbTxt, report) <- emitPcb lc m info
   createDirectoryIfMissing True outDir

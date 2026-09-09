@@ -19,8 +19,9 @@ jackHoleFp = LibId "MountingHole" "MountingHole_6.4mm_M6"
 potHoleFp  = LibId "pcbgen" "Hole_7.2mm"
 railHoleFp = LibId "MountingHole" "MountingHole_3.2mm_M3"
 
+-- | A hole is not a component: nothing is installed and it leaves the BOM.
 hole :: Text -> Text -> LibId -> (Double, Double) -> (Double, Double) -> Part
-hole ref val fp at schAt = (part ref val holeSym fp at schAt) { partRefOnSilk = False }
+hole ref val fp at schAt = (part ref val holeSym fp at schAt) { partRefOnSilk = False, partAssembly = Mechanical }
 
 holes :: [Part]
 holes =

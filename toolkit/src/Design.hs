@@ -11,6 +11,7 @@ module Design
   , NetKind (..)
   , Net (..)
   , Trace (..)
+  , PadConnect (..)
   , Zone (..)
   , BoardText (..)
   , DesignRules (..)
@@ -94,6 +95,18 @@ data Trace = Trace
   , trPath  :: [(Double, Double)]   -- ^ polyline, at least two points
   } deriving (Show)
 
+-- | How a copper pour bonds to the pads of its own net.
+--
+-- 'ThermalRelief' is KiCad's default and gives each pad spokes through a gap;
+-- KiCad's DRC then demands two spokes per pad, which a pour cannot always
+-- give a pad that routed copper crowds. 'PadsUnbonded' leaves the pads alone:
+-- correct when every net is routed as copper anyway and the pour is redundant
+-- shielding on top, which is this repository's house style. The pour still
+-- merges with the traces of its net, and DRC still reports any pad left
+-- unconnected, so the guarantee does not rest on the pour.
+data PadConnect = ThermalRelief | SolidFill | PadsUnbonded
+  deriving (Eq, Show)
+
 data Zone = Zone
   { znNet       :: Text
   , znLayer     :: Text
@@ -101,6 +114,7 @@ data Zone = Zone
   , znPoly      :: [(Double, Double)]
   , znClearance :: Double
   , znMinWidth  :: Double
+  , znConnect   :: PadConnect
   } deriving (Show)
 
 data BoardText = BoardText

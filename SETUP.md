@@ -49,24 +49,55 @@ the KiCad GUI without a missing-library warning, add `PCBGEN_LIB` under
 
 ## Verify the installation
 
-Regenerate and check the mult module from the repository root:
+`toolkit/pipeline.sh` is the single entry point: tool preflight, generation,
+ERC, DRC with zone refill and schematic parity, renders, and with `--fab` the
+JLCPCB bundle. Run both of these from the repository root:
 
 ```
-cabal run pcbgen -- mult
-toolkit/check.sh mult
-toolkit/check.sh mult panel
+toolkit/pipeline.sh mult
+toolkit/pipeline.sh attenuverter --fab
 ```
 
-Both ERC and DRC must report zero violations and renders must appear in
-`modules/mult/build/`. Regenerating must not change any committed file under
-`modules/mult/kicad/`; the output is deterministic.
+Each ends with a status table; every row must read `PASS` (or `SKIPPED (no
+--fab)`) and the exit status must be 0. Renders are reported separately and
+never decide the result. `pipeline.sh` also checks that regeneration left every
+committed file under `modules/<name>/kicad/` unchanged - the generator is
+deterministic, so it must print `regenerated files match the committed
+project`.
 
-Expected tool versions from the verified setup on 2026-09-08:
+The stages are available on their own too:
+
+```
+cabal run pcbgen -- mult       # generate    -> modules/mult/kicad/
+toolkit/check.sh mult          # ERC + DRC   -> modules/mult/build/
+toolkit/check.sh mult panel    # the front panel project
+toolkit/fab.sh attenuverter    # JLCPCB      -> modules/attenuverter/build/fab/
+```
+
+`check.sh` writes `modules/<name>/build/[panel/]check.ok` only when both ERC
+and DRC are clean; it records the tool versions, the git provenance and the
+sha256 of every source file and of the zone-filled board it checked. `fab.sh`
+refuses to export unless that manifest is there and every hash still matches,
+builds into a temporary directory, and publishes `build/fab/` only after KiKit
+and the assembly checks (`toolkit/fabcheck.py`) pass. `build/fab/manifest.txt`
+then carries the sha256 of every output; verify a bundle with:
+
+```
+cd modules/attenuverter/build/fab && grep '^output ' manifest.txt | cut -c8- | sha256sum -c
+```
+
+To verify the scripts rather than a module, `toolkit/test-scripts.sh`
+fault-injects the attenuverter fixture - a single tampered source byte, a
+tampered filled board, a missing `check.ok`, and a board whose tracks are
+widened until DRC fails - and must end in `0 failed`. It takes a few minutes
+and removes its scratch copies on exit.
+
+Expected tool versions from the verified setup on 2026-09-09:
 
 ```text
 KiCad CLI 10.0.6
 GHC 9.2.8, cabal 3.6.2
-KiKit 1.8.1
+KiKit 1.8.1 on KiCad's bundled Python 3.11.5
 ```
 
 Patch versions may be newer. The important compatibility requirement is

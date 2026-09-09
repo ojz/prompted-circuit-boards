@@ -5,44 +5,110 @@
 -- placement, nets and text values applied the way KiCad itself writes them.
 -- Zones are emitted unfilled; @kicad-cli pcb drc --refill-zones --save-board@
 -- fills them headlessly afterwards.
-module Emit.Pcb (emitPcb) where
+module Emit.Pcb
+  ( emitPcb
+  , routeProblemFor
+  , routeConfigFor
+  , placedFootprints
+  , routeProblemOf
+  , routingErrors
+  ) where
 
 import           Control.Exception (evaluate)
-import           Control.Monad   (unless, when)
+import           Control.Monad   (unless)
 import qualified Data.Map.Strict as M
 import           Data.Maybe      (fromMaybe, isJust, isNothing)
 import           Data.Text       (Text)
 import qualified Data.Text       as T
 import           Numeric         (showFFloat)
 import           System.CPUTime  (getCPUTime)
-import           System.IO       (hPutStrLn, stderr)
 
 import           Design
-import           Emit.Schematic  (SchInfo (..), SymInfo (..))
+import           Emit.Schematic  (SchInfo (..), SymInfo (..), emitSchematic)
 import           Kicad.Library
 import           Kicad.SExpr
 import           Kicad.Uuid
+import           Route.Check
 import           Route.Extract
 import           Route.Geometry  (Layer (..), Outline (..))
 import           Route.Router
 
 type Pt = (Double, Double)
 
+-- | Board net name of a design net name (signal nets get KiCad's slash).
+resolveNetOf :: Module -> Text -> Text
+resolveNetOf m t = fromMaybe ("/" <> t) (M.lookup t netByName)
+  where netByName = M.fromList [ (netName n, pcbNetName n) | n <- modNets m ]
+
+-- | Every footprint placed, netted and flipped as it will appear on the board.
+placedFootprints :: LibCache -> Module -> SchInfo -> IO [SExpr]
+placedFootprints lc m info = do
+  let name = modName m
+      u s = uuidFor (name <> "/pcb/" <> s)
+      pinNet = M.fromList [ ((r, p), pcbNetName n) | n <- modNets m, (r, p) <- netPins n ]
+  mapM (\p -> do
+          raw <- loadFootprint lc (libNick (partFootprint p)) (libItem (partFootprint p))
+          let si = M.lookup (partRef p) (siSymbols info)
+          pure (placeFootprint u pinNet (name <> ".kicad_sch") p raw si))
+       (modParts m)
+
+-- | The routing problem in board coordinates and board net names: outline,
+-- every pad, keep-outs and the hand-drawn traces with their own widths.
+routeProblemOf :: Module -> [SExpr] -> RouteProblem
+routeProblemOf m fps =
+  let bd = modBoard m
+      layerOf t = if t == "B.Cu" then B else F
+  in RouteProblem
+       { rpOutline = Outline (bdWidth bd) (bdHeight bd) (bdCornerRadius bd)
+       , rpPads = concatMap padsOfFootprint fps
+       , rpKeepouts = concatMap keepoutsOfFootprint fps
+       , rpPreRouted = [ (resolveNetOf m (trNet t), layerOf (trLayer t), trWidth t, trPath t) | t <- bdTraces bd ] }
+
+-- | Build the module's routing problem from scratch (schematic pass included,
+-- so pad nets are exactly what the board emitter uses). For tests and tools
+-- that want to run 'autoroute' outside generation.
+routeProblemFor :: LibCache -> Module -> IO RouteProblem
+routeProblemFor lc m = do
+  (_, info) <- emitSchematic lc m
+  fps <- placedFootprints lc m info
+  pure (routeProblemOf m fps)
+
+-- | Router settings of an autorouted board: its 'AutoRoute' block plus the
+-- board's design rules.
+routeConfigFor :: Module -> Maybe RouteConfig
+routeConfigFor m = do
+  ar <- bdAutoRoute (modBoard m)
+  let rules = bdRules (modBoard m)
+  pure (defaultRouteConfig (map (resolveNetOf m) (arNets ar)))
+         { rcPitch = arPitch ar, rcWidth = arWidth ar
+         , rcClearance = drClearance rules, rcEdgeClearance = drEdgeClearance rules
+         , rcViaDiameter = arViaDiameter ar, rcViaDrill = arViaDrill ar }
+
+-- | Everything that makes a routing result unusable: a net the router gave
+-- up on, copper still contested between nets, a via inside or against a pad
+-- (re-checked here on the final geometry, independently of the router),
+-- or a net whose copper is not one island. Empty means the board may be
+-- written.
+routingErrors :: (Text -> Text) -> RouteConfig -> RouteProblem -> RouteResult -> [Text]
+routingErrors nameOf cfg prob res =
+  [ "could not complete nets: " <> T.intercalate ", " (map nameOf (rrFailed res)) | not (null (rrFailed res)) ]
+  ++ [ T.pack (show (rrConflicts res)) <> " contested cells remain" | rrConflicts res > 0 ]
+  ++ [ "via/pad violation: " <> describeViaPad v { vpNet = nameOf (vpNet v), vpPadNet = fmap nameOf (vpPadNet v) } | v <- viaPad ]
+  ++ [ "net not connected: " <> nameOf n | n <- rrDisconnected res ]
+  where
+    viaPad = viaPadViolations (rcClearance cfg) (rpPads prob) [ v | rn <- rrNets res, v <- rnVias rn ]
+
 -- | The board text and, when the design is autorouted, the score report.
+-- Fails (so pcbgen exits non-zero and writes nothing) when the router's
+-- result has any of the 'routingErrors'.
 emitPcb :: LibCache -> Module -> SchInfo -> IO (Text, Maybe Text)
 emitPcb lc m info = do
   let name = modName m
       u s = uuidFor (name <> "/pcb/" <> s)
       bd = modBoard m
-      pinNet = M.fromList [ ((r, p), pcbNetName n) | n <- modNets m, (r, p) <- netPins n ]
-      netByName = M.fromList [ (netName n, pcbNetName n) | n <- modNets m ]
-      resolveNet t = fromMaybe ("/" <> t) (M.lookup t netByName)
+      resolveNet = resolveNetOf m
 
-  fps <- mapM (\p -> do
-                  raw <- loadFootprint lc (libNick (partFootprint p)) (libItem (partFootprint p))
-                  let si = M.lookup (partRef p) (siSymbols info)
-                  pure (placeFootprint u pinNet (name <> ".kicad_sch") p raw si))
-              (modParts m)
+  fps <- placedFootprints lc m info
 
   setup <- either (\e -> fail ("internal setup block: " ++ e)) pure (parseSExprs setupBlock)
 
@@ -51,37 +117,25 @@ emitPcb lc m info = do
   let designName = M.fromList [ (pcbNetName n, netName n) | n <- modNets m ]
       layerName F = "F.Cu"
       layerName B = "B.Cu"
-      layerOf t = if t == "B.Cu" then B else F
-  (autoTraces, autoVias, report) <- case bdAutoRoute bd of
+  (autoTraces, autoVias, report) <- case routeConfigFor m of
     Nothing -> pure ([], [], Nothing)
-    Just ar -> do
-      let rules = bdRules bd
-          cfg = (defaultRouteConfig (map resolveNet (arNets ar)))
-                  { rcPitch = arPitch ar, rcWidth = arWidth ar
-                  , rcClearance = drClearance rules, rcEdgeClearance = drEdgeClearance rules
-                  , rcViaDiameter = arViaDiameter ar, rcViaDrill = arViaDrill ar }
-          pre = [ (resolveNet (trNet t), layerOf (trLayer t), trWidth t, trPath t) | t <- bdTraces bd ]
-          prob = RouteProblem
-            { rpOutline = Outline (bdWidth bd) (bdHeight bd) (bdCornerRadius bd)
-            , rpPads = concatMap padsOfFootprint fps
-            , rpKeepouts = concatMap keepoutsOfFootprint fps
-            , rpPreRouted = pre }
+    Just cfg -> do
+      let prob = routeProblemOf m fps
           res = autoroute cfg prob
       t0 <- getCPUTime
       _ <- evaluate (rrIterations res)
       t1 <- getCPUTime
       mapM_ (putStrLn . ("autoroute: " ++) . T.unpack) (rrLog res)
       putStrLn ("autoroute: " ++ showFFloat (Just 1) (fromIntegral (t1 - t0) / 1e12 :: Double) " s CPU")
-      unless (null (rrFailed res)) $
-        hPutStrLn stderr ("autoroute: could not complete nets: " ++ T.unpack (T.intercalate ", " (rrFailed res)))
-      when (rrConflicts res > 0) $
-        hPutStrLn stderr ("autoroute: " ++ show (rrConflicts res) ++ " contested cells remain; DRC will report them")
       let toDesign n = fromMaybe n (M.lookup n designName)
           rep = routeReport toDesign res
           traces = [ Trace (toDesign (rtNet t)) (layerName (rtLayer t)) (rtWidth t) (rtPath t)
                    | rn <- rrNets res, t <- rnTraces rn ]
           vias = [ (rvNet v, rvAt v, rvDiameter v, rvDrill v) | rn <- rrNets res, v <- rnVias rn ]
+          errors = map T.unpack (routingErrors toDesign cfg prob res)
       putStrLn (T.unpack rep)
+      unless (null errors) $
+        fail (unlines (("autoroute failed for " ++ T.unpack name ++ ":") : map ("  " ++) errors))
       pure (traces, vias, Just rep)
 
   let outline = boardOutline u bd
@@ -353,7 +407,7 @@ zoneFor u resolveNet z =
        , list "uuid" [Str (u ("zone/" <> znName z))]
        , list "name" [Str (znName z)]
        , list "hatch" [sym "edge", num 0.5]
-       , list "connect_pads" [list "clearance" [num (znClearance z)]]
+       , list "connect_pads" (padConnectAtom (znConnect z) ++ [list "clearance" [num (znClearance z)]])
        , list "min_thickness" [num (znMinWidth z)]
        , list "filled_areas_thickness" [sym "no"]
        , list "fill" [sym "yes", list "thermal_gap" [num 0.5], list "thermal_bridge_width" [num 0.5]]
@@ -411,3 +465,10 @@ setupBlock = T.unlines
   , "    (crossoutdnponfab yes) (subtractmaskfromsilk no) (outputformat 1) (mirror no)"
   , "    (drillshape 1) (scaleselection 1) (outputdirectory \"\")))"
   ]
+
+-- | KiCad writes the pad-connection mode as a bare atom before the clearance:
+-- absent means thermal reliefs, @yes@ a solid fill, @no@ no pad bond at all.
+padConnectAtom :: PadConnect -> [SExpr]
+padConnectAtom ThermalRelief = []
+padConnectAtom SolidFill     = [sym "yes"]
+padConnectAtom PadsUnbonded  = [sym "no"]

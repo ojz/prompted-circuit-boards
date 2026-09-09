@@ -104,11 +104,14 @@ rowY1 = 45.72
 rowY2 = 96.52
 rowY3 = 147.32
 
--- | Thonkiconn: footprint origin is the barrel; body extends +y.
+-- | Thonkiconn: footprint origin is the barrel; body extends +y. Hand
+-- soldered. An output jack's switch pin (TN) has nothing to normal to and
+-- is declared unconnected; an input jack's TN carries OFFSET.
 jack :: Text -> Text -> Int -> Bool -> Part
 jack ref val ch isOut =
-  part ref val jackSym jackFp (toBoard (jackPanelAt ch isOut))
-       (if isOut then 195.58 else 38.1, if ch == 1 then rowY1 else rowY2)
+  (part ref val jackSym jackFp (toBoard (jackPanelAt ch isOut))
+        (if isOut then 195.58 else 38.1, if ch == 1 then rowY1 else rowY2))
+    { partNoConnect = [ "TN" | isOut ] }
 
 -- | Alpha 9 mm pot, rotated 90 so its pins point down and its lugs sit left
 -- and right of the shaft. Footprint origin is pin 1; the shaft is at
@@ -118,13 +121,14 @@ pot ref ch =
   (part ref "B100K" potSym potFp (originFor Front 90 (7.5, 2.5) (toBoard (potPanelAt ch))) (69.85, if ch == 1 then rowY1 else rowY2))
     { partRot = 90 }
 
--- | SMD part on the back, at a panel position. JLCPCB places from the BOM
--- and position file, so passives and diodes carry no silkscreen reference; IC and
--- header keep theirs for orientation checks (the diode footprint has its own
--- cathode bar).
+-- | Factory-assembled SMD part on the back, at a panel position. JLCPCB
+-- places from the BOM and position file, so passives and diodes carry no
+-- silkscreen reference; IC and header keep theirs for orientation checks
+-- (the diode footprint has its own cathode bar).
 smd :: Text -> Text -> LibId -> LibId -> Text -> (Double, Double) -> (Double, Double) -> Part
 smd ref val sy fp code panelPos schPos =
-  (part ref val sy fp (toBoard panelPos) schPos) { partSide = Back, partFields = lcsc code, partRefOnSilk = False }
+  (part ref val sy fp (toBoard panelPos) schPos)
+    { partSide = Back, partFields = lcsc code, partRefOnSilk = False, partAssembly = Factory }
 
 withRef :: Part -> Part
 withRef p = p { partRefOnSilk = True }
@@ -165,9 +169,9 @@ parts =
   , smd "D2" "B5819W" dSym sod123 "C8598" (23.5, 105.0) (91.44, rowY3)
     -- 2x5 shrouded IDC header along the bottom edge, on the back, pins 1-2
     -- (-12 V) at the right. Footprint origin is pin 1; the pad field is
-    -- centred at (1.27, 5.08).
+    -- centred at (1.27, 5.08). Through-hole, soldered by hand.
   , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (toBoard (14.5, 111.5))) (38.1, rowY3))
-      { partSide = Back, partRot = 90 }
+      { partSide = Back, partRot = 90, partAssembly = Hand }
   ]
 
 -- Nets -----------------------------------------------------------------------
@@ -194,7 +198,7 @@ nets =
   , Net "OA2"     Signal [("U1", "7"), ("R5", "2"), ("R6", "1")]
   , Net "OUT2"    Signal [("R6", "2"), ("J4", "T")]
   ]
-  -- J2.TN and J4.TN are intentionally unconnected.
+  -- J2.TN and J4.TN are intentionally unconnected: see 'jack' (partNoConnect).
 
 -- | Everything is routed as copper, GND included: the ground pours on both
 -- layers are a bonus on top, not the only connection, so a trace cutting a
@@ -216,8 +220,10 @@ board = Board
   , bdTraces = []
   , bdAutoRoute = Just (autoRoute routedNets)
   , bdZones =
-      [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25
-      , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25
+      -- Redundant shielding: every net is routed as copper, so the pours do
+      -- not bond to pads (see PadConnect).
+      [ Zone "GND" "F.Cu" "GND_front" fullBoard 0.3 0.25 PadsUnbonded
+      , Zone "GND" "B.Cu" "GND_back"  fullBoard 0.3 0.25 PadsUnbonded
       ]
   , bdTexts =
       [ BoardText "ATTENUVERTER" "B.SilkS" (boardW / 2, 3.0) 0 1.5
