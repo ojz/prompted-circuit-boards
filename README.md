@@ -5,6 +5,11 @@ KiCad project is generated from that description, and KiCad's command-line
 tools verify it and produce the files JLCPCB needs. The KiCad GUI is a viewer,
 not an editor.
 
+The [ROADMAP.md](ROADMAP.md) sets the direction for a non-technical,
+agent-assisted workflow, staged home-lab setup, and eventual DUSG/SSG modules.
+It records the current validation gaps and the gates still required before
+prototype ordering; passing ERC/DRC alone is not fabrication approval.
+
 ## Why this shape
 
 The first module (a passive multiple) was built by driving KiCad's editor
