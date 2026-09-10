@@ -25,6 +25,8 @@ import           AttenuverterPanel (attenuverterPanel)
 import           Mult       (mult)
 import           MultPanel  (multPanel)
 import           RouteTest  (routeTest)
+import           BenchFixtures (benchFixtures)
+import           Bench
 import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
@@ -40,15 +42,31 @@ designs =
   , ("route-test", routeTest)
   ]
 
+-- | Boards the routing benchmark scores. Wider than 'designs': it includes the
+-- synthetic fixtures, which are never emitted as projects (one of them is
+-- deliberately unroutable, so generation would and should refuse it).
+benchBoards :: [(String, Module)]
+benchBoards =
+  [ ("attenuverter", attenuverter)
+  , ("mult", mult)
+  , ("route-test", routeTest)
+  ] ++ benchFixtures
+
+-- | Routers under test. One entry per strategy; add Freerouting here.
+strategies :: [Strategy]
+strategies = [gridRouter]
+
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     ["all"]             -> mapM_ (\(n, _) -> run n Nothing) designs
+    ("bench" : rest)    -> bench rest
     [name]              -> run name Nothing
     [name, "--out", d]  -> run name (Just d)
     _ -> do
       hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
+      hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -95,3 +113,22 @@ fpLibTable = T.unlines
   , "  (lib (name \"pcbgen\")(type \"KiCad\")(uri \"${PCBGEN_LIB}/pcbgen.pretty\")(options \"\")(descr \"prompted-circuit-boards footprints\"))"
   , ")"
   ]
+
+-- | Score every strategy against the benchmark boards and write BENCH.md.
+-- Named boards restrict the run; no names means all of them.
+bench :: [String] -> IO ()
+bench names = do
+  let boards = if null names then benchBoards
+               else [ b | b <- benchBoards, fst b `elem` names ]
+      unknown = [ n | n <- names, n `notElem` map fst benchBoards ]
+  unless (null unknown) $ do
+    hPutStrLn stderr ("unknown board(s): " ++ unwords unknown)
+    hPutStrLn stderr ("boards: " ++ unwords (map fst benchBoards))
+    exitFailure
+  lc <- newLibCache
+  _ <- findKicadShare
+  scores <- runBench lc strategies boards
+  let rep = benchReport scores
+  TIO.putStr rep
+  TIO.writeFile "BENCH.md" (T.unlines ["# Routing benchmark", ""] <> rep)
+  putStrLn "wrote BENCH.md"

@@ -55,7 +55,12 @@ defaultRouteConfig :: [Text] -> RouteConfig
 defaultRouteConfig nets = RouteConfig
   { rcPitch = 0.2, rcWidth = 0.3, rcClearance = 0.2, rcEdgeClearance = 0.5
   , rcViaDiameter = 0.6, rcViaDrill = 0.3, rcViaCost = 40
-  , rcNets = nets, rcMaxIterations = 40 }
+  -- 40 was too tight: the 20-net `reversal` benchmark fixture left 7 contested
+  -- cells at 40 rounds and settles cleanly at 200, with fewer vias and less
+  -- copper, so the negotiation was converging slowly rather than diverging.
+  -- The loop exits as soon as nothing is contested, so a board that settles
+  -- early (every real module so far, in 1 to 25 rounds) pays nothing for this.
+  , rcNets = nets, rcMaxIterations = 200 }
 
 data RouteProblem = RouteProblem
   { rpOutline  :: Outline

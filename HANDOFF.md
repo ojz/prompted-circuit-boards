@@ -7,6 +7,87 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-10, session 3: routing benchmark (rung 0) and the research direction
+
+### Direction agreed with the user
+
+Chase: topological routing, an analog-aware objective, joint placement and
+routing, and evolving the heuristic as programs. Maybe: an exact optimum,
+Lean proofs. Parked: learned models. Start with the benchmark. Most of a
+weekly session for a few weeks, timeboxed. Pair mode: explain the algorithm,
+decide together, then the agent writes it.
+
+Two hard constraints came out of it and are now in memory:
+
+- **No model in the generation loop.** The generator's input is the netlist
+  plus declared constraints. A model may search for heuristics offline; none
+  ever chooses where a component goes.
+- **Front panels are deferred.** The modules bench-test without them and the
+  panel art is a separate project. Existing panel projects stay and keep
+  passing checks; nobody invests in them.
+
+The user also corrected my framing on the exact solver, correctly: JLCPCB does
+not charge by trace length, so an optimum measured in millimetres optimises a
+quantity nobody pays for. The ruler survives for two other questions, namely
+whether a legal board was findable at all and later optimality against an
+objective that has analog terms in it. It moves behind the objective work.
+
+Their own decomposition (represent the objective, split it, solve pieces,
+score, merge, mutate, with ant colony / annealing / genetic search over the
+top) maps onto global-versus-detailed routing, which is the standard two-level
+split in this field and something our flat router does not do at all. Merging
+independently-legal pieces at region boundaries is the known crux.
+
+### What was built
+
+`toolkit/src/Bench.hs`: a router is a `Strategy` (record of functions, `IO`
+so an external tool can be one), a score is a vector of eleven measurements
+and never a weighted total, and the report prints all of it without declaring
+a winner. `cabal run pcbgen -- bench` writes `BENCH.md`, committed so quality
+changes show in a diff. `modules/_bench/BenchFixtures.hs` holds two synthetic
+fixtures, never emitted as projects.
+
+### Two findings from the first run
+
+| Finding | Evidence |
+|---|---|
+| The negotiation budget was too low, and it was a real bug | The 20-net `reversal` fixture left 7 contested cells at the old 40-round cap and settles cleanly at 200, with fewer vias (18 vs 20) and slightly less copper. Default raised to 200; the loop still exits as soon as nothing is contested, so every real board pays nothing. Generated files byte-identical after the change. |
+| The 0.2 mm grid costs completeness, now quantified | The `pinch` fixture has one legal path about 0.04 mm wide. The grid cannot see it at any budget, partly because no cell centre lands in the band and partly because the grid refuses cells within 0.8 mm of a board edge. It is expected to fail and a test asserts that; a router that routes it is an improvement and the test should then be flipped. |
+
+### Commands run, with results
+
+```
+cabal build                      exit 0
+cabal run pcbgen -- bench        exit 0   5 boards, 4 legal, 1 expected fault
+cabal run pcbgen -- all          exit 0   0 tracked files changed (deterministic)
+cabal test                       45/45 tests passed
+toolkit/check.sh attenuverter    exit 0
+toolkit/check.sh mult            exit 0
+toolkit/check.sh _tests/route-test  exit 0
+```
+
+### Not run, not done
+
+- No new fixture beyond the two. A dense repetitive board (a fixed filterbank
+  was the user's suggestion, and it is the best of them for this) would stress
+  density and symmetry together, and belongs with the objective work.
+- Freerouting is not wired in as a strategy yet, though the user approved it
+  and the `Strategy` slot exists for it.
+- The objective still scores only length, vias and detour. Nothing analog.
+- Everything M3 still owed is still owed: CI, dependency pinning, headless
+  SPICE. The user has approved installing SPICE and Python and wants a
+  Dockerfile eventually, but not yet.
+- An adaptive stopping rule would beat a fixed 200-round cap; not attempted.
+
+### Next action
+
+**Rung 2, the objective.** Declare per-net analog intent in the design
+(length budget on high-impedance nodes, separation between control voltage and
+audio, symmetry between channels) and add those terms to the score, then
+install ngspice and check the routed board against extracted parasitics.
+Expect the current router to score worse at first; that is the objective
+becoming honest. Prerequisite: none, the harness is in place.
+
 ## 2026-09-09, session 2: M1 and M2 closed, M3 partly
 
 Commits: `6ffcdb6` design model and empty test suite, `7c9e2b5` the work below,

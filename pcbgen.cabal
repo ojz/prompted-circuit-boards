@@ -23,12 +23,14 @@ library
                       modules/mult
                       modules/attenuverter
                       modules/_tests/route-test
+                      modules/_bench
     exposed-modules:
         Kicad.SExpr
         Kicad.Library
         Kicad.Uuid
         Design
         Validate
+        Bench
         Emit.Schematic
         Emit.Pcb
         Emit.Project
@@ -41,6 +43,7 @@ library
         Mult
         MultPanel
         RouteTest
+        BenchFixtures
 
 executable pcbgen
     import:           shared
@@ -56,4 +59,5 @@ test-suite pcbgen-test
     other-modules:    Harness
                       ValidateTests
                       RouteTests
+                      BenchTests
     build-depends:    pcbgen

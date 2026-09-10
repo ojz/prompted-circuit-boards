@@ -20,6 +20,7 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | Work cadence | Approximately one session per week, using a variable remaining token budget; progress must survive gaps and model changes |
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
 | Home lab | Start from an empty bench; EUR 500-1000 initial budget, purchased in stages from Belgium/EU-compatible sources |
+| Front panels | Deferred 2026-09-10; the modules work without them and the art is a separate project |
 | Eurorack case | Deferred and budgeted separately; first boards use a safe, current-limited test setup |
 | Release intent | Personal instrument; a public repository is acceptable, but commercial readiness is not a current goal |
 | Stack policy | Code-first and headless; retain working pieces and replace weak ones on evidence |
@@ -93,6 +94,7 @@ M0 Direction recorded [DONE]
   -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
   -> M3 Reproducible, fail-closed pipeline [PART DONE; CI, pinning, SPICE open]
+  -> R0 Routing benchmark [DONE 2026-09-10] -> routing research, timeboxed
   -> M4 Circuit evidence and complete prototype package
   -> human approval -> order -> delivery -> M5 guided build and measurements
   -> M6 one DUSG core, then the complete module

@@ -13,6 +13,7 @@ Workstation bootstrap and verification: `SETUP.md`.
   - Footprints the official library lacks live in `lib/footprints/<nick>.pretty/` (`LibId "pcbgen" "Hole_7.2mm"`). pcbgen writes an `fp-lib-table` into such a project referencing `${PCBGEN_LIB}`; check.sh and fab.sh export it. To view those projects in the KiCad GUI, define `PCBGEN_LIB` in Preferences → Configure Paths.
   - SMD passives carry no silkscreen reference (`partRefOnSilk = False`); JLCPCB places from BOM and CPL. Assembly intent is declared per part with `partAssembly` (`Factory` needs an `LCSC Part #` field and is placed by JLCPCB; `Hand`, `DNP` and `Mechanical` must not carry one and are left out of the assembly files). `part` defaults to `Hand`.
   - Every design is validated before anything is written (`toolkit/src/Validate.hs`): unique references and net names, every `(ref, pin)` must exist on the library symbol, every symbol pin must be on exactly one net or listed in `partNoConnect` (e.g. `partNoConnect = ["TN"]` for a jack's unused switch pin), assembly class and LCSC field must agree, dimensions and routing settings must be positive. On any diagnostic pcbgen prints them to stderr and exits non-zero without touching the project.
+  - `cabal run pcbgen -- bench [board ...]` scores every router in `strategies` against the benchmark boards and writes `BENCH.md` (committed, so a change in routing quality shows in a diff). A router is a `Bench.Strategy`, a record of functions, so alternatives sit side by side; scores stay a vector and the harness never declares a winner. Synthetic fixtures live in `modules/_bench/BenchFixtures.hs` and are never emitted as projects: `pinch` is deliberately unroutable and records the completeness cost of the 0.2 mm grid.
   - `cabal test` runs the regression suite in `toolkit/test/` (needs KiCad's libraries). Every validation fault or router bug that gets fixed gets a test there.
 - **KiKit** (installed into KiCad's bundled Python, run from the KiCad Command Prompt) produces the JLCPCB fabrication bundle via `toolkit/fab.sh <name> [panel]` and can panelize modules headlessly. Its own DRC and `--ignore` crash in KiCad 10's bindings; the scripts avoid both.
 - **One entry point**: `toolkit/pipeline.sh <name> [--fab]` runs preflight, generation, `check.sh` for the module and its panel, then `fab.sh`, and prints a PASS/FAIL/SKIPPED table. It fails closed: `check.sh` writes `modules/<name>/build/[panel/]check.ok` (tool versions, git provenance, sha256 of every source and of the zone-filled board) only when ERC and DRC are both clean, and `fab.sh` refuses to export unless every one of those hashes still matches, builds into a temporary directory and publishes `build/fab/` only after KiKit and `toolkit/fabcheck.py` pass, so no bundle can come from stale or unchecked input. `build/fab/manifest.txt` hashes every output.
@@ -25,6 +26,7 @@ Workstation bootstrap and verification: `SETUP.md`.
 
 - Every schematic change must pass `kicad-cli sch erc --exit-code-violations` before moving to layout.
 - Every layout change must pass `kicad-cli pcb drc --schematic-parity --exit-code-violations` before export.
+- Front panels are deferred (2026-09-10): the modules work and can be bench-tested without them, so no panel art or panel fabrication until the electronics are proven. The generated panel projects stay in the tree and keep passing checks; just do not invest in them.
 - Panel-mounted parts (jacks, pots, switches, LEDs) are placed at exact panel coordinates, never eyeballed. Doepfer 3U: panel 128.5 mm high (`eurorackPanelHeight`), width from Doepfer's table (`eurorackPanelWidth`: 4HP = 20.0, 6HP = 30.0, 8HP = 40.3 mm), rail holes Ø3.2 at 3.0 mm from top and bottom edges, first hole 7.5 mm from the left edge, further holes on the 5.08 mm grid.
 - The PCB behind the panel is at most 108 mm tall (`eurorackPcbHeight`; 110 mm is the common limit, 108 clears every rail type), centred on the panel (`eurorackPcbTop` = 10.25 mm below the panel's top edge), and at least 1 mm narrower than the panel on each side. Components that stand between PCB and panel (jack bodies) must also stay inside that zone.
 - Thonkiconn jacks stacked in a column need a 13.6 mm minimum pitch with the official footprint (tip pad against the next sleeve pad); use 13.7 mm.
@@ -43,6 +45,8 @@ toolkit/pipeline.sh           preflight, generate, check, export: the entry poin
 toolkit/check.sh, fab.sh      verification and fabrication, gated by check.ok
 toolkit/tools.sh, fabcheck.py shared shell helpers, assembly/gerber checks
 toolkit/test-scripts.sh       fault-injection tests for those scripts
+modules/_bench/               synthetic router benchmark fixtures (never emitted)
+BENCH.md                      routing benchmark scores (generated, committed)
 lib/footprints/               repository footprint libraries
 modules/<name>/
   <Name>.hs, <Name>Panel.hs   the design (source of truth), a Haskell module per project
