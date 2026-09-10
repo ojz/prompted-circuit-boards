@@ -62,6 +62,7 @@ multPanel = Module
       , bdZones = []
       , bdTexts = legend
       , bdCustomRules = ""
+      , bdAnalog = noAnalog
       }
   , modNotes =
       [ "MULT front panel: 6HP Doepfer 3U, 30.0 x 128.5 mm, 2 mm aluminium PCB or 1.6 mm FR4."

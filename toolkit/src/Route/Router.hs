@@ -50,6 +50,8 @@ data RouteConfig = RouteConfig
   , rcViaCost       :: Double   -- ^ in units of one cell step
   , rcNets          :: [Text]   -- ^ design net names to route
   , rcMaxIterations :: Int
+  , rcImproveRounds :: Int      -- ^ descent sweeps after the negotiation converges
+  , rcStarts        :: Int      -- ^ net orderings to try, best result kept
   } deriving (Show)
 
 defaultRouteConfig :: [Text] -> RouteConfig
@@ -70,7 +72,26 @@ defaultRouteConfig nets = RouteConfig
   -- where 200 rounds stop one cell short, and since history congestion was
   -- put in the same currency as present congestion the budget is what
   -- convergence actually depends on.
-  , rcNets = nets, rcMaxIterations = 600 }
+  , rcNets = nets, rcMaxIterations = 600
+  -- Descent sweeps once the negotiation has converged. Each is one A* per net
+  -- and they stop as soon as a sweep finds nothing, so the price is a couple
+  -- of sweeps' worth of routing on a board that is already good.
+  , rcImproveRounds = 12
+  -- Net orderings tried, best result kept. This turned out to matter more
+  -- than every other setting here put together. Measured on the three
+  -- congested boards at the default via cost (`pcbgen sweep-via --starts N`):
+  --
+  --   1 start   reversal illegal with 202 vias, route-test 30 vias
+  --   2 starts  reversal still illegal
+  --   4 starts  all legal; reversal 23 vias, route-test 9
+  --   6 starts  reversal 14 vias, route-test 9, attenuverter 5
+  --   8 starts  identical to 6
+  --
+  -- So 6: the four named heuristics plus two shuffles, which is where the
+  -- curve flattens. A board that takes well under a second to route can
+  -- afford being routed six times, and nothing else available buys a factor
+  -- of fourteen in vias.
+  , rcStarts = 6 }
 
 data RouteProblem = RouteProblem
   { rpOutline  :: Outline
@@ -95,6 +116,7 @@ data RouteResult = RouteResult
   , rrDisconnected :: [Text]
     -- ^ routed nets whose pads, traces (hand-drawn included) and vias do not form one copper island
   , rrIterations :: Int
+  , rrCost       :: Double      -- ^ the router's own objective: cell steps plus 'rcViaCost' a via
   , rrLog        :: [Text]
   }
 
@@ -463,6 +485,26 @@ terminalsFor g netIds net allPads preRouted =
                in Terminal cells centre radius padParts
   in if null items then [] else map terminal (copperComponents items)
 
+-- | Copper length of one emitted trace, mm.
+traceLength :: RTrace -> Double
+traceLength t = sum [ dist a b | (a, b) <- zip (rtPath t) (drop 1 (rtPath t)) ]
+
+-- | What the A* was minimising, recomputed for a finished route: one per
+-- orthogonal cell step, sqrt 2 per diagonal, 'rcViaCost' per layer change.
+--
+-- Deliberately the router's own objective rather than millimetres of copper.
+-- The descent has to compare like with like, and a measure that ignored vias
+-- would happily trade a via for a shorter path forever.
+routeCost :: Grid -> RouteConfig -> [[Int]] -> Double
+routeCost g cfg = sum . map path
+  where
+    path p = sum [ step a b | (a, b) <- zip p (drop 1 p) ]
+    step a b =
+      let (la, xa, ya) = cellCoords g a
+          (lb, xb, yb) = cellCoords g b
+      in if la /= lb then rcViaCost cfg
+         else if xa /= xb && ya /= yb then sqrt 2 else 1
+
 -- | Connect all terminals of a net into one tree. Returns the cells of every
 -- path segment (each path source-first), or the index of the terminal that
 -- could not be reached.
@@ -490,12 +532,58 @@ data NetState = NetState
   , nsFailed :: Bool
   }
 
+-- | Route a board. Runs the negotiation once per net ordering and keeps the
+-- best result, because the order nets are offered the grid in is arbitrary and
+-- it turns out to matter more than any single setting: see 'attempt'.
 autoroute :: RouteConfig -> RouteProblem -> RouteResult
-autoroute cfg prob =
-  let allNets = S.toList (S.fromList (mapMaybe pgNet (rpPads prob)))
-      netIds = M.fromList (zip allNets [1 ..])
-      grid = buildGrid cfg prob netIds
-      toRoute = [ n | n <- rcNets cfg, M.member n netIds ]
+autoroute cfg prob = pick (map (attempt cfg prob netIds0 grid0) orderings)
+  where
+    -- The orderings to try, best first, so a small 'rcStarts' still gets the
+    -- sensible ones.
+    --
+    -- Four named heuristics before any shuffle, because which net is offered
+    -- the grid first is a real decision and the literature's answers to it
+    -- disagree: hardest-first claims the difficult nets should choose while
+    -- the board is empty, easiest-first that the cheap nets should be got out
+    -- of the way. Both are defensible and neither wins on every board, which
+    -- is the argument for running them and measuring rather than picking one.
+    -- Shuffles come after, as a diversity tail; they are deterministic
+    -- (seeded by index, salted with the net name) so a design always gives
+    -- the same board.
+    --
+    -- Ties break on the net name throughout, so the ordering does not depend
+    -- on the order nets happen to be listed in the design file.
+    orderings = take (max 1 (rcStarts cfg)) (heuristics ++ map shuffled [1 :: Int ..])
+    heuristics =
+      [ sortOn (\n -> (negate (termCount n), n)) nets0   -- most terminals first
+      , sortOn (\n -> (termCount n, n)) nets0            -- fewest first
+      , sortOn (\n -> (negate (ideal n), n)) nets0       -- longest span first
+      , sortOn (\n -> (ideal n, n)) nets0                -- shortest first
+      ]
+    netIds0 = M.fromList (zip (S.toList (S.fromList (mapMaybe pgNet (rpPads prob)))) [1 :: Int ..])
+    grid0 = buildGrid cfg prob netIds0
+    nets0 = [ n | n <- rcNets cfg, M.member n netIds0 ]
+    termCount n = length (terminalsFor grid0 netIds0 n (rpPads prob) (rpPreRouted prob))
+    ideal n = mstLength [ pgAt p | p <- rpPads prob, pgNet p == Just n ]
+    shuffled k = sortOn (\n -> (salt k n, n)) nets0
+    salt k n = abs (foldl' (\a c -> a * 1103515245 + fromEnum c) (k * 2654435761) (T.unpack n))
+                 `rem` 1000003
+
+    -- Lexicographic, never a weighted sum: a result with fewer faults wins
+    -- however expensive it is, and cost only separates results that are
+    -- equally sound. A board where nothing is legal still reports the
+    -- least-broken attempt rather than an arbitrary one.
+    pick = minimumBy (comparing key)
+    key r = ( length (rrFailed r) + length (rrDisconnected r) + length (rrViaPad r)
+            , rrConflicts r
+            , rrCost r )
+
+-- | One negotiation, from one net ordering. The grid and the net numbering
+-- are built once by 'autoroute' and shared: they do not depend on the order,
+-- and building them per attempt was pure waste.
+attempt :: RouteConfig -> RouteProblem -> M.Map Text Int -> Grid -> [Text] -> RouteResult
+attempt cfg prob netIds grid order =
+  let toRoute = [ n | n <- rcNets cfg, M.member n netIds ]
       missing = [ n | n <- rcNets cfg, not (M.member n netIds) ]
       terms = M.fromList [ (n, terminalsFor grid netIds n (rpPads prob) (rpPreRouted prob)) | n <- toRoute ]
       padCentres n = [ pgAt p | p <- rpPads prob, pgNet p == Just n ]
@@ -504,8 +592,9 @@ autoroute cfg prob =
       -- its own width.
       occ0 = preRoutedOcc cfg prob grid netIds
 
-      -- Short nets first: they have the fewest alternatives.
-      order = sortOn (\n -> negate (length (terms M.! n))) toRoute
+      -- 'order' comes from the caller: which net is offered the grid first
+      -- shapes everything after it, so it is a starting point to vary rather
+      -- than a rule to get right.
 
       initial = M.fromList [ (n, NetState [] [] [] False) | n <- toRoute ]
 
@@ -536,8 +625,63 @@ autoroute cfg prob =
                 msg = T.pack ("iteration " ++ show iter ++ ": rerouted " ++ show (length redo) ++ ", "
                               ++ show (length contested) ++ " contested cells")
             in if null contested
-                 then finish iter occ' states' (msg : logAcc)
+                 then let (occI, statesI, logI) = improve (rcImproveRounds cfg) occ' states' (msg : logAcc)
+                      in finish iter occI statesI logI
                  else loop (iter + 1) occ' hist' states' (msg : logAcc)
+
+      -- Post-convergence descent.
+      --
+      -- The negotiation only reroutes nets that are in conflict, so a net
+      -- that took a wasteful path in round one and was never contested again
+      -- keeps it to the end: final quality depends on the order conflicts
+      -- happened to appear in, not on the board. That is why the reversal
+      -- fixture spent 51 vias at a via cost of 20 and 9 at 25 -- path
+      -- dependence, not a knob wanting a better value.
+      --
+      -- So once nothing is contested, offer every net one more chance
+      -- against the others' finished copper, and keep the reroute only when
+      -- it is cheaper by the same measure the A* itself minimises and
+      -- conflicts with nothing. Total cost strictly decreases, so this
+      -- terminates; a sweep that accepts nothing ends it early.
+      improve rounds occ states logAcc
+        | rounds <= 0 = (occ, states, logAcc)
+        | otherwise =
+            let (occ', states', taken) = foldl' improveOne (occ, states, 0 :: Int) order
+                msg = T.pack ("descent sweep: " ++ show taken ++ " of "
+                              ++ show (length order) ++ " nets rerouted cheaper")
+            in if taken == 0 then (occ, states, logAcc)
+               else improve (rounds - 1) occ' states' (msg : logAcc)
+
+      improveOne (occ, states, taken) n
+        | nsFailed st = (occ, states, taken)
+        | otherwise = case routeNet search (terms M.! n) of
+            Left _ -> (occ, states, taken)
+            Right paths ->
+              let cells = [ cellCoords grid c | p <- paths, c <- p ]
+                  vias = viasOf grid paths
+                  stamps = stampCells grid cfg (rcWidth cfg) cells vias
+                  st' = NetState paths stamps vias False
+                  -- Contest is symmetric, so both directions have to be
+                  -- checked: my new copper landing in someone else's halo,
+                  -- and someone else's copper landing inside my new one.
+                  -- Checking only the first accepted reroutes that swallowed
+                  -- a settled neighbour's trace and left the board illegal.
+                  clashes = any (\c -> otherNetsAt occNo nid c > 0) (copperCells st')
+                         || any (`IS.member` foreignCopper) stamps
+              in if clashes || routeCost grid cfg paths >= routeCost grid cfg (nsPaths st)
+                   then (occ, states, taken)
+                   else (addStamps nid stamps occNo, M.insert n st' states, taken + 1)
+        where
+          nid = netIds M.! n
+          st = states M.! n
+          occNo = removeStamps nid (nsStamps st) occ
+          foreignCopper = IS.fromList
+            [ c | (m, s) <- M.toList states, m /= n, not (nsFailed s), c <- copperCells s ]
+          -- No history here, and a present cost large enough that crossing
+          -- another net is never worth it. A path that crosses anyway is
+          -- rejected outright below, so this stays a strict improvement on a
+          -- legal board rather than a fresh negotiation.
+          search = Search grid cfg nid (penaltyArray grid occNo IM.empty nid 1e9)
 
       routeOne pres hist (occ, states) n =
         let nid = netIds M.! n
@@ -603,6 +747,14 @@ autoroute cfg prob =
              , rrViaPad = viaPadViolations (rcClearance cfg) (rpPads prob) (concatMap rnVias routed)
              , rrDisconnected = disconnected
              , rrIterations = iter
+               -- Measured on the copper that will actually be written, not on
+               -- the grid paths behind it: string-pulling shortens different
+               -- attempts by different amounts, so grid cost and final length
+               -- are not even monotonically related. Choosing on grid cost
+               -- picked a route-test solution with four more vias than the
+               -- attempt it beat.
+             , rrCost = sum [ traceLength t / rcPitch cfg | rn <- routed, t <- rnTraces rn ]
+                      + rcViaCost cfg * fromIntegral (length (concatMap rnVias routed))
              , rrLog = reverse logAcc
              }
   in loop 1 occ0 IM.empty initial []

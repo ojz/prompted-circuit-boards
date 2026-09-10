@@ -35,6 +35,7 @@ library
         Emit.Pcb
         Emit.Project
         Route.Geometry
+        Route.Analog
         Route.Check
         Route.Router
         Route.Extract
@@ -57,6 +58,7 @@ test-suite pcbgen-test
     hs-source-dirs:   toolkit/test
     main-is:          Main.hs
     other-modules:    Harness
+                      AnalogTests
                       ValidateTests
                       RouteTests
                       BenchTests

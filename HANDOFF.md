@@ -7,6 +7,169 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-10, session 6: net order dominates, and what analog layout actually binds
+
+Two threads. The router's remaining instability turned out to be net ordering,
+and the analog objective turned out to be a different quantity than the one
+everybody quotes.
+
+### Router: ordering beats every other setting
+
+- The via-cost spread left over from session 5 was path dependence, not noise.
+  The negotiation only reroutes nets that are in conflict, so a net that took a
+  wasteful path in round one and was never contested again keeps it, and final
+  quality follows the order conflicts happened to appear in.
+- Two changes, both in `Route/Router.hs`. A **post-convergence descent**
+  (`rcImproveRounds`, 12) offers every net one more route against the others'
+  finished copper and keeps it only when it is cheaper by the measure the A*
+  itself minimises; total cost strictly decreases, so it terminates. And
+  **multi-start** (`rcStarts`, 6): the negotiation runs once per net ordering
+  and the best result is kept, lexicographically on faults, then contested
+  cells, then cost. Never a weighted sum.
+- The orderings are four named heuristics (most terminals first, fewest first,
+  longest span first, shortest first) and then deterministic shuffles. The
+  heuristics come first so a small `rcStarts` still gets the sensible ones.
+  Hardest-first against easiest-first is a real disagreement in the
+  literature and neither wins on every board, which is the argument for
+  running both instead of picking one.
+- Measured at the default via cost over the three congested boards:
+
+  | starts | reversal | route-test | attenuverter |
+  |---|---|---|---|
+  | 1 | **illegal, 202 vias** | 30 vias | 9 vias |
+  | 2 | **illegal** | 17 vias | 7 vias |
+  | 4 | 23 vias | 9 vias | 5 vias |
+  | 6 | 14 vias | 9 vias | 5 vias |
+  | 8 | identical to 6 | identical | identical |
+
+  A single ordering leaves the crossing fixture illegal with 202 vias. Six
+  orderings get it to 14. Nothing else in the router buys a factor of
+  fourteen, and the curve is flat past six.
+- The descent, separately, is worth one or two vias. It also needed its
+  conflict test fixed: contest is symmetric, and checking only "my new copper
+  in someone else's halo" accepted reroutes that swallowed a settled
+  neighbour's trace and left boards illegal.
+- The via cost stays at 40, again. The sweep still shows no value undominated
+  everywhere, and nothing yet prices a via against a millimetre.
+
+### Analog: length does not bind, coupling does
+
+Installed ngspice 47 (console build, `%LOCALAPPDATA%/ngspice/Spice64`) and
+wrote two tools, so that the numbers in a design are derived rather than
+asserted:
+
+- `toolkit/xsection.py` solves the cross-section of the stackup we order: 2D
+  finite volume on div(eps grad phi) = 0, capacitance from field energy, three
+  solves for a pair. Validated two ways, against the Hammerstad closed form
+  and by refining the grid (`converge`) to show the difference is
+  discretisation. It reads about 6% high at 0.025 mm cells and falls with the
+  grid; pushing the outer boundary out or setting copper thickness to zero
+  each move it about 1%, so the grid is the error and the operator underneath
+  is right.
+- `toolkit/nodebudget.py` turns capacitance into budgets with ngspice.
+  `nodebudget.py verify` checks the closed form the Haskell now uses against
+  ngspice in the capacitive-divider limit, the slope-limited limit and the
+  crossover between them: agreement to 0.2%.
+
+What they say, and it redirected the work:
+
+- **Trace length never binds on a board this size.** A 100k node may carry
+  1741 mm of copper before losing 3 dB at 20 kHz; a 1M node, 174 mm. The
+  longest trace a 6HP board can hold is about 110 mm. A length budget in the
+  objective would optimise a quantity that is 9 to 871 times slack, which is
+  the same mistake as optimising copper length because it feels like it ought
+  to cost something.
+- **Coupling binds hard, and spacing is a weak lever against it.** A 5 V gate
+  edge running 20 mm beside a 1M node injects 700 mV at 0.2 mm and still
+  111 mV at 2 mm. The solve says why: at 0.2 mm two traces are coupled to each
+  other (0.0316 pF/mm) as strongly as either is to the ground plane (0.0310),
+  so adjacent copper is a half-and-half divider. What controls injection is
+  how far the two run alongside each other, and that is what a router chooses.
+- So a design declares an electrical limit in millivolts and the checker
+  predicts injection from the copper, instead of declaring a spacing nobody
+  can justify. `Design.Analog` carries roles (`Quiet` with its node
+  impedance, `Noisy` with its volts and rise time), length budgets, matched
+  groups, the injection limit and the node's stray capacitance.
+  `Route/Analog.hs` integrates the solved coupling along each quiet net and
+  applies the verified closed form.
+
+### The attenuverter declares its intent, and the check found something
+
+Channel-to-channel crosstalk is the real spec for a dual utility module, and
+this circuit has exactly one mechanism for it: each channel's op-amp output
+swings 22 V at audio rate near the other channel's pot wiper, the only
+high-impedance node in the signal path (25k worst case, at centre detent).
+
+- Cross-channel coupling measures **exactly zero** on today's routing, because
+  the channels are physically apart. The margin against the declared 2.2 mV
+  (-80 dB on a 22 V swing) is total. A test routes the board and asserts it,
+  so a future layout that runs one channel's output past the other's wiper
+  fails in `cabal test` rather than in someone's headphones.
+- The matched-length check did find two real things: `IN1` is 67.63 mm against
+  `IN2`'s 39.35, and `OUT1` is 58.03 mm against `OUT2`'s 11.76, five times
+  longer. Nothing electrical turns on that at audio and the report says so,
+  but one channel is being routed the long way round and that was invisible
+  before.
+
+### The fixture the next step needs
+
+`modules/_bench/crosstalk` is a 40 mm board whose pads put a `Quiet` 1M net
+2 mm from a `Noisy` 5 V gate net, so the shortest routing runs them alongside
+for 32 mm: about 0.13 pF, tens of millivolts, three orders of magnitude past
+any crosstalk figure worth quoting. There is a way out and it is the move a
+person would make -- put one of the two on the back layer, where 1.6 mm of
+substrate makes the coupling irrelevant -- and it costs two vias.
+
+The benchmark routes it today with **zero vias and a detour of 1.00**: both
+nets straight across, side by side. That is the correct answer to the question
+the router was asked, and the wrong board. It is the measurement the objective
+work has to move.
+
+### Verification
+
+`cabal test` 58 of 58; the attenuverter, the mult and both panels clean under
+ERC and DRC with schematic parity; `test-scripts.sh` 42 of 42. On the one
+benchmark board where both routers are legal and unconfounded, `route-test`,
+ours is now at 9 vias and 689.45 mm against Freerouting's 6 and 690.79 -- less
+copper for three more vias, where two sessions ago it was 27 vias and 717 mm.
+
+### Not run, not done, not proven
+
+- **The router does not act on any of this yet.** The intent is measured and
+  reported; nothing feeds it into the objective. That is the next step, and it
+  needs a bench fixture where a quiet and a noisy net must compete for one
+  corridor, because on the real boards the coupling is already zero and a
+  change would be unmeasurable.
+- Same-channel pairs (an output against its own wiper, 0.16 mV) are reported
+  next to the cross-channel ones. That is feedback rather than crosstalk and
+  nothing asserts on it, but the check has no notion of "same channel" and
+  would raise it as a finding if it ever exceeded the limit.
+- The coupling integral is same-layer only and treats coupling as a local
+  function of separation. Both are stated in the code; neither is validated
+  against a 3D solve.
+- The victim's self-capacitance uses the isolated-trace figure (0.0457 pF/mm)
+  while the solve says an adjacent pair sees 0.0310. That makes predicted
+  injection slightly optimistic where two nets do run together, by up to 1.5x
+  over that stretch. Not corrected.
+- `cabal test` got substantially slower, because every routing test now runs
+  six negotiations. Tests that check legality rather than quality should pin
+  `rcStarts` to 1; they do not.
+- M3's CI and dependency pinning are still owed. No electrical measurement of
+  any real board has been made, and M4 has not started.
+
+### Next action
+
+**Put the coupling term in the router's objective.** Add a bench fixture where
+a `Quiet` net and a `Noisy` net must share a corridor, so the term has
+something to bite on and the benchmark can show it working. The mechanism is
+already in place: the A* takes a per-cell penalty array, so routing noisy nets
+first and charging a quiet net for cells near noisy copper is the same shape
+as the congestion penalty it already uses. Then add predicted injection as a
+benchmark column, so a routing change that buys copper at the cost of
+crosstalk is visible rather than silent.
+
+---
+
 ## 2026-09-10, session 5: the negotiation had no memory
 
 Parity measurement paid for itself: chasing the via-count gap Freerouting

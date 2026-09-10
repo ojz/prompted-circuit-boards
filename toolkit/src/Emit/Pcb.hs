@@ -28,6 +28,7 @@ import           Emit.Schematic  (SchInfo (..), SymInfo (..), emitSchematic)
 import           Kicad.Library
 import           Kicad.SExpr
 import           Kicad.Uuid
+import           Route.Analog
 import           Route.Check
 import           Route.Extract
 import           Route.Geometry  (Layer (..), Outline (..))
@@ -128,7 +129,12 @@ emitPcb lc m info = do
       mapM_ (putStrLn . ("autoroute: " ++) . T.unpack) (rrLog res)
       putStrLn ("autoroute: " ++ showFFloat (Just 1) (fromIntegral (t1 - t0) / 1e12 :: Double) " s CPU")
       let toDesign n = fromMaybe n (M.lookup n designName)
-          rep = routeReport toDesign res
+          -- The router works in its own net names; the design's analog intent
+          -- is written in the design's, so rename the copper before checking
+          -- it against the intent.
+          dTraces = [ t { rtNet = toDesign (rtNet t) } | rn <- rrNets res, t <- rnTraces rn ]
+          dVias = [ v { rvNet = toDesign (rvNet v) } | rn <- rrNets res, v <- rnVias rn ]
+          rep = routeReport toDesign res <> analogSection (bdAnalog bd) dTraces dVias
           traces = [ Trace (toDesign (rtNet t)) (layerName (rtLayer t)) (rtWidth t) (rtPath t)
                    | rn <- rrNets res, t <- rnTraces rn ]
           vias = [ (rvNet v, rvAt v, rvDiameter v, rvDrill v) | rn <- rrNets res, v <- rnVias rn ]
@@ -155,6 +161,39 @@ emitPcb lc m info = do
         ] ++ setup ++ fps ++ outline ++ segments ++ viaItems ++ zones ++ texts ++
         [ list "embedded_fonts" [sym "no"] ]
   pure (render pcb, report)
+
+-- | The analog-intent section of the route report, omitted entirely when a
+-- design declares no intent. These are findings rather than errors: unlike a
+-- routing fault they do not stop the project being written, because they are
+-- statements about how well the board serves the circuit and not about
+-- whether it can be built.
+analogSection :: Analog -> [RTrace] -> [RVia] -> Text
+analogSection an traces vias
+  | not declared = ""
+  | otherwise = T.unlines $
+      ["", "## Analog intent", ""]
+      ++ (if null findings then ["No findings."]
+          else [ "- " <> describeAnalog f | f <- findings ])
+      ++ coupling
+  where
+    declared = not (null (anRoles an)) || not (null (anMaxLength an))
+            || not (null (anMatched an))
+    findings = analogFindings an traces vias
+    preds = couplingPredictions an traces vias
+    -- The margins, not only the failures: a limit that passes with room to
+    -- spare and one that passes by a hair are different facts about the
+    -- board, and only one of them survives the next layout change.
+    coupling
+      | null preds = []
+      | otherwise =
+          [ "", "Coupling predicted from the copper, limit "
+                <> T.pack (showFFloat (Just 2) (anInjectMv an) " mV") <> ":", ""
+          , "| quiet net | noisy net | coupled pF | injected mV |"
+          , "|---|---|--:|--:|" ]
+          ++ [ T.concat [ "| ", q, " | ", z, " | "
+                        , T.pack (showFFloat (Just 4) cm ""), " | "
+                        , T.pack (showFFloat (Just 3) mv ""), " |" ]
+             | (q, z, cm, mv) <- preds ]
 
 -- Footprints -----------------------------------------------------------------
 

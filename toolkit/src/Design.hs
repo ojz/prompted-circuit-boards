@@ -18,6 +18,9 @@ module Design
   , defaultRules
   , AutoRoute (..)
   , autoRoute
+  , NetRole (..)
+  , Analog (..)
+  , noAnalog
   , Board (..)
   , Module (..)
   , pcbNetName
@@ -153,6 +156,72 @@ data AutoRoute = AutoRoute
 autoRoute :: [Text] -> AutoRoute
 autoRoute nets = AutoRoute nets 0.2 0.3 0.6 0.3
 
+-- Analog intent ---------------------------------------------------------------
+
+-- | What a net is, electrically, as far as the layout has to care.
+--
+-- Each role carries the number that makes it matter. A 'Quiet' node is
+-- high-impedance -- a pot wiper, an input bias node, a VCA control pin --
+-- and its impedance is what decides how much a neighbour can inject into
+-- it. A 'Noisy' net carries a switching edge, and the edge's height and rise
+-- time are what decide how much it injects. Everything else is 'Ordinary'
+-- and is routed on length and vias alone.
+--
+-- Nothing here is a rule of thumb: @toolkit\/nodebudget.py@ derives the
+-- consequences of these numbers from a field solve of the stackup plus
+-- ngspice, and 'Route.Analog' predicts them for a routed board.
+data NetRole
+  = Ordinary
+  | Quiet Double          -- ^ node impedance, ohms
+  | Noisy Double Double   -- ^ worst edge carried: volts, rise time in seconds
+  deriving (Eq, Show)
+
+-- | Electrical intent, over and above "connect these pads". This is the part
+-- of a design a netlist cannot express, and that a router therefore cannot
+-- honour unless it is told.
+--
+-- Every field is optional and 'noAnalog' changes nothing, so a design that
+-- declares no intent behaves exactly as it did before.
+data Analog = Analog
+  { anRoles     :: [(Text, NetRole)]
+    -- ^ Net name to role. A net not listed is 'Ordinary'.
+  , anMaxLength :: [(Text, Double)]
+    -- ^ Millimetres of copper a net may not exceed.
+    --
+    --   Derive these, do not guess them: @nodebudget.py length@ turns a node
+    --   impedance and a bandwidth into the length at which the trace's own
+    --   capacitance costs that bandwidth. Be warned that on a board this
+    --   small the answer is usually that nothing binds -- a 100k node may
+    --   carry 1.7 metres of trace at 20 kHz -- so a budget here is mostly
+    --   documentation. The coupling limit below is the one that bites.
+  , anMatched   :: [(Text, [Text], Double)]
+    -- ^ @(group, nets whose copper lengths should match, tolerance in mm)@.
+    --
+    --   Two channels of the same circuit that route differently behave
+    --   differently. Nothing in a netlist says the channels are meant to be
+    --   the same circuit, so this does.
+  , anInjectMv  :: Double
+    -- ^ Millivolts a 'Noisy' net may put on a 'Quiet' one. Zero disables the
+    --   check.
+    --
+    --   This replaced a minimum-spacing rule, because spacing turned out to
+    --   be a weak lever and the measurement said so: against a 5 V gate edge
+    --   beside a 1M node, widening the gap from 0.2 mm to 2 mm only takes
+    --   the injection from 700 mV to 111 mV. What actually controls it is how
+    --   far the two run alongside each other, so the design states the
+    --   electrical limit and the check predicts the injection from the
+    --   copper.
+  , anNodePf    :: Double
+    -- ^ Picofarads a 'Quiet' node carries besides its own trace: op-amp
+    --   input capacitance, a filter cap, pad capacitance. It appears in the
+    --   denominator of the coupling divider, so leaving it at zero is the
+    --   pessimistic choice.
+  } deriving (Show)
+
+-- | Declare nothing. What every design starts with.
+noAnalog :: Analog
+noAnalog = Analog [] [] [] 0 0
+
 data Board = Board
   { bdWidth        :: Double
   , bdHeight       :: Double
@@ -163,6 +232,7 @@ data Board = Board
   , bdZones        :: [Zone]
   , bdTexts        :: [BoardText]
   , bdCustomRules  :: Text          -- ^ body of the .kicad_dru file (may be empty)
+  , bdAnalog       :: Analog        -- ^ electrical intent the checks and the router honour
   } deriving (Show)
 
 data Module = Module

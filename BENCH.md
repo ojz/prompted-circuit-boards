@@ -3,7 +3,9 @@
 | Board | Router | Legal | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |
 |---|---|:-:|--:|--:|--:|--:|--:|--:|
 | attenuverter | freerouting | **no** | 16 | 114 | 8 | 540.58 | 626.36 | 0.86 |
-| attenuverter | grid-astar | yes | 16 | 200 | 9 | 680.01 | 626.36 | 1.09 |
+| attenuverter | grid-astar | yes | 16 | 211 | 5 | 689.85 | 626.36 | 1.10 |
+| crosstalk | freerouting | yes | 2 | 2 | 0 | 60.35 | 60.35 | 1.00 |
+| crosstalk | grid-astar | yes | 2 | 6 | 0 | 60.40 | 60.35 | 1.00 |
 | mult | freerouting | yes | 2 | 47 | 0 | 162.42 | 150.70 | 1.08 |
 | mult | grid-astar | yes | 2 | 63 | 0 | 159.62 | 150.70 | 1.06 |
 | pinch | freerouting | **no** | 1 | 0 | 0 | 0.00 | 12.17 | - |
@@ -11,9 +13,9 @@
 | pinch-wide | freerouting | **no** | 1 | 0 | 0 | 0.00 | 12.17 | - |
 | pinch-wide | grid-astar | yes | 1 | 5 | 0 | 13.21 | 12.17 | 1.09 |
 | reversal | freerouting | **no** | 20 | 162 | 10 | 647.82 | 549.74 | 1.18 |
-| reversal | grid-astar | yes | 20 | 301 | 26 | 774.25 | 549.74 | 1.41 |
+| reversal | grid-astar | yes | 20 | 267 | 14 | 717.85 | 549.74 | 1.31 |
 | route-test | freerouting | yes | 21 | 157 | 6 | 690.79 | 524.57 | 1.32 |
-| route-test | grid-astar | yes | 21 | 232 | 7 | 698.69 | 524.57 | 1.33 |
+| route-test | grid-astar | yes | 21 | 226 | 9 | 689.45 | 524.57 | 1.31 |
 
 Faults:
 - attenuverter / freerouting: 1 nets not one island (GND)
@@ -22,7 +24,7 @@ Faults:
 - pinch-wide / freerouting: produced no copper, note: import added no copper (0 tracks before, 0 after), 1 nets not one island (/SIG)
 - reversal / freerouting: 1 nets not one island (/X1)
 
-Rows: 12. Legal: 7.
+Rows: 14. Legal: 9.
 
 Detour is copper length over the sum of the minimum spanning trees of each
 net's pads: the shortest any routing of those nets could be. 1.00 is not

@@ -10,6 +10,7 @@ module BenchFixtures
   ( reversal
   , pinch
   , pinchWide
+  , crosstalk
   , benchFixtures
   ) where
 
@@ -58,6 +59,7 @@ reversal = Module
       , bdZones = []
       , bdTexts = []
       , bdCustomRules = ""
+      , bdAnalog = noAnalog
       }
   , modNotes = [ "Synthetic benchmark fixture: full permutation reversal." ]
   }
@@ -107,6 +109,7 @@ pinch = Module
       , bdZones = []
       , bdTexts = []
       , bdCustomRules = ""
+      , bdAnalog = noAnalog
       }
   , modNotes = [ "Synthetic benchmark fixture: sub-grid corridor." ]
   }
@@ -128,6 +131,64 @@ pinchWide = pinch
   , modNotes = [ "Synthetic benchmark fixture: 0.25 mm corridor." ]
   }
 
+-- crosstalk ---------------------------------------------------------------------
+
+-- | A quiet net and a noisy net with nowhere to go but side by side.
+--
+-- Both nets must cross a 40 mm board, and their pads put them 2 mm apart on
+-- the front layer, so the shortest routing runs them alongside each other for
+-- 32 mm. The solved coupling for that is about 0.13 pF, which a 5 V gate edge
+-- turns into tens of millivolts on a 1M node: three orders of magnitude over
+-- any crosstalk figure worth quoting.
+--
+-- There is a way out, and it is the move a person would make: put one of the
+-- two on the back layer, where the 1.6 mm of substrate between them makes the
+-- coupling irrelevant. It costs two vias.
+--
+-- What it measures: whether the router will spend two vias to keep a spec it
+-- has been told about. A router that only counts copper and vias takes the
+-- straight route every time and is right to, because nothing has told it that
+-- the 0.13 pF matters.
+crosstalk :: Module
+crosstalk = Module
+  { modName = "crosstalk"
+  , modOutDir = "modules/_bench/crosstalk/kicad"
+  , modTitle = "Bench: a quiet net and a noisy net in one channel"
+  , modHP = 8
+  , modParts =
+      [ (part "R1" "0" rSym r0805 (4.0, 2.0) (50.8, 50.8)) { partNoConnect = ["1"] }
+      , (part "R2" "0" rSym r0805 (36.0, 2.0) (101.6, 50.8)) { partNoConnect = ["2"] }
+      , (part "R3" "0" rSym r0805 (4.0, 4.0) (50.8, 76.2)) { partNoConnect = ["1"] }
+      , (part "R4" "0" rSym r0805 (36.0, 4.0) (101.6, 76.2)) { partNoConnect = ["2"] }
+      ]
+  , modNets =
+      [ Net "QUIET" Signal [("R1", "2"), ("R2", "1")]
+      , Net "NOISY" Signal [("R3", "2"), ("R4", "1")]
+      ]
+  , modBoard = Board
+      { bdWidth = 40.0
+      , bdHeight = 6.0
+      , bdCornerRadius = 0.0
+      , bdRules = defaultRules
+      , bdTraces = []
+      , bdAutoRoute = Just (autoRoute ["QUIET", "NOISY"])
+      , bdZones = []
+      , bdTexts = []
+      , bdCustomRules = ""
+      , bdAnalog = Analog
+          { anRoles = [("QUIET", Quiet 1e6), ("NOISY", Noisy 5 1e-6)]
+          , anMaxLength = []
+          , anMatched = []
+            -- 1 mV on a 5 V edge is -74 dB, an ordinary thing to ask of an
+            -- audio path and utterly unreachable with the two nets running
+            -- alongside each other.
+          , anInjectMv = 1.0
+          , anNodePf = 5
+          }
+      }
+  , modNotes = [ "Synthetic benchmark fixture: quiet and noisy in one channel." ]
+  }
+
 -- Registry ---------------------------------------------------------------------
 
 -- | Every synthetic fixture, in the order the report should list them.
@@ -136,6 +197,7 @@ benchFixtures =
   [ ("reversal", reversal)
   , ("pinch", pinch)
   , ("pinch-wide", pinchWide)
+  , ("crosstalk", crosstalk)
   ]
 
 tshow :: Show a => a -> Text

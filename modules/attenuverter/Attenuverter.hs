@@ -232,6 +232,61 @@ board = Board
       , BoardText "-12V" "B.SilkS" (toBoard (24.0, 117.0)) 0 0.8
       ]
   , bdCustomRules = ""
+  , bdAnalog = attenuverterIntent
+  }
+
+-- | What this board has to achieve electrically, beyond connecting the pads.
+--
+-- The spec that matters for a dual utility module is channel-to-channel
+-- crosstalk, and on this circuit there is exactly one mechanism for it: each
+-- channel's op-amp output swings the full rail at audio rate a few
+-- millimetres from the other channel's pot wiper, which is the only
+-- high-impedance node in the signal path.
+--
+-- Numbers, none of them guessed:
+--
+-- * A wiper's source impedance is the pot's two halves in parallel, worst
+--   case 100k/4 = 25k at centre detent. That is the 'Quiet' figure.
+--
+-- * An output is a low-impedance op-amp swinging about 22 V peak-to-peak. Its
+--   fastest edge is a full-scale 20 kHz sine, 2*pi*20k*11 = 1.38 V/us, which
+--   is 22 V in 16 us. That is the 'Noisy' figure. The outputs are named as
+--   the aggressors rather than the wipers because the model assumes the
+--   aggressor holds its voltage regardless of the coupling current, which is
+--   true of an op-amp output and not of a wiper.
+--
+-- * The victim node carries the TL072's input capacitance and its pads,
+--   about 5 pF; 'anNodePf' is that. It sits in the divider's denominator, so
+--   this is the one number here that makes the prediction less alarming, and
+--   it is deliberately on the low side.
+--
+-- * -80 dB of crosstalk on a 22 V swing is 2.2 mV, which is the limit taken
+--   here. That is a normal figure to quote for a utility module and it is the
+--   number 'anInjectMv' has to be justified against if anyone changes it.
+--
+-- The two channels are also declared as a matched pair. Nothing electrical
+-- turns on their copper lengths matching at audio -- the length budget below
+-- is 9 times slack -- but a 10 mm tolerance catches the case where one
+-- channel gets routed the short way round and the other the long way, which
+-- is worth knowing about even when it costs nothing.
+attenuverterIntent :: Analog
+attenuverterIntent = Analog
+  { anRoles =
+      [ ("WIPER1", Quiet 25e3)
+      , ("WIPER2", Quiet 25e3)
+      , ("OA1", Noisy 22 16e-6)
+      , ("OA2", Noisy 22 16e-6)
+      , ("OUT1", Noisy 22 16e-6)
+      , ("OUT2", Noisy 22 16e-6)
+      ]
+    -- 25k against 20 kHz allows 6965 mm of copper (`nodebudget.py length
+    -- --r 25k`), so nothing on a 6HP board can come near it. Written at
+    -- 120 mm, a little over the longest trace the board can hold, purely so a
+    -- wiper that somehow got routed right round the board would be noticed.
+  , anMaxLength = [("WIPER1", 120), ("WIPER2", 120)]
+  , anMatched = [("channels", ["IN1", "IN2"], 10), ("outputs", ["OUT1", "OUT2"], 10)]
+  , anInjectMv = 2.2
+  , anNodePf = 5
   }
 
 attenuverter :: Module

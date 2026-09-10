@@ -66,6 +66,7 @@ attenuverterPanel = Module
       , bdZones = []
       , bdTexts = legend
       , bdCustomRules = ""
+      , bdAnalog = noAnalog
       }
   , modNotes =
       [ "UTIL-01 ATTENUVERTER front panel: 6HP Doepfer 3U, 30.0 x 128.5 mm."

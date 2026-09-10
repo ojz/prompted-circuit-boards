@@ -72,11 +72,15 @@ defaultLadder = [10, 20, 40, 80, 160, 320]
 -- Both knobs matter together: a cost that leaves contested cells has either
 -- steered the search into a bad basin or merely run out of rounds, and only
 -- moving the budget separates those two.
-viaStrategy :: Maybe Int -> Double -> Strategy
-viaStrategy Nothing c = gridRouterVia c
-viaStrategy (Just n) c =
-  gridRouterWith (T.pack ("grid-via-" ++ show (round c :: Int) ++ "-i" ++ show n))
-                 (\cfg -> cfg { rcViaCost = c, rcMaxIterations = n })
+viaStrategy :: Maybe Int -> Maybe Int -> Double -> Strategy
+viaStrategy iters starts c = gridRouterWith name tweak
+  where
+    name = T.pack ("grid-via-" ++ show (round c :: Int)
+                   ++ maybe "" (("-i" ++) . show) iters
+                   ++ maybe "" (("-s" ++) . show) starts)
+    tweak cfg = cfg { rcViaCost = c
+                    , rcMaxIterations = fromMaybe (rcMaxIterations cfg) iters
+                    , rcStarts = fromMaybe (rcStarts cfg) starts }
 
 main :: IO ()
 main = do
@@ -90,7 +94,7 @@ main = do
     _ -> do
       hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
       hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
-      hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--costs N,N] [board ...]"
+      hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--starts N] [--costs N,N] [board ...]"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -159,20 +163,27 @@ bench names = do
 -- coarse ladder gets pinned down.
 sweepVia :: [String] -> IO ()
 sweepVia args0 = do
-  (iters, args) <- case args0 of
+  (iters, args1) <- case args0 of
     ("--iters" : spec : rest) -> case readMaybe spec of
       Just n  -> pure (Just (n :: Int), rest)
       Nothing -> do
         hPutStrLn stderr ("not a number: " ++ spec)
         exitFailure
     _ -> pure (Nothing, args0)
+  (starts, args) <- case args1 of
+    ("--starts" : spec : rest) -> case readMaybe spec of
+      Just n  -> pure (Just (n :: Int), rest)
+      Nothing -> do
+        hPutStrLn stderr ("not a number: " ++ spec)
+        exitFailure
+    _ -> pure (Nothing, args1)
   (ladder, names) <- case args of
     ("--costs" : spec : rest) -> case traverse readMaybe (splitOn ',' spec) of
-      Just cs | not (null cs) -> pure (map (viaStrategy iters) cs, rest)
+      Just cs | not (null cs) -> pure (map (viaStrategy iters starts) cs, rest)
       _ -> do
         hPutStrLn stderr ("not a comma-separated list of numbers: " ++ spec)
         exitFailure
-    _ -> pure (map (viaStrategy iters) defaultLadder, args)
+    _ -> pure (map (viaStrategy iters starts) defaultLadder, args)
   boards <- selectBoards names
   lc <- newLibCache
   _ <- findKicadShare

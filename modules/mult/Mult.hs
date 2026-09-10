@@ -189,6 +189,7 @@ board = Board
       , "  (condition \"A.Reference == 'J*' && B.Reference == 'J*'\")"
       , "  (constraint silk_clearance (min 0mm)))"
       ]
+  , bdAnalog = noAnalog
   }
 
 mult :: Module

@@ -25,10 +25,28 @@ known-good baseline, not strict pins unless stated otherwise.
    kikit --help
    ```
    KiKit 1.8.0 or newer is required for KiCad 10.
-4. Optional: Freerouting from KiCad's Plugin and Content Manager plus a Java 25
-   runtime on `PATH` (the verified setup uses the Temurin 25 JRE). It is an
-   unused fallback; pcbgen routes the boards itself.
-5. Optional: the global [kicad-happy](https://github.com/aklofas/kicad-happy)
+4. Optional: ngspice, needed only to re-derive the analog budgets in
+   `toolkit/nodebudget.py`, not by generation or verification. KiCad ships
+   only `ngspice.dll` for its internal simulator, there is no batch
+   executable in it, and ngspice is not in winget, so fetch the console
+   build from the [ngspice
+   downloads](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/)
+   (`ngspice-47_64.7z`; the verified copy has sha256
+   `59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a`) and
+   unpack its `Spice64` directory to `%LOCALAPPDATA%\ngspice`. Windows'
+   built-in `tar.exe` reads .7z, so no archiver is needed. The scripts look
+   there, on `PATH`, and at `NGSPICE`. Check it with:
+   ```
+   "%LOCALAPPDATA%\ngspice\Spice64\bin\ngspice_con.exe" --version
+   python toolkit/nodebudget.py verify
+   ```
+   `toolkit/xsection.py` needs numpy rather than ngspice; KiCad's bundled
+   Python has it, so run that one the way `freeroute.py` is run.
+5. Optional: Freerouting from KiCad's Plugin and Content Manager plus a Java 25
+   runtime on `PATH` (the verified setup uses the Temurin 25 JRE). It is the
+   routing benchmark's parity baseline, not part of generation; pcbgen routes
+   the boards itself.
+6. Optional: the global [kicad-happy](https://github.com/aklofas/kicad-happy)
    agent skills for design review.
 
 ## Local configuration

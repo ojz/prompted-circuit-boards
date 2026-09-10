@@ -81,6 +81,7 @@ routeTest = Module
       , bdZones = []
       , bdTexts = [ BoardText "ROUTE TEST" "F.SilkS" (boardW / 2, 2.0) 0 1.0 ]
       , bdCustomRules = ""
+      , bdAnalog = noAnalog
       }
   , modNotes =
       [ "Synthetic autorouter test. 12 crossing nets between two 2x8 headers,"
