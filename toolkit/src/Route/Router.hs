@@ -55,13 +55,22 @@ data RouteConfig = RouteConfig
 defaultRouteConfig :: [Text] -> RouteConfig
 defaultRouteConfig nets = RouteConfig
   { rcPitch = 0.2, rcWidth = 0.3, rcClearance = 0.2, rcEdgeClearance = 0.5
+  -- 40 cells, about 8 mm of trace, and still a guess. Swept from 10 to 320
+  -- over every benchmark board (`pcbgen sweep-via`). No value is undominated
+  -- everywhere: 40 gives the fewest vias on route-test and is beaten on both
+  -- axes by 25 and 30 on the attenuverter and the reversal fixture, while 20
+  -- wins route-test and then spends 51 vias on reversal where 25 spends 9.
+  -- That spread is too wide to tune against five boards without fitting
+  -- noise, and nothing yet prices a via against a millimetre of copper, so
+  -- this waits for an objective rather than a better guess.
   , rcViaDiameter = 0.6, rcViaDrill = 0.3, rcViaCost = 40
-  -- 40 was too tight: the 20-net `reversal` benchmark fixture left 7 contested
-  -- cells at 40 rounds and settles cleanly at 200, with fewer vias and less
-  -- copper, so the negotiation was converging slowly rather than diverging.
   -- The loop exits as soon as nothing is contested, so a board that settles
-  -- early (every real module so far, in 1 to 25 rounds) pays nothing for this.
-  , rcNets = nets, rcMaxIterations = 200 }
+  -- early (every real module so far, in 1 to 25 rounds) pays nothing for a
+  -- generous budget. 600 rather than 200 because the sweep found via costs
+  -- where 200 rounds stop one cell short, and since history congestion was
+  -- put in the same currency as present congestion the budget is what
+  -- convergence actually depends on.
+  , rcNets = nets, rcMaxIterations = 600 }
 
 data RouteProblem = RouteProblem
   { rpOutline  :: Outline
@@ -503,14 +512,27 @@ autoroute cfg prob =
       loop iter occ hist states logAcc
         | iter > rcMaxIterations cfg = finish iter occ states (T.pack ("stopped after " ++ show (iter - 1) ++ " iterations") : logAcc)
         | otherwise =
-            let pres = 0.5 * 1.4 ^^ (iter - 1)
+            -- Present congestion: what sharing a cell costs *this* round. It
+            -- grows so that early rounds let nets find their natural region
+            -- and later ones force a decision. Capped because 1.4^2100
+            -- overflows a Double to infinity, which would poison every cost.
+            let pres = 0.5 * 1.4 ^^ min 500 (iter - 1)
                 -- Rip up and reroute only the nets that are in conflict (or
                 -- failed); settled nets keep their copper. Iteration one
                 -- routes everything.
                 redo = [ n | n <- order, iter == 1 || nsFailed (states M.! n) || netContested occ n (states M.! n) ]
                 (occ', states') = foldl' (routeOne pres hist) (occ, states) redo
                 contested = contestedCells occ' states'
-                hist' = foldl' (\h c -> IM.insertWith (+) c 1 h) hist contested
+                -- History congestion, charged in the same currency as present
+                -- congestion. Charging a flat 1 per round instead (as this did
+                -- until it was measured) leaves history 27 orders of magnitude
+                -- below the present term by round 200, so the negotiation has
+                -- no memory and two nets simply trade places forever: the
+                -- reversal fixture stalled with contested cells at via costs
+                -- 15 and 30 and did not improve with ten times the budget.
+                -- McMurchie & Ebeling's convergence argument needs a cell that
+                -- has been fought over to stay expensive after it falls free.
+                hist' = foldl' (\h c -> IM.insertWith (+) c pres h) hist contested
                 msg = T.pack ("iteration " ++ show iter ++ ": rerouted " ++ show (length redo) ++ ", "
                               ++ show (length contested) ++ " contested cells")
             in if null contested

@@ -10,6 +10,7 @@ module Main (main) where
 
 import           Control.Monad      (forM_, unless, when)
 import           Data.Maybe         (fromMaybe)
+import           Text.Read          (readMaybe)
 import           Data.Text          (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
@@ -31,6 +32,7 @@ import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
 import           Kicad.Library
+import           Route.Router       (RouteConfig (..))
 import           Validate
 
 designs :: [(String, Module)]
@@ -59,17 +61,36 @@ benchBoards =
 strategies :: [Strategy]
 strategies = [gridRouter, freeroutingRouter]
 
+-- | The via-cost ladder for @sweep-via@: the same router with a layer change
+-- priced from 10 to 320 cells (2 mm to 64 mm of trace). This is an experiment,
+-- not a baseline, so it prints and writes nothing: the result belongs in the
+-- default, and BENCH.md then records it.
+defaultLadder :: [Double]
+defaultLadder = [10, 20, 40, 80, 160, 320]
+
+-- | One rung of the ladder, optionally with the negotiation budget raised too.
+-- Both knobs matter together: a cost that leaves contested cells has either
+-- steered the search into a bad basin or merely run out of rounds, and only
+-- moving the budget separates those two.
+viaStrategy :: Maybe Int -> Double -> Strategy
+viaStrategy Nothing c = gridRouterVia c
+viaStrategy (Just n) c =
+  gridRouterWith (T.pack ("grid-via-" ++ show (round c :: Int) ++ "-i" ++ show n))
+                 (\cfg -> cfg { rcViaCost = c, rcMaxIterations = n })
+
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     ["all"]             -> mapM_ (\(n, _) -> run n Nothing) designs
     ("bench" : rest)    -> bench rest
+    ("sweep-via" : rest) -> sweepVia rest
     [name]              -> run name Nothing
     [name, "--out", d]  -> run name (Just d)
     _ -> do
       hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
       hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
+      hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--costs N,N] [board ...]"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -121,13 +142,7 @@ fpLibTable = T.unlines
 -- Named boards restrict the run; no names means all of them.
 bench :: [String] -> IO ()
 bench names = do
-  let boards = if null names then benchBoards
-               else [ b | b <- benchBoards, fst b `elem` names ]
-      unknown = [ n | n <- names, n `notElem` map fst benchBoards ]
-  unless (null unknown) $ do
-    hPutStrLn stderr ("unknown board(s): " ++ unwords unknown)
-    hPutStrLn stderr ("boards: " ++ unwords (map fst benchBoards))
-    exitFailure
+  boards <- selectBoards names
   lc <- newLibCache
   _ <- findKicadShare
   scores <- runBench lc strategies boards
@@ -135,3 +150,48 @@ bench names = do
   TIO.putStr rep
   TIO.writeFile "BENCH.md" (T.unlines ["# Routing benchmark", ""] <> rep)
   putStrLn "wrote BENCH.md"
+
+-- | Score the via-cost ladder and print it. Deliberately does not touch
+-- BENCH.md: a sweep answers a question once, and the answer is a changed
+-- default rather than a permanent set of rows.
+--
+-- @--costs 15,20,25@ replaces the ladder, which is how a cliff found by the
+-- coarse ladder gets pinned down.
+sweepVia :: [String] -> IO ()
+sweepVia args0 = do
+  (iters, args) <- case args0 of
+    ("--iters" : spec : rest) -> case readMaybe spec of
+      Just n  -> pure (Just (n :: Int), rest)
+      Nothing -> do
+        hPutStrLn stderr ("not a number: " ++ spec)
+        exitFailure
+    _ -> pure (Nothing, args0)
+  (ladder, names) <- case args of
+    ("--costs" : spec : rest) -> case traverse readMaybe (splitOn ',' spec) of
+      Just cs | not (null cs) -> pure (map (viaStrategy iters) cs, rest)
+      _ -> do
+        hPutStrLn stderr ("not a comma-separated list of numbers: " ++ spec)
+        exitFailure
+    _ -> pure (map (viaStrategy iters) defaultLadder, args)
+  boards <- selectBoards names
+  lc <- newLibCache
+  _ <- findKicadShare
+  scores <- runBench lc ladder boards
+  TIO.putStr (benchReport scores)
+
+splitOn :: Char -> String -> [String]
+splitOn c str = case break (== c) str of
+  (before, [])       -> [before]
+  (before, _ : rest) -> before : splitOn c rest
+
+-- | Named benchmark boards, or all of them when none are named. An unknown
+-- name is an error rather than an empty run, so a typo cannot look like a pass.
+selectBoards :: [String] -> IO [(String, Module)]
+selectBoards names = do
+  let unknown = [ n | n <- names, n `notElem` map fst benchBoards ]
+  unless (null unknown) $ do
+    hPutStrLn stderr ("unknown board(s): " ++ unwords unknown)
+    hPutStrLn stderr ("boards: " ++ unwords (map fst benchBoards))
+    exitFailure
+  pure (if null names then benchBoards
+        else [ b | b <- benchBoards, fst b `elem` names ])

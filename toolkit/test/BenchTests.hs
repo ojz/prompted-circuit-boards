@@ -23,6 +23,7 @@ tests =
   , reportsAnUnroutableBoard
   , routesAPracticalCorridor
   , congestedFixtureSettles
+  , negotiationConvergesAtEveryViaCost
   , reportNamesTheFault
   ]
 
@@ -103,6 +104,31 @@ congestedFixtureSettles = testIO "the 20-net reversal settles with no conflicts"
     , (scDisconnected s == 0, "nets in pieces: " ++ show (scDisconnected s))
     , (scNets s == 20, "expected 20 nets, got " ++ show (scNets s))
     ]
+
+-- | Negotiated congestion has to converge whatever a via costs.
+--
+-- The via cost changes which solution the router lands on, and that is its
+-- job; it must not change whether the router lands on one at all. It used to:
+-- present congestion grew as 1.4^round while history congestion accumulated a
+-- flat 1 per round, so by round 200 history was 27 orders of magnitude below
+-- the present term, the negotiation had no memory, and two nets would trade
+-- places forever. 'reversal' then stalled with contested cells at via costs
+-- 15 and 30 while succeeding at 25 and 40, and ten times the budget did not
+-- help. History is now charged in the same currency as present congestion.
+--
+-- These two costs are the ones that stalled. Legality is the assertion; via
+-- count and copper length are deliberately not, since those are the trade the
+-- cost is supposed to make.
+negotiationConvergesAtEveryViaCost :: Test
+negotiationConvergesAtEveryViaCost =
+  testIO "the congested fixture converges at via costs 15 and 30" $ do
+    lc <- newLibCache
+    scores <- mapM (\c -> scoreBoard lc (gridRouterVia c) ("reversal", reversal)) [15, 30]
+    pure $ expectAll
+      [ (scContested s == 0, T.unpack (scStrategy s) ++ " left "
+          ++ show (scContested s) ++ " contested cells (history congestion may"
+          ++ " have been swamped by present congestion again)")
+      | s <- scores ]
 
 -- | A fault has to be visible in the report, not only in the data.
 reportNamesTheFault :: Test

@@ -3,7 +3,7 @@
 | Board | Router | Legal | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |
 |---|---|:-:|--:|--:|--:|--:|--:|--:|
 | attenuverter | freerouting | **no** | 16 | 114 | 8 | 540.58 | 626.36 | 0.86 |
-| attenuverter | grid-astar | yes | 16 | 202 | 8 | 690.74 | 626.36 | 1.10 |
+| attenuverter | grid-astar | yes | 16 | 200 | 9 | 680.01 | 626.36 | 1.09 |
 | mult | freerouting | yes | 2 | 47 | 0 | 162.42 | 150.70 | 1.08 |
 | mult | grid-astar | yes | 2 | 63 | 0 | 159.62 | 150.70 | 1.06 |
 | pinch | freerouting | **no** | 1 | 0 | 0 | 0.00 | 12.17 | - |
@@ -11,9 +11,9 @@
 | pinch-wide | freerouting | **no** | 1 | 0 | 0 | 0.00 | 12.17 | - |
 | pinch-wide | grid-astar | yes | 1 | 5 | 0 | 13.21 | 12.17 | 1.09 |
 | reversal | freerouting | **no** | 20 | 162 | 10 | 647.82 | 549.74 | 1.18 |
-| reversal | grid-astar | yes | 20 | 251 | 18 | 762.04 | 549.74 | 1.39 |
+| reversal | grid-astar | yes | 20 | 301 | 26 | 774.25 | 549.74 | 1.41 |
 | route-test | freerouting | yes | 21 | 157 | 6 | 690.79 | 524.57 | 1.32 |
-| route-test | grid-astar | yes | 21 | 255 | 27 | 717.67 | 524.57 | 1.37 |
+| route-test | grid-astar | yes | 21 | 232 | 7 | 698.69 | 524.57 | 1.33 |
 
 Faults:
 - attenuverter / freerouting: 1 nets not one island (GND)

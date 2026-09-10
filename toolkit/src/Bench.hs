@@ -29,6 +29,8 @@ module Bench
   , noRouting
   , gridRouter
   , gridRouterN
+  , gridRouterVia
+  , gridRouterWith
   , freeroutingRouter
   , findKicadPython
   , Score (..)
@@ -85,19 +87,33 @@ data Strategy = Strategy
 
 -- | pcbgen's own grid router: A* per net with negotiated congestion.
 gridRouter :: Strategy
-gridRouter = Strategy "grid-astar" (runGrid Nothing)
+gridRouter = gridRouterWith "grid-astar" id
 
--- | The same router with a different negotiation budget. The default is 200
--- rounds; a board that leaves contested cells has exhausted them, and this
--- says whether the negotiation was converging slowly or not converging.
+-- | The same router with one setting changed. Every knob in 'RouteConfig' is
+-- a number somebody guessed once; the way to settle one is to put several
+-- values in the same report and read the columns.
+gridRouterWith :: Text -> (RouteConfig -> RouteConfig) -> Strategy
+gridRouterWith name tweak = Strategy name (runGrid tweak)
+
+-- | A different negotiation budget. The default is 200 rounds; a board that
+-- leaves contested cells has exhausted them, and this says whether the
+-- negotiation was converging slowly or not converging.
 gridRouterN :: Int -> Strategy
-gridRouterN n = Strategy (T.pack ("grid-astar-" ++ show n)) (runGrid (Just n))
+gridRouterN n = gridRouterWith (T.pack ("grid-astar-" ++ show n))
+                               (\cfg -> cfg { rcMaxIterations = n })
 
-runGrid :: Maybe Int -> LibCache -> Module -> IO Routed
-runGrid mIter lc m = case routeConfigFor m of
+-- | A different price for a layer change, in cells (the default is 40, about
+-- 8 mm of trace). Freerouting spends a quarter of our vias on the same board,
+-- which is the evidence that this number wants measuring rather than guessing.
+gridRouterVia :: Double -> Strategy
+gridRouterVia c = gridRouterWith (T.pack ("grid-via-" ++ show (round c :: Int)))
+                                 (\cfg -> cfg { rcViaCost = c })
+
+runGrid :: (RouteConfig -> RouteConfig) -> LibCache -> Module -> IO Routed
+runGrid tweak lc m = case routeConfigFor m of
   Nothing -> pure (noRouting "no autoroute block")
   Just cfg0 -> do
-    let cfg = maybe cfg0 (\n -> cfg0 { rcMaxIterations = n }) mIter
+    let cfg = tweak cfg0
     prob <- routeProblemFor lc m
     res <- evaluate (autoroute cfg prob)
     _ <- evaluate (rrIterations res)

@@ -7,6 +7,87 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-10, session 5: the negotiation had no memory
+
+Parity measurement paid for itself: chasing the via-count gap Freerouting
+exposed found a real defect in our implementation of negotiated congestion.
+
+### What was run
+
+- `pcbgen sweep-via`, a new subcommand: the grid router priced from 10 to 320
+  cells per via, every benchmark board, printed and not committed (a sweep
+  answers a question once; the answer belongs in the default). `--costs` sets
+  the ladder and `--iters` the negotiation budget, because a cost that leaves
+  contested cells has either steered the search into a bad basin or merely run
+  out of rounds, and only moving the budget separates the two.
+- The first sweep showed legality flipping on and off as the via cost moved:
+  the `reversal` fixture was legal at 25 and 40, illegal at 15, 30 and 320.
+  `--iters 2000`, ten times the budget, did not fix either failing cost. That
+  is a stall, not slow convergence.
+- Cause, in `Route/Router.hs`: present congestion grows as `1.4^round` while
+  history congestion accumulated a flat `+1` per round, so by round 200 the
+  present term was about 10^29 and history at most 200. History was
+  arithmetically irrelevant, the negotiation had no memory, and two nets
+  simply traded places forever. McMurchie & Ebeling's convergence argument
+  needs a cell that has been fought over to stay expensive after it falls
+  free. History is now charged in the same currency as present congestion
+  (`+pres` per round), and the exponent is capped at 500 because `1.4^2100`
+  overflows a Double to infinity and would poison every cost in the array.
+
+### Results
+
+- The sweep went from 11 of 17 legal to **24 of 24**: every via cost from 10
+  to 320 now converges on every board.
+- On `route-test`, at the unchanged default via cost, **27 vias and 717.67 mm
+  became 7 vias and 698.69 mm**. Freerouting scores 6 vias and 690.79 mm on
+  the same board, so the via gap closed from 4.5x to 1.17x and the copper gap
+  from 3.9% to 1.1%. The gap was never a mistuned via cost; it was thrashing,
+  and thrashing spends vias.
+- The remaining `reversal` failure at cost 18 now responds to budget (600
+  rounds settle it), which is the behaviour the algorithm promises and did not
+  previously have. The default budget is raised from 200 to 600; the loop
+  exits as soon as nothing is contested, so boards that settle early (every
+  real module, in 1 to 25 rounds) pay nothing for it.
+- `attenuverter` and `route-test` were regenerated and both pass ERC and DRC
+  with schematic parity, as do both panel projects. `mult`'s copper is
+  byte-identical. `cabal test` is 47 of 47, including a new regression test
+  that `reversal` converges at the two via costs that used to stall.
+
+### Decided not to do, with the reason
+
+- **The via cost stays at 40.** After the fix no value is undominated
+  everywhere: 40 gives the fewest vias on `route-test` and is beaten on both
+  axes by 25 and 30 on the attenuverter and on `reversal`, while 20 wins
+  `route-test` and then spends 51 vias on `reversal` where 25 spends 9. That
+  spread is too wide to tune against five boards without fitting noise, and
+  nothing yet prices a via against a millimetre of copper. It waits for the
+  objective, not for a better guess.
+
+### Not run, not done, not proven
+
+- ngspice is still not installed. KiCad ships only `ngspice.dll` for its
+  internal simulator, there is no batch executable, and it is not in winget,
+  so it needs a download from the ngspice site.
+- The via-count spread at fixed cost on `reversal` (51 at cost 20, 9 at cost
+  25) is large enough to suggest the search is still unstable even with the
+  negotiation fixed. Not investigated.
+- Whether Freerouting can be made to respect an unbonded pour is still open,
+  so the attenuverter comparison is still void: it leans on the ground plane
+  and leaves GND in two islands.
+- Nothing in this session touched the objective, the analog intent, or M4.
+  M3's CI and dependency pinning are still owed.
+
+### Next action
+
+**The objective.** Install ngspice, then declare per-net analog intent in the
+design (a length budget on high-impedance nodes, control-voltage and audio
+separation, channel symmetry) and add those terms to the score. Search quality
+is now close enough to a mature router that further search work is catch-up;
+an analog-aware cost function is the part nobody else is doing, and it is also
+what would let the via cost be chosen rather than guessed.
+
+---
+
 ## 2026-09-10, session 4: parity against Freerouting
 
 Installed, outside the repo: Freerouting 2.4.1 as a plain jar in
