@@ -52,9 +52,12 @@ benchBoards =
   , ("route-test", routeTest)
   ] ++ benchFixtures
 
--- | Routers under test. One entry per strategy; add Freerouting here.
+-- | Routers under test. Freerouting is the parity baseline: it needs KiCad's
+-- bundled Python (for the Specctra round trip) and Java, and reports itself as
+-- producing nothing when either is missing, so a workstation without them
+-- still gets a report.
 strategies :: [Strategy]
-strategies = [gridRouter]
+strategies = [gridRouter, freeroutingRouter]
 
 main :: IO ()
 main = do

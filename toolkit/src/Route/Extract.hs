@@ -5,6 +5,7 @@
 module Route.Extract
   ( padsOfFootprint
   , keepoutsOfFootprint
+  , copperOfBoard
   ) where
 
 import           Data.Maybe     (fromMaybe, mapMaybe)
@@ -102,3 +103,46 @@ keepoutsOfFootprint fp =
                , List [Atom "xy", ax, ay] <- xys ]
   , length poly >= 3
   ]
+
+-- | Copper a board file already carries: its top-level tracks and vias, with
+-- the net names KiCad writes on them. Used to read back what an external
+-- router produced, so its output is scored by the same geometry checks as our
+-- own instead of on trust.
+--
+-- Arcs are reported as their chord. Nothing we drive emits them today (a
+-- Freerouting session imported by KiCad 10 comes back as straight segments),
+-- and a chord understates length rather than inventing copper; if a router
+-- starts producing arcs this needs to become exact.
+copperOfBoard :: SExpr -> ([RTrace], [RVia])
+copperOfBoard board = (concatMap trace (children board), concatMap via (children board))
+  where
+    netOf e = case findChild "net" e of
+      Just (List [_, Str n]) -> n
+      _                      -> ""
+    layerOf e = case findChild "layer" e of
+      Just (List [_, Str "B.Cu"]) -> B
+      _                           -> F
+    widthOf e = case findChild "width" e of
+      Just (List [_, w]) -> readNum w
+      _                  -> 0
+    xy nm e = case findChild nm e of
+      Just (List [_, ax, ay]) -> Just (readNum ax, readNum ay)
+      _                       -> Nothing
+
+    trace e@(List (Atom h : _))
+      | h == "segment" || h == "arc"
+      , Just a <- xy "start" e
+      , Just b <- xy "end" e
+      = [ RTrace (netOf e) (layerOf e) (widthOf e) [a, b] ]
+    trace _ = []
+
+    via e@(List (Atom "via" : _))
+      | Just at <- xy "at" e
+      = let size = case findChild "size" e of
+              Just (List [_, d]) -> readNum d
+              _                  -> 0
+            drill = case findChild "drill" e of
+              Just (List [_, d]) -> readNum d
+              _                  -> 0
+        in [ RVia (netOf e) at size drill ]
+    via _ = []

@@ -17,6 +17,7 @@ module Route.Router
   , RVia (..)
   , autoroute
   , routeReport
+  , mstLength
   , preRoutedBlocked
   ) where
 

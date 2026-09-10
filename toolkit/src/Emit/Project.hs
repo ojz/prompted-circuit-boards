@@ -17,6 +17,10 @@ emitProject :: Module -> Text -> Text
 emitProject m sheetUuid =
   let r = bdRules (modBoard m)
       name = modName m
+      ar = bdAutoRoute (modBoard m)
+      routedWidth = maybe (drTrackWidth r) arWidth ar
+      routedVia = maybe (drViaDiameter r) arViaDiameter ar
+      routedDrill = maybe (drViaDrill r) arViaDrill ar
   in T.unlines
   [ "{"
   , "  \"board\": {"
@@ -107,9 +111,15 @@ emitProject m sheetUuid =
   , "        \"pcb_color\": \"rgba(0, 0, 0, 0.000)\","
   , "        \"priority\": 2147483647,"
   , "        \"schematic_color\": \"rgba(0, 0, 0, 0.000)\","
-  , "        \"track_width\": " <> mm (drTrackWidth r) <> ","
-  , "        \"via_diameter\": " <> mm (drViaDiameter r) <> ","
-  , "        \"via_drill\": " <> mm (drViaDrill r) <> ","
+    -- The default net class advertises the width copper is actually laid at,
+    -- not the DRC minimum. They differ: the rules allow 0.2 mm, the router
+    -- uses 0.3 mm. Tools that route this board from its own settings (KiCad's
+    -- interactive router, and Freerouting through the Specctra export) read
+    -- this number, so understating it made an external router lay thinner
+    -- traces than ours and the comparison unfair.
+  , "        \"track_width\": " <> mm routedWidth <> ","
+  , "        \"via_diameter\": " <> mm routedVia <> ","
+  , "        \"via_drill\": " <> mm routedDrill <> ","
   , "        \"wire_width\": 6"
   , "      }"
   , "    ],"

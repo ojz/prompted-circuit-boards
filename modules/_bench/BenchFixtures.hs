@@ -9,6 +9,7 @@
 module BenchFixtures
   ( reversal
   , pinch
+  , pinchWide
   , benchFixtures
   ) where
 
@@ -68,18 +69,21 @@ revNets =
 
 -- pinch ------------------------------------------------------------------------
 
--- | One legal path, narrower than the search grid can see.
+-- | One legal path, narrower than any router here can see.
 --
 -- A 3.2 mm hole sits in the middle of a 5.14 mm tall sliver. Below the hole
 -- there is no room at all. Above it a corridor survives, but only about
 -- 0.04 mm of it: a trace centre is legal between 4.45 mm and 4.49 mm from the
--- top, and nowhere else. That is a real path a continuous router can take and
--- a 0.2 mm grid cannot, both because no cell centre lands inside the band and
--- because the grid conservatively refuses cells within 0.8 mm of a board edge.
+-- top, and nowhere else.
 --
--- So this fixture is expected to FAIL on the grid router, and that failure is
--- the measurement: it is the completeness cost of discretising the board,
--- turned into a number. If a future router routes it, the cost went to zero.
+-- The band is real, and both routers miss it: ours because no grid cell centre
+-- lands inside it and because it refuses cells within 0.8 mm of a board edge,
+-- and Freerouting because it returns an empty session. So completeness is a
+-- property neither router provides, which is the measurement.
+--
+-- Treat it as a theoretical probe, not a target. No board house holds 0.04 mm,
+-- so a board that needed this corridor could not be manufactured anyway.
+-- 'pinchWide' is the version that matters.
 pinch :: Module
 pinch = Module
   { modName = "pinch"
@@ -107,6 +111,23 @@ pinch = Module
   , modNotes = [ "Synthetic benchmark fixture: sub-grid corridor." ]
   }
 
+-- | The same board with 0.21 mm more height, which widens the only corridor
+-- from about 0.04 mm to about 0.25 mm.
+--
+-- This is the useful half of the pair. A 0.04 mm corridor is a theoretical
+-- probe: no fab holds that tolerance, so a board relying on it could not be
+-- built anyway. A quarter of a millimetre is tight but ordinary, and a router
+-- that misses it is losing real boards. Together the two bracket where
+-- completeness actually breaks.
+pinchWide :: Module
+pinchWide = pinch
+  { modName = "pinch-wide"
+  , modOutDir = "modules/_bench/pinch-wide/kicad"
+  , modTitle = "Bench: a corridor a router should find"
+  , modBoard = (modBoard pinch) { bdHeight = 5.35 }
+  , modNotes = [ "Synthetic benchmark fixture: 0.25 mm corridor." ]
+  }
+
 -- Registry ---------------------------------------------------------------------
 
 -- | Every synthetic fixture, in the order the report should list them.
@@ -114,6 +135,7 @@ benchFixtures :: [(String, Module)]
 benchFixtures =
   [ ("reversal", reversal)
   , ("pinch", pinch)
+  , ("pinch-wide", pinchWide)
   ]
 
 tshow :: Show a => a -> Text

@@ -7,6 +7,74 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-10, session 4: parity against Freerouting
+
+Installed, outside the repo: Freerouting 2.4.1 as a plain jar in
+`%LOCALAPPDATA%/freerouting` (sha256 251101c3eeac22d7e7dfcf6796603279e5d1000283eb82d8f093780f7afc6aa9),
+driven by the Temurin 25 JRE already on PATH. Its telemetry and contact flags
+were **turned off** in `%APPDATA%/freerouting/freerouting.json` before it was
+ever run, since it defaults to on and this is the user's board data; the
+original is kept as `freerouting.json.bak-before-claude`.
+
+`toolkit/freeroute.py` does the Specctra round trip through KiCad's own
+`ExportSpecctraDSN` / `ImportSpecctraSES`, so nothing here parses DSN or SES.
+`Bench.freeroutingRouter` writes the design out with the autorouter switched
+off, hands the board over, and reads the copper back. Nothing in `modules/` is
+ever produced this way.
+
+`Bench.Strategy` changed shape: a design in, copper out, so an in-process
+router and a subprocess both fit. The harness now verifies whatever copper
+comes back with our own checks, which is how every finding below was caught.
+
+### The parity picture
+
+| Board | Our router | Freerouting | Reading |
+|---|---|---|---|
+| route-test, 21 nets | legal, 27 vias, 717.67 mm | legal, **6 vias, 690.79 mm** | The fair comparison, and Freerouting wins it clearly: 4.5x fewer vias |
+| mult, 2 nets | legal, 159.62 mm | legal, 162.42 mm | Ours marginally shorter |
+| reversal, 20 crossing nets | legal, 18 vias | **left /X1 unrouted** | Ours complete, theirs shorter on what it did route |
+| attenuverter, 16 nets | legal | **GND not one island** | Not comparable: it leaned on the ground plane, which this design deliberately does not bond to pads. Its 0.86 detour is missing copper, not a win |
+| pinch-wide, 0.25 mm corridor | **legal** | produced nothing | Ours finds a tight but ordinary corridor; Freerouting does not |
+| pinch, 0.04 mm corridor | produced nothing | produced nothing | Neither. Completeness is a property no router here provides |
+
+Summary: Freerouting is markedly better at via economy on an ordinary
+congested board. Ours is more complete, and more honest about failing. Neither
+is dominant, and the pour behaviour means any future comparison has to control
+for what the plane is allowed to do.
+
+### Other changes
+
+- The project file's default net class now advertises the width copper is
+  actually laid at (0.3 mm) instead of the DRC minimum (0.2 mm). They differed,
+  and an external router reads that number, so the first comparison was unfair
+  in our favour. Only `.kicad_pro` files changed.
+- `pinch-wide` added as the practically-sized half of the completeness pair.
+  `pinch` is now documented as a theoretical probe: no fab holds 0.04 mm, so a
+  board needing that corridor could not be built anyway.
+- `Route.Extract.copperOfBoard` reads tracks and vias back out of a board file.
+  Arcs are reported as their chord; nothing we drive emits them today.
+
+### Not run, not done
+
+- ngspice is still **not installed**. KiCad ships `ngspice.dll` for its own
+  simulator but no batch executable, and it is not in winget, so it needs a
+  download from the ngspice site. Nothing analog has been measured.
+- The objective still scores only length, vias and detour.
+- Freerouting ran at 10 passes and one thread, its defaults untuned. A tuned
+  run might do better still; nobody has tried.
+- Whether Freerouting can be made to respect an unbonded pour is unknown, and
+  that is the blocker for a fair attenuverter comparison.
+- Still owed from M3: CI, dependency pinning.
+
+### Next action
+
+**The objective.** Install ngspice, then declare per-net analog intent in the
+design (length budget on high-impedance nodes, control-voltage separation,
+channel symmetry) and add those terms to the score. The via-economy gap
+Freerouting just demonstrated is the other obvious thread: 27 vias against 6
+on the same board suggests our via cost of 40 cells is badly tuned, and that is
+a one-line experiment the harness can now settle.
+
 ## 2026-09-10, session 3: routing benchmark (rung 0) and the research direction
 
 ### Direction agreed with the user

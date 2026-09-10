@@ -28,3 +28,6 @@ dist-newstyle/
 
 # Agent worktrees and local settings
 .claude/
+
+# Benchmark scratch (external routers write here)
+modules/_bench/.work/

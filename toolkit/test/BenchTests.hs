@@ -11,7 +11,7 @@ import           Data.List         (isInfixOf)
 import qualified Data.Text         as T
 
 import           Bench
-import           BenchFixtures     (pinch, reversal)
+import           BenchFixtures     (pinch, pinchWide, reversal)
 import           Harness
 import           Kicad.Library     (newLibCache)
 import           Mult              (mult)
@@ -21,6 +21,7 @@ tests =
   [ scoresARealBoard
   , survivesABrokenRouter
   , reportsAnUnroutableBoard
+  , routesAPracticalCorridor
   , congestedFixtureSettles
   , reportNamesTheFault
   ]
@@ -71,6 +72,20 @@ reportsAnUnroutableBoard = testIO "the sub-grid corridor is reported as a fault"
     [ (scRouted s, "the router should return a result, not throw")
     , (scFailedNets s == 1, "expected exactly 1 unrouted net, got " ++ show (scFailedNets s))
     , (scSegments s == 0, "a failed net should lay no copper")
+    ]
+
+-- | The other half of the bracket. A 0.25 mm corridor is tight but ordinary,
+-- and our router finds it (Freerouting, as of 2.4.1, does not). If this ever
+-- regresses, the grid's edge margin or its cell alignment got worse.
+routesAPracticalCorridor :: Test
+routesAPracticalCorridor = testIO "a 0.25 mm corridor is routed" $ do
+  lc <- newLibCache
+  s <- scoreBoard lc gridRouter ("pinch-wide", pinchWide)
+  pure $ expectAll
+    [ (scRouted s, "should have routed")
+    , (scFailedNets s == 0, "unrouted nets: " ++ show (scFailedNets s))
+    , (scDisconnected s == 0, "net not one island: " ++ show (scBadNets s))
+    , (scSegments s > 0, "should have laid copper")
     ]
 
 -- | The congested fixture is what raised the negotiation budget from 40 to
