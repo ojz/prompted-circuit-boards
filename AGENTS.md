@@ -3,6 +3,8 @@
 Prompt-driven design of Eurorack modules. Designs are Haskell; KiCad 10 files are generated from them and are the verification format; JLCPCB is the fab.
 Background and tool survey: `RESEARCH.md`. Current state and next action: `HANDOFF.md`.
 Workstation bootstrap and verification: `SETUP.md`.
+Arriving for the first time, or collaborating from the other workstation: `HANDOUT.md`,
+which says what is verified, what is only modelled, and where the traps are.
 
 ## Toolchain
 

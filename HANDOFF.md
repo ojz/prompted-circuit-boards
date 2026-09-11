@@ -763,8 +763,13 @@ disconnected nets.
   `kicad-cli pcb drc` is the authoritative gate.
 - No electrical evidence of any kind was added. No datasheet audit, no SPICE
   run, no measurement. M4 has not started.
-- `modules/mult/mult.kicad_pro` is untracked and was already there before this
-  session; nobody has established what it is.
+- `modules/mult/mult.kicad_pro` was untracked and nobody had established what
+  it was. Resolved 2026-09-11: it was tracked until commit 150aa0a moved every
+  module into its own `kicad/` directory, and the copy on disk was larger than
+  the deleted one and carried settings keys a newer KiCad writes, so the GUI
+  had recreated it after the move. Stale, unreferenced, superseded by
+  `modules/mult/kicad/mult.kicad_pro`, and in git history if it is ever
+  wanted. Deleted.
 
 ### Next action
 
