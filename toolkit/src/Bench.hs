@@ -42,6 +42,7 @@ module Bench
 
 import           Control.Exception (SomeException, evaluate, try)
 import           Data.List         (sortOn)
+import           Data.Maybe        (fromMaybe)
 import           Data.Text         (Text)
 import qualified Data.Text         as T
 import qualified Data.Text.IO      as TIO
@@ -54,6 +55,7 @@ import           System.FilePath   ((</>))
 import           System.Process    (readProcessWithExitCode)
 
 import           Design
+import           Route.Analog      (couplingPredictions)
 import           Emit.Pcb          (emitPcb, routeConfigFor, routeProblemFor)
 import           Emit.Project      (emitProject)
 import           Emit.Schematic    (SchInfo (..), emitSchematic)
@@ -220,6 +222,8 @@ data Score = Score
   , scLength       :: Double   -- ^ mm of copper
   , scIdeal        :: Double   -- ^ mm of the minimum spanning trees over the pads
   , scSeconds      :: Double   -- ^ CPU seconds of this process (a subprocess shows ~0)
+  , scInjectMv     :: Double   -- ^ worst predicted crosstalk on a quiet net, mV (our check)
+  , scInjectLimit  :: Double   -- ^ what the design allows, mV; 0 when it states nothing
   , scNote         :: Text
   } deriving (Show)
 
@@ -243,7 +247,8 @@ scoreBoard lc strat (label, m) = do
         , scRouted = False, scFailedNets = 0, scContested = 0
         , scViaPad = 0, scDisconnected = 0, scBadNets = [], scNets = 0
         , scSegments = 0, scVias = 0, scLength = 0, scIdeal = 0
-        , scSeconds = 0, scNote = "" }
+        , scSeconds = 0, scInjectMv = 0, scInjectLimit = anInjectMv an, scNote = "" }
+      an = bdAnalog (modBoard m)
   case routeConfigFor m of
     Nothing -> pure blank { scNote = "no autoroute block" }
     Just cfg -> do
@@ -285,9 +290,21 @@ scoreBoard lc strat (label, m) = do
             , scLength = sum [ dist a b | t <- cuTraces cu, (a, b) <- zip (rtPath t) (drop 1 (rtPath t)) ]
             , scIdeal = ideal
             , scSeconds = secs
+              -- Measured on the copper that came back, by the same check that
+              -- writes route-report.md, and with the design's own intent. A
+              -- router's claim to have respected a crosstalk limit is not
+              -- evidence that it did, exactly as with the geometry checks.
+            , scInjectMv = maximum (0 : [ mv | (_, _, _, mv) <- predictions cu ])
             , scNote = cuNote cu
             }
   where
+    -- The router names nets with a leading slash where the design does not,
+    -- and the intent is written in the design's names.
+    predictions cu =
+      let strip n = fromMaybe n (T.stripPrefix "/" n)
+      in couplingPredictions (bdAnalog (modBoard m))
+           [ t { rtNet = strip (rtNet t) } | t <- cuTraces cu ]
+           [ v { rvNet = strip (rvNet v) } | v <- cuVias cu ]
     firstLine t = case filter (not . T.null) (T.lines t) of
       (l : _) -> T.strip l
       []      -> "failed with no output"
@@ -310,8 +327,8 @@ f2 x = T.pack (showFFloat (Just 2) x "")
 -- routing quality shows up in a diff.
 benchReport :: [Score] -> Text
 benchReport scores = T.unlines $
-  [ "| Board | Router | Legal | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |"
-  , "|---|---|:-:|--:|--:|--:|--:|--:|--:|" ]
+  [ "| Board | Router | Legal | Spec | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |"
+  , "|---|---|:-:|:-:|--:|--:|--:|--:|--:|--:|" ]
   ++ map row (sortOn (\s -> (scBoard s, scStrategy s)) scores)
   ++ [ "" ]
   ++ faults
@@ -331,10 +348,18 @@ benchReport scores = T.unlines $
   where
     row s = T.concat
       [ "| ", scBoard s, " | ", scStrategy s, " | ", if scLegal s then "yes" else "**no**"
+      , " | ", spec s
       , " | ", T.pack (show (scNets s)), " | ", T.pack (show (scSegments s))
       , " | ", T.pack (show (scVias s)), " | ", f2 (scLength s), " | ", f2 (scIdeal s)
       , " | ", if scIdeal s > 0 && scLength s > 0 then f2 (scLength s / scIdeal s) else "-"
       , " |" ]
+
+    -- Crosstalk against the limit the design set, or "-" when it set none.
+    spec s
+      | scInjectLimit s <= 0 = "-"
+      | not (scRouted s) = "-"
+      | scInjectMv s <= scInjectLimit s = T.concat ["ok ", f2 (scInjectMv s), " mV"]
+      | otherwise = T.concat ["**", f2 (scInjectMv s), " mV**"]
 
     faults =
       let bad = [ s | s <- sortOn scBoard scores, not (scLegal s) ]
@@ -350,6 +375,9 @@ benchReport scores = T.unlines $
           , [ T.pack (show (scFailedNets s)) <> " nets unrouted" | scFailedNets s > 0 ]
           , [ T.pack (show (scContested s)) <> " contested cells" | scContested s > 0 ]
           , [ T.pack (show (scViaPad s)) <> " vias in pads" | scViaPad s > 0 ]
+          , [ "crosstalk " <> f2 (scInjectMv s) <> " mV over a limit of "
+              <> f2 (scInjectLimit s) <> " mV"
+            | scInjectLimit s > 0, scRouted s, scInjectMv s > scInjectLimit s ]
           , [ T.pack (show (scDisconnected s)) <> " nets not one island ("
               <> T.intercalate ", " (take 4 (scBadNets s))
               <> (if length (scBadNets s) > 4 then ", ..." else "") <> ")"

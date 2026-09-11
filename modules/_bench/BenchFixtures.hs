@@ -133,22 +133,29 @@ pinchWide = pinch
 
 -- crosstalk ---------------------------------------------------------------------
 
--- | A quiet net and a noisy net with nowhere to go but side by side.
+-- | A quiet net and a noisy net whose shortest routes run side by side.
 --
--- Both nets must cross a 40 mm board, and their pads put them 2 mm apart on
--- the front layer, so the shortest routing runs them alongside each other for
--- 32 mm. The solved coupling for that is about 0.13 pF, which a 5 V gate edge
--- turns into tens of millivolts on a 1M node: three orders of magnitude over
--- any crosstalk figure worth quoting.
+-- Both must cross a 40 mm board, and their pads sit 2 mm apart, so the
+-- shortest routing runs them alongside each other for 32 mm. The solved
+-- coupling for that is about 0.13 pF, which a 5 V gate edge turns into 85 mV
+-- on a 1M node: eight times the 10 mV the design allows.
 --
--- There is a way out, and it is the move a person would make: put one of the
--- two on the back layer, where the 1.6 mm of substrate between them makes the
--- coupling irrelevant. It costs two vias.
+-- There is a way out, and it is the move a person would make. The board is
+-- 18 mm tall and the pads are at 12 and 14 mm, so the quiet net can bow away
+-- into the empty half of the board. Past about 3 mm of separation the
+-- coupling stops mattering, and buying that costs a few millimetres of
+-- copper and no vias at all.
 --
--- What it measures: whether the router will spend two vias to keep a spec it
--- has been told about. A router that only counts copper and vias takes the
--- straight route every time and is right to, because nothing has told it that
--- the 0.13 pF matters.
+-- The board is tall for a reason. At 6 mm, which is where this fixture
+-- started, the via keepout around the four 0805 pads covered every cell on
+-- the board, so no via could be placed anywhere and the back layer was
+-- unreachable -- the fixture offered an escape that did not exist, and the
+-- router was blamed for not taking it.
+--
+-- What it measures: whether the router will spend copper to keep a spec it
+-- has been told about. A router that counts only copper and vias takes the
+-- straight route every time and is right to, because nothing has told it
+-- that the 0.13 pF matters.
 crosstalk :: Module
 crosstalk = Module
   { modName = "crosstalk"
@@ -156,10 +163,10 @@ crosstalk = Module
   , modTitle = "Bench: a quiet net and a noisy net in one channel"
   , modHP = 8
   , modParts =
-      [ (part "R1" "0" rSym r0805 (4.0, 2.0) (50.8, 50.8)) { partNoConnect = ["1"] }
-      , (part "R2" "0" rSym r0805 (36.0, 2.0) (101.6, 50.8)) { partNoConnect = ["2"] }
-      , (part "R3" "0" rSym r0805 (4.0, 4.0) (50.8, 76.2)) { partNoConnect = ["1"] }
-      , (part "R4" "0" rSym r0805 (36.0, 4.0) (101.6, 76.2)) { partNoConnect = ["2"] }
+      [ (part "R1" "0" rSym r0805 (4.0, 12.0) (50.8, 50.8)) { partNoConnect = ["1"] }
+      , (part "R2" "0" rSym r0805 (36.0, 12.0) (101.6, 50.8)) { partNoConnect = ["2"] }
+      , (part "R3" "0" rSym r0805 (4.0, 14.0) (50.8, 76.2)) { partNoConnect = ["1"] }
+      , (part "R4" "0" rSym r0805 (36.0, 14.0) (101.6, 76.2)) { partNoConnect = ["2"] }
       ]
   , modNets =
       [ Net "QUIET" Signal [("R1", "2"), ("R2", "1")]
@@ -167,7 +174,7 @@ crosstalk = Module
       ]
   , modBoard = Board
       { bdWidth = 40.0
-      , bdHeight = 6.0
+      , bdHeight = 18.0
       , bdCornerRadius = 0.0
       , bdRules = defaultRules
       , bdTraces = []
@@ -179,10 +186,15 @@ crosstalk = Module
           { anRoles = [("QUIET", Quiet 1e6), ("NOISY", Noisy 5 1e-6)]
           , anMaxLength = []
           , anMatched = []
-            -- 1 mV on a 5 V edge is -74 dB, an ordinary thing to ask of an
-            -- audio path and utterly unreachable with the two nets running
-            -- alongside each other.
-          , anInjectMv = 1.0
+            -- 10 mV on a 5 V edge is -54 dB. Deliberately not stricter: the
+            -- quiet net's pads sit 2 mm from the noisy net whatever the
+            -- router does, and the stubs from those pads alone inject about
+            -- 5.6 mV, so a 1 mV limit would be unreachable by any routing and
+            -- the fixture would measure nothing. 10 mV is missed by 8x on the
+            -- front layer and met on the back, which is the choice the
+            -- fixture exists to put in front of the router.
+          , anInjectMv = 10.0
+          , anSameCircuit = []
           , anNodePf = 5
           }
       }

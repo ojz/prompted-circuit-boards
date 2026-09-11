@@ -9,6 +9,7 @@
 -- move away and nets without alternatives keep their ground.
 module Route.Router
   ( RouteConfig (..)
+  , CouplingSpec (..)
   , defaultRouteConfig
   , RouteProblem (..)
   , RoutedNet (..)
@@ -38,6 +39,7 @@ import           Data.Text          (Text)
 import qualified Data.Text          as T
 
 import           Route.Check
+import           Route.Coupling     (coupledPf, injectedVolts, mutualPfPerMm, selfPfPerMm)
 import           Route.Geometry
 
 data RouteConfig = RouteConfig
@@ -52,6 +54,11 @@ data RouteConfig = RouteConfig
   , rcMaxIterations :: Int
   , rcImproveRounds :: Int      -- ^ descent sweeps after the negotiation converges
   , rcStarts        :: Int      -- ^ net orderings to try, best result kept
+  , rcCoupling      :: Maybe CouplingSpec
+    -- ^ crosstalk limit to route against, if the design states one
+  , rcCouplingLambda :: Double
+    -- ^ price of coupling in cell steps per picofarad. Set by 'autoroute',
+    --   not by a caller: it is the Lagrange multiplier the escalation raises.
   } deriving (Show)
 
 defaultRouteConfig :: [Text] -> RouteConfig
@@ -91,7 +98,26 @@ defaultRouteConfig nets = RouteConfig
   -- curve flattens. A board that takes well under a second to route can
   -- afford being routed six times, and nothing else available buys a factor
   -- of fourteen in vias.
-  , rcStarts = 6 }
+  , rcStarts = 6
+  , rcCoupling = Nothing, rcCouplingLambda = 0 }
+
+-- | What the router needs in order to route against a crosstalk limit.
+--
+-- Resolved to the router's own net names by the caller, and expressed in SI
+-- units, so the router needs no notion of a design. The physics is in
+-- "Route.Coupling"; this is only the statement of who must be protected from
+-- whom and by how much.
+data CouplingSpec = CouplingSpec
+  { csQuiet  :: [(Text, Double)]           -- ^ net and its node impedance, ohms
+  , csNoisy  :: [(Text, Double, Double)]   -- ^ net, edge volts, rise time in seconds
+  , csLimitV :: Double                     -- ^ volts a quiet net may pick up
+  , csNodeF  :: Double                     -- ^ farads a quiet node has besides its own trace
+  , csIgnore :: [(Text, Text)]
+    -- ^ @(quiet, noisy)@ pairs that are one signal path, so coupling between
+    --   them is the circuit working and not crosstalk. Charging for it would
+    --   have the router spend copper separating an op-amp from its own
+    --   feedback network.
+  } deriving (Show)
 
 data RouteProblem = RouteProblem
   { rpOutline  :: Outline
@@ -271,11 +297,14 @@ traversable s c =
 -- present-sharing penalty for every other net's copper here, plus the
 -- accumulated history of past conflicts. The search then does one array
 -- read per cell instead of two map lookups.
-penaltyArray :: Grid -> Occ -> IM.IntMap Double -> Int -> Double -> UArray Int Double
-penaltyArray g occ hist nid pres =
+-- | Per-cell cost added to the A* on top of the terrain: present congestion,
+-- history congestion, and whatever else the caller wants charged (the
+-- coupling repair charges predicted capacitance here).
+penaltyArray :: Grid -> Occ -> IM.IntMap Double -> Int -> Double -> [(Int, Double)] -> UArray Int Double
+penaltyArray g occ hist nid pres extra =
   let size = nLayers * gW g * gH g
       occW = [ (c, pres * fromIntegral k) | (c, m) <- IM.toList occ, let k = IM.size (IM.delete nid m), k > 0 ]
-  in accumArray (+) 0 (0, size - 1) (occW ++ IM.toList hist)
+  in accumArray (+) 0 (0, size - 1) (occW ++ IM.toList hist ++ extra)
 
 -- Binary min-heap on (key, cell) in unboxed mutable arrays, growing by
 -- doubling. Stale entries are tolerated: A* skips a popped cell that is
@@ -536,8 +565,81 @@ data NetState = NetState
 -- best result, because the order nets are offered the grid in is arbitrary and
 -- it turns out to matter more than any single setting: see 'attempt'.
 autoroute :: RouteConfig -> RouteProblem -> RouteResult
-autoroute cfg prob = pick (map (attempt cfg prob netIds0 grid0) orderings)
+autoroute cfg prob = case rcCoupling cfg of
+  Nothing   -> solve cfg
+  Just spec -> escalate spec [] lambdas (solve cfg)
   where
+    -- Lagrangian escalation on the crosstalk limit.
+    --
+    -- Route, then measure the injection on the copper that would actually be
+    -- written -- string-pulled, exactly as emitted, and by the same integral
+    -- "Route.Analog" uses for the report. If a quiet net is over its limit,
+    -- raise the price of coupling and route again. Stop at the first result
+    -- that meets the limit; if none does, keep the quietest one.
+    --
+    -- Measuring the emitted geometry rather than the grid paths is not a
+    -- detail. An earlier version charged coupling during the search and
+    -- measured the grid, and passed: the string-pulling afterwards then
+    -- straightened the quiet net back alongside the aggressor it had just
+    -- been moved away from, and the independent check in the benchmark
+    -- caught the board at 85 mV against a 10 mV limit while the router
+    -- believed it had complied. What is measured has to be what is emitted.
+    lambdas = [200, 800, 3200, 12800]
+    escalate spec trail [] best = note spec trail best
+    escalate spec trail (lam : rest) best
+      | injectionOfResult spec best <= csLimitV spec = note spec trail best
+      | otherwise =
+          let next = solve cfg { rcCouplingLambda = lam }
+              got = injectionOfResult spec next
+              ok = null (rrFailed next) && rrConflicts next == 0
+              better = if ok && got < injectionOfResult spec best then next else best
+              entry = T.pack ("coupling at " ++ show (round lam :: Int)
+                              ++ " cells/pF: " ++ showFFloat (Just 2) (1000 * got) " mV"
+                              ++ (if ok then "" else " (illegal, discarded)"))
+          in escalate spec (trail ++ [entry]) rest better
+
+    -- The escalation's own trail, so the report says what was tried and what
+    -- it cost rather than only where it landed.
+    note spec trail res
+      | null trail = res
+      | otherwise = res { rrLog = rrLog res ++ trail ++ [verdict] }
+      where
+        got = injectionOfResult spec res
+        verdict = T.pack ("crosstalk " ++ showFFloat (Just 2) (1000 * got) " mV against a limit of "
+                          ++ showFFloat (Just 2) (1000 * csLimitV spec) " mV: "
+                          ++ (if got <= csLimitV spec then "met" else "MISSED"))
+
+    -- Injection on the emitted copper, worst quiet net against the worst
+    -- aggressor. Segment-based and same-layer, like the report's.
+    injectionOfResult spec res =
+      maximum (0 : [ injectedVolts v tr r (cm * 1e-12) (ct * 1e-12)
+                   | (q, r) <- csQuiet spec
+                   , let cm = sum [ coupledPf 0.1 (segsOf q) (segsOf z)
+                                  | (z, _, _) <- csNoisy spec
+                                  , (q, z) `notElem` csIgnore spec ]
+                         ct = csNodeF spec * 1e12 + lengthOf q * selfPfPerMm
+                   , (z, v, tr) <- csNoisy spec, (q, z) `notElem` csIgnore spec ])
+      where
+        traces = [ t | rn <- rrNets res, t <- rnTraces rn ]
+        vias = [ vv | rn <- rrNets res, vv <- rnVias rn ]
+        segsOf n = [ (rtLayer t, a, b)
+                   | t <- traces, rtNet t == n
+                   , (a, b) <- zip (rtPath t) (drop 1 (rtPath t)) ]
+        lengthOf n = sum [ dist a b | (_, a, b) <- segsOf n ]
+                   + 1.6 * fromIntegral (length [ () | vv <- vias, rvNet vv == n ])
+
+    -- Tried and removed: sparking the six orderings with `par` under
+    -- -threaded -N, so they would run on separate cores. They did not. The
+    -- RTS reported "6 sparks, 0 converted, 6 GC'd" -- every spark collected
+    -- before a worker took it, because `pick` walks the list and evaluates
+    -- each result in the main thread before the scheduler gets there. Timing
+    -- was unchanged either way, at about 27 s for the attenuverter.
+    --
+    -- Making this genuinely parallel needs explicit concurrency and an
+    -- IO-shaped autoroute, which is a real change and not obviously worth it:
+    -- six orderings of a board that routes in four seconds is the whole cost.
+    solve c = pick (map (attempt c prob netIds0 grid0) (orderingsOf c))
+    orderingsOf c = take (max 1 (rcStarts c)) (heuristics ++ map shuffled [1 :: Int ..])
     -- The orderings to try, best first, so a small 'rcStarts' still gets the
     -- sensible ones.
     --
@@ -553,7 +655,6 @@ autoroute cfg prob = pick (map (attempt cfg prob netIds0 grid0) orderings)
     --
     -- Ties break on the net name throughout, so the ordering does not depend
     -- on the order nets happen to be listed in the design file.
-    orderings = take (max 1 (rcStarts cfg)) (heuristics ++ map shuffled [1 :: Int ..])
     heuristics =
       [ sortOn (\n -> (negate (termCount n), n)) nets0   -- most terminals first
       , sortOn (\n -> (termCount n, n)) nets0            -- fewest first
@@ -582,8 +683,22 @@ autoroute cfg prob = pick (map (attempt cfg prob netIds0 grid0) orderings)
 -- are built once by 'autoroute' and shared: they do not depend on the order,
 -- and building them per attempt was pure waste.
 attempt :: RouteConfig -> RouteProblem -> M.Map Text Int -> Grid -> [Text] -> RouteResult
-attempt cfg prob netIds grid order =
+attempt cfg prob netIds grid order0 =
   let toRoute = [ n | n <- rcNets cfg, M.member n netIds ]
+      -- With a coupling price on, aggressors are routed first and victims
+      -- last, whatever the ordering heuristic said. A quiet net cannot be
+      -- charged for running near a noisy one that has not been placed yet,
+      -- and on a board that converges in one iteration it would never get a
+      -- second chance.
+      order = case rcCoupling cfg of
+        Just spec | rcCouplingLambda cfg > 0 ->
+          let noisyN = map (\(n, _, _) -> n) (csNoisy spec)
+              quietN = map fst (csQuiet spec)
+              rank n | n `elem` noisyN = 0 :: Int
+                     | n `elem` quietN = 2
+                     | otherwise = 1
+          in sortOn rank order0
+        _ -> order0
       missing = [ n | n <- rcNets cfg, not (M.member n netIds) ]
       terms = M.fromList [ (n, terminalsFor grid netIds n (rpPads prob) (rpPreRouted prob)) | n <- toRoute ]
       padCentres n = [ pgAt p | p <- rpPads prob, pgNet p == Just n ]
@@ -629,6 +744,57 @@ attempt cfg prob netIds grid order =
                       in finish iter occI statesI logI
                  else loop (iter + 1) occ' hist' states' (msg : logAcc)
 
+      -- What a quiet net is charged, per cell, for running near a noisy one.
+      --
+      -- Zero unless the design set a crosstalk limit and 'autoroute' has
+      -- raised the price because the limit was missed. The price is in cell
+      -- steps per picofarad, directly comparable with what the same search
+      -- pays for a via or for a millimetre of detour, which is the point: the
+      -- router weighs crosstalk against copper on one scale.
+      couplingTerm states n
+        | isQuiet n = couplingPenalties states n
+        | otherwise = []
+
+      isQuiet n = case rcCoupling cfg of
+        Just spec -> rcCouplingLambda cfg > 0 && n `elem` map fst (csQuiet spec)
+        Nothing   -> False
+
+      -- Aggressors that matter to this net: every noisy one it is not part of
+      -- the same circuit as.
+      aggressorsFor spec n =
+        [ z | (z, _, _) <- csNoisy spec, (n, z) `notElem` csIgnore spec ]
+
+      couplingPenalties states n = case rcCoupling cfg of
+        Just spec | rcCouplingLambda cfg > 0 ->
+          [ (c, rcCouplingLambda cfg * rcPitch cfg * mutualPfPerMm d)
+          | (c, d) <- IM.toList (couplingMap (aggressorsFor spec n) states) ]
+        _ -> []
+
+      couplingMap aggressors states =
+        let noisyCells =
+              [ c | n <- aggressors
+                  , Just st <- [M.lookup n states], not (nsFailed st)
+                  , c <- copperCells st ]
+            rad = ceiling (couplingCutoff / rcPitch cfg) :: Int
+        in IM.fromListWith min
+             [ (cellIdx grid l x y, d)
+             | c <- noisyCells
+             , let (l, nx, ny) = cellCoords grid c
+             , dx <- [negate rad .. rad], dy <- [negate rad .. rad]
+             , let x = nx + dx, x >= 0, x < gW grid
+             , let y = ny + dy, y >= 0, y < gH grid
+             , let d = rcPitch cfg * sqrt (fromIntegral (dx * dx + dy * dy))
+             , d < couplingCutoff ]
+
+      -- Matches "Route.Coupling"'s. Wider costs the coupling map a squared
+      -- amount of work per noisy cell, and it is only built when a board is
+      -- actually over budget.
+      couplingCutoff = 4.0
+
+      -- Picofarads a net picks up along its own cells, and the volts that
+      -- becomes for the worst aggressor on the board. Cell-based rather than
+      -- segment-based, so it is the same quantity the search is charging;
+      -- Route.Analog re-measures the emitted geometry independently.
       -- Post-convergence descent.
       --
       -- The negotiation only reroutes nets that are in conflict, so a net
@@ -646,13 +812,21 @@ attempt cfg prob netIds grid order =
       improve rounds occ states logAcc
         | rounds <= 0 = (occ, states, logAcc)
         | otherwise =
-            let (occ', states', taken) = foldl' improveOne (occ, states, 0 :: Int) order
+            -- Coupling costs are read once per sweep, from the copper as the
+            -- sweep found it. A noisy net that moves later in the same sweep
+            -- makes them stale for the nets after it; that is accepted rather
+            -- than rebuilt per net, because the escalation measures the
+            -- emitted board afterwards and would raise the price again if it
+            -- mattered.
+            let cpens = M.fromList [ (n, IM.fromList (couplingPenalties states n))
+                                   | n <- order, isQuiet n ]
+                (occ', states', taken) = foldl' (improveOne cpens) (occ, states, 0 :: Int) order
                 msg = T.pack ("descent sweep: " ++ show taken ++ " of "
                               ++ show (length order) ++ " nets rerouted cheaper")
             in if taken == 0 then (occ, states, logAcc)
                else improve (rounds - 1) occ' states' (msg : logAcc)
 
-      improveOne (occ, states, taken) n
+      improveOne cpens (occ, states, taken) n
         | nsFailed st = (occ, states, taken)
         | otherwise = case routeNet search (terms M.! n) of
             Left _ -> (occ, states, taken)
@@ -668,12 +842,19 @@ attempt cfg prob netIds grid order =
                   -- a settled neighbour's trace and left the board illegal.
                   clashes = any (\c -> otherNetsAt occNo nid c > 0) (copperCells st')
                          || any (`IS.member` foreignCopper) stamps
-              in if clashes || routeCost grid cfg paths >= routeCost grid cfg (nsPaths st)
+              in if clashes || withCoupling paths >= withCoupling (nsPaths st)
                    then (occ, states, taken)
                    else (addStamps nid stamps occNo, M.insert n st' states, taken + 1)
         where
           nid = netIds M.! n
           st = states M.! n
+          -- The same total the A* is minimising, coupling included. Comparing
+          -- plain copper here would reject every detour the coupling penalty
+          -- had just paid for, which is what it did until this was measured.
+          withCoupling paths = routeCost grid cfg paths
+            + case M.lookup n cpens of
+                Nothing -> 0
+                Just cpen -> sum [ w | c <- concat paths, Just w <- [IM.lookup c cpen] ]
           occNo = removeStamps nid (nsStamps st) occ
           foreignCopper = IS.fromList
             [ c | (m, s) <- M.toList states, m /= n, not (nsFailed s), c <- copperCells s ]
@@ -681,13 +862,18 @@ attempt cfg prob netIds grid order =
           -- another net is never worth it. A path that crosses anyway is
           -- rejected outright below, so this stays a strict improvement on a
           -- legal board rather than a fresh negotiation.
-          search = Search grid cfg nid (penaltyArray grid occNo IM.empty nid 1e9)
+          -- The coupling term is carried here too. Without it the descent
+          -- would cheerfully shorten a quiet net straight back alongside the
+          -- noisy one the negotiation had just moved it away from.
+          search = Search grid cfg nid
+            (penaltyArray grid occNo IM.empty nid 1e9 (couplingTerm states n))
 
       routeOne pres hist (occ, states) n =
         let nid = netIds M.! n
             st = states M.! n
             occNo = removeStamps nid (nsStamps st) occ
-            search = Search grid cfg nid (penaltyArray grid occNo hist nid pres)
+            search = Search grid cfg nid
+              (penaltyArray grid occNo hist nid pres (couplingTerm states n))
         in case routeNet search (terms M.! n) of
              Left _ -> (occNo, M.insert n (NetState [] [] [] True) states)
              Right paths ->
@@ -718,7 +904,44 @@ attempt cfg prob netIds grid order =
             -- point can sit up to half a cell diagonal closer than its cell
             -- centre, which is enough to graze the clearance limit.
             infl = rcWidth cfg / 2 + rcClearance cfg + 0.01
-            lineOk nid l p q =
+            -- Aggressor geometry as the negotiation left it, in board
+            -- coordinates. The noisy nets' own traces are being built in this
+            -- same pass, so their grid paths are what there is to compare
+            -- against; they are the same polyline before string-pulling.
+            noisySegs = case rcCoupling cfg of
+              Nothing -> []
+              Just spec ->
+                [ (ixLayer l1, cellCentre grid x1 y1, cellCentre grid x2 y2)
+                | (nz, _, _) <- csNoisy spec
+                , Just stz <- [M.lookup nz states], not (nsFailed stz)
+                , path <- nsPaths stz
+                , (c1, c2) <- zip path (drop 1 path)
+                , let (l1, x1, y1) = cellCoords grid c1
+                      (l2, x2, y2) = cellCoords grid c2
+                , l1 == l2 ]
+
+            couplingAlong l pts =
+              coupledPf 0.1 [ (ixLayer l, a, b) | (a, b) <- zip pts (drop 1 pts) ] noisySegs
+
+            -- A shortcut has to be legal geometry *and* not undo the routing.
+            -- Without the second half, the pulling straightens a quiet net
+            -- back alongside the aggressor the search just paid to avoid, and
+            -- the board misses a limit the router believes it met. That
+            -- happened, and the benchmark's independent check is what found
+            -- it.
+            pullOk nid l p q replaced
+              | rcCouplingLambda cfg <= 0 = True
+              | otherwise = case rcCoupling cfg of
+                  Nothing -> True
+                  Just spec
+                    | nameOfId nid `elem` map fst (csQuiet spec) ->
+                        couplingAlong l [p, q] <= couplingAlong l replaced + 1e-12
+                    | otherwise -> True
+
+            nameOfId nid = head ([ nm | (nm, i) <- M.toList netIds, i == nid ] ++ [T.empty])
+
+            lineOk nid l p q replaced =
+              pullOk nid l p q replaced &&
               let n = max 1 (ceiling (dist p q / (rcPitch cfg / 3))) :: Int
                   search = Search grid cfg nid (listArray (0, -1) [])
                   netName = head ([ nm | (nm, i) <- M.toList netIds, i == nid ] ++ [T.empty])
@@ -801,7 +1024,15 @@ viasOf g paths =
 
 -- | Turn cell paths into straight traces and vias, snapping the ends onto
 -- pad centres so the copper lands where KiCad expects it.
-toRouted :: Grid -> RouteConfig -> (Int -> Pt -> Pt -> Bool) -> Text -> [Terminal] -> [Pt] -> [[Int]] -> RoutedNet
+-- | Turn grid paths into emitted copper: string-pull the staircases, then
+-- collapse collinear steps.
+--
+-- The acceptance predicate is given the stretch a straight run would replace,
+-- not just its endpoints, so a caller can refuse a shortcut on grounds that
+-- depend on the path and not only on the line. The coupling objective needs
+-- exactly that: a shortcut is legal geometry and still the wrong move if it
+-- puts a quiet net back alongside an aggressor.
+toRouted :: Grid -> RouteConfig -> (Int -> Pt -> Pt -> [Pt] -> Bool) -> Text -> [Terminal] -> [Pt] -> [[Int]] -> RoutedNet
 toRouted g cfg lineOk net terms padPts paths =
   RoutedNet net (concatMap tracesOf paths)
             [ RVia net (cellCentre g x y) (rcViaDiameter cfg) (rcViaDrill cfg) | (_, x, y) <- viasOf g paths ]
@@ -852,7 +1083,8 @@ toRouted g cfg lineOk net terms padPts paths =
     pull _ [p] = [p]
     pull l (p : rest) =
       let candidates = reverse (zip [1 :: Int ..] rest)
-          (_, q) = head ([ c | c@(_, q') <- candidates, lineOk l p q' ] ++ [head (zip [1 ..] rest)])
+          (_, q) = head ([ c | c@(i, q') <- candidates, lineOk l p q' (p : take i rest) ]
+                         ++ [head (zip [1 ..] rest)])
           remaining = dropWhile (/= q) rest
       in p : pull l remaining
 

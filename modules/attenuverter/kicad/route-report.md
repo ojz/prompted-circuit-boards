@@ -33,11 +33,7 @@ Coupling predicted from the copper, limit 2.20 mV:
 
 | quiet net | noisy net | coupled pF | injected mV |
 |---|---|--:|--:|
-| WIPER1 | OA1 | 0.0037 | 0.126 |
-| WIPER2 | OA2 | 0.0027 | 0.092 |
 | WIPER1 | OA2 | 0.0000 | 0.000 |
-| WIPER1 | OUT1 | 0.0000 | 0.000 |
 | WIPER1 | OUT2 | 0.0000 | 0.000 |
 | WIPER2 | OA1 | 0.0000 | 0.000 |
 | WIPER2 | OUT1 | 0.0000 | 0.000 |
-| WIPER2 | OUT2 | 0.0000 | 0.000 |

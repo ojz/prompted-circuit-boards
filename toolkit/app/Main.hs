@@ -32,7 +32,7 @@ import           Emit.Pcb
 import           Emit.Project
 import           Emit.Schematic
 import           Kicad.Library
-import           Route.Router       (RouteConfig (..))
+import           Route.Router       (RouteConfig (..), RouteResult (..), RoutedNet (..), autoroute)
 import           Validate
 
 designs :: [(String, Module)]
@@ -89,12 +89,14 @@ main = do
     ["all"]             -> mapM_ (\(n, _) -> run n Nothing) designs
     ("bench" : rest)    -> bench rest
     ("sweep-via" : rest) -> sweepVia rest
+    ["log", b]         -> routeLog b
     [name]              -> run name Nothing
     [name, "--out", d]  -> run name (Just d)
     _ -> do
       hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
       hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
       hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--starts N] [--costs N,N] [board ...]"
+      hPutStrLn stderr "       pcbgen log <board>            route one board and print the router's log"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -194,6 +196,25 @@ splitOn :: Char -> String -> [String]
 splitOn c str = case break (== c) str of
   (before, [])       -> [before]
   (before, _ : rest) -> before : splitOn c rest
+
+-- | Route one benchmark board and print what the router did, iteration by
+-- iteration. The report says what came out; this says how, which is what a
+-- routing change has to be debugged against.
+routeLog :: String -> IO ()
+routeLog name = do
+  boards <- selectBoards [name]
+  lc <- newLibCache
+  _ <- findKicadShare
+  forM_ boards $ \(label, m) -> case routeConfigFor m of
+    Nothing -> hPutStrLn stderr (label ++ " has no autoroute block")
+    Just cfg -> do
+      prob <- routeProblemFor lc m
+      let res = autoroute cfg prob
+      putStrLn ("coupling spec: " ++ show (rcCoupling cfg))
+      mapM_ (TIO.putStrLn . ("  " <>)) (rrLog res)
+      putStrLn ("vias " ++ show (length (concatMap rnVias (rrNets res)))
+                ++ ", cost " ++ show (rrCost res)
+                ++ ", failed " ++ show (rrFailed res))
 
 -- | Named benchmark boards, or all of them when none are named. An unknown
 -- name is an error rather than an empty run, so a typo cannot look like a pass.

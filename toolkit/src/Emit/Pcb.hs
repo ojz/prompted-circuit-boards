@@ -83,7 +83,40 @@ routeConfigFor m = do
   pure (defaultRouteConfig (map (resolveNetOf m) (arNets ar)))
          { rcPitch = arPitch ar, rcWidth = arWidth ar
          , rcClearance = drClearance rules, rcEdgeClearance = drEdgeClearance rules
-         , rcViaDiameter = arViaDiameter ar, rcViaDrill = arViaDrill ar }
+         , rcViaDiameter = arViaDiameter ar, rcViaDrill = arViaDrill ar
+         , rcCoupling = couplingSpecFor m }
+
+-- | The board's crosstalk limit, in the router's net names and in SI units,
+-- or Nothing when the design does not state one.
+--
+-- Only nets that are actually being routed are passed on. A quiet net the
+-- router does not lay copper for -- hand-drawn, or simply not listed -- is
+-- something the router cannot move, so charging it for coupling would price a
+-- choice it does not have.
+couplingSpecFor :: Module -> Maybe CouplingSpec
+couplingSpecFor m = do
+  ar <- bdAutoRoute (modBoard m)
+  let an = bdAnalog (modBoard m)
+      routed = map (resolveNetOf m) (arNets ar)
+      keep n = resolveNetOf m n `elem` routed
+      quiet = [ (resolveNetOf m n, r) | (n, Quiet r) <- anRoles an, keep n, r > 0 ]
+      noisy = [ (resolveNetOf m n, v, tr) | (n, Noisy v tr) <- anRoles an, keep n
+              , v > 0, tr > 0 ]
+  if anInjectMv an <= 0 || null quiet || null noisy
+    then Nothing
+    else Just CouplingSpec
+      { csQuiet = quiet
+      , csNoisy = noisy
+      , csLimitV = anInjectMv an / 1000
+      , csNodeF = anNodePf an * 1e-12
+        -- Decided on the design's names, where the groups are written, and
+        -- resolved afterwards; inverting the router's names would be a
+        -- lookup that can fail for no good reason.
+      , csIgnore = [ (resolveNetOf m qd, resolveNetOf m zd)
+                   | (qd, Quiet _) <- anRoles an
+                   , (zd, Noisy _ _) <- anRoles an
+                   , sameCircuit an qd zd ]
+      }
 
 -- | Everything that makes a routing result unusable: a net the router gave
 -- up on, copper still contested between nets, a via inside or against a pad

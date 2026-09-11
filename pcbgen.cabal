@@ -36,6 +36,7 @@ library
         Emit.Project
         Route.Geometry
         Route.Analog
+        Route.Coupling
         Route.Check
         Route.Router
         Route.Extract

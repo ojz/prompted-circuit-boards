@@ -211,6 +211,15 @@ data Analog = Analog
     --   far the two run alongside each other, so the design states the
     --   electrical limit and the check predicts the injection from the
     --   copper.
+  , anSameCircuit :: [[Text]]
+    -- ^ Groups of nets that are one signal path. Coupling between two nets in
+    --   the same group is not crosstalk: an op-amp's output sitting near its
+    --   own inverting input is its feedback network, and a router asked to
+    --   separate them would be spending copper to undo the circuit.
+    --
+    --   Without this the check has no notion of a channel and reports every
+    --   quiet/noisy pair on the board, which on a dual module means the only
+    --   non-zero numbers are the ones that do not matter.
   , anNodePf    :: Double
     -- ^ Picofarads a 'Quiet' node carries besides its own trace: op-amp
     --   input capacitance, a filter cap, pad capacitance. It appears in the
@@ -220,7 +229,7 @@ data Analog = Analog
 
 -- | Declare nothing. What every design starts with.
 noAnalog :: Analog
-noAnalog = Analog [] [] [] 0 0
+noAnalog = Analog [] [] [] 0 [] 0
 
 data Board = Board
   { bdWidth        :: Double

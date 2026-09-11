@@ -7,6 +7,155 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-11, session 7: the router routes against the circuit
+
+The measurement from session 6 is now an objective the router optimises. On
+the fixture built for it, declared crosstalk goes from 85 mV to 0.55 mV
+against a 10 mV budget, for 2.8% more copper and no vias.
+
+### How it works
+
+`autoroute` charges a quiet net for copper near a noisy one, at a price in
+cell steps per picofarad, so crosstalk, copper and vias are all weighed on one
+scale. The price is not a constant anybody chose: it starts at zero, and while
+the emitted board misses the declared limit it is raised through 200, 800,
+3200 and 12800 and the board rerouted. That is Lagrangian relaxation, and it
+is the same shape as the congestion multiplier the negotiation has always
+used -- the price of a thing rises until people stop doing it.
+
+Boards that already meet their limit pay one comparison and nothing else.
+
+### Three ways it silently did nothing, all caught by the independent check
+
+Each of these passed the router's own opinion and failed the benchmark's
+measurement of the emitted copper. This is the whole argument for scoring a
+router with a checker it does not own.
+
+1. **String-pulling undid it.** The search moved the quiet net away, and the
+   post-process then straightened it right back alongside the aggressor,
+   because a straight run was legal geometry. The router reported success at
+   every price while the board sat at 85 mV against a 10 mV limit. The
+   pulling predicate now takes the stretch a shortcut would replace, not just
+   its endpoints, and a quiet net refuses a shortcut that couples worse than
+   what it replaces.
+
+2. **The descent rejected every fix.** The post-convergence descent accepts a
+   reroute only when it is cheaper, and "cheaper" meant copper and vias. A
+   coupling detour is longer by construction, so the descent threw away
+   exactly the moves the penalty had just bought. It now compares the same
+   total the search minimises, coupling included.
+
+3. **Victims were routed before aggressors.** A quiet net cannot be charged
+   for running near a noisy net that has not been placed yet, and on a board
+   that converges in one iteration it never gets a second chance. With a
+   coupling price on, aggressors now go first and victims last whatever the
+   ordering heuristic says.
+
+### The fixture had to be fixed twice, and that was informative
+
+`modules/_bench/crosstalk` was first written 6 mm tall, expecting the router
+to escape to the back layer for two vias. It could not: the via keepout around
+the four 0805 pads covered every cell on the board, so no via could be placed
+anywhere. The fixture was offering an escape that did not exist and the router
+was being blamed for not taking it. It is now 18 mm tall and the escape is a
+bow into the empty half of the board, which is what a person would do anyway.
+
+Its limit was also first set at 1 mV, which no routing can reach: the quiet
+net's pads sit 2 mm from the aggressor whatever happens, and those stubs alone
+inject about 5.6 mV. A fixture nobody can pass measures nothing. It is 10 mV
+now, missed by 8x on the direct route and met with room to spare.
+
+### The coupling table was wrong past 2 mm
+
+It stopped at 2 mm and held its last value, which overstated 3 mm by a factor
+of two and 5 mm by nine. Worse than the error: it left the density *flat* from
+2 mm out to the cutoff, so a router trying to move away found no gradient to
+follow until it fell off a cliff. Solved three more gaps (3, 5 and 8 mm) and
+widened the cutoff to 4 mm. That alone took the fixture from 3.36 mV to
+0.55 mV, because the router could finally tell 2.5 mm from 3.5 mm.
+
+### Coupling inside one signal path is not crosstalk
+
+The check had no notion of a channel, so it reported every quiet/noisy pair on
+the board. On the attenuverter that meant the only non-zero numbers in the
+report were `WIPER1` against `OA1` and `WIPER2` against `OA2` -- each op-amp
+against its own output, which is its feedback network and not crosstalk at
+all. The four pairs that do mean crosstalk were all zero and sat underneath
+them.
+
+Worse than a confusing report: a tighter limit would have set the router
+spending copper prising each op-amp away from its own feedback.
+
+`anSameCircuit` now declares which nets are one signal path. The checker skips
+those pairs, and the router is given them as `csIgnore` so it never pays to
+separate them. The attenuverter declares its two channels, and its report is
+now four cross-channel rows, all zero, which is the fact worth knowing.
+
+### What the benchmark now says
+
+The crosstalk column is measured by the harness on the emitted copper, with
+the design's own intent, for every router:
+
+  attenuverter  ours 0.00 mV   freerouting 2.22 mV   limit 2.20 mV
+  crosstalk     ours 0.55 mV   freerouting 85.00 mV  limit 10.00 mV
+
+Freerouting misses the attenuverter's declared crosstalk spec, marginally, and
+the fixture's by 8x. Its 2.22 mV survives the same-circuit exclusion, so it is
+genuine channel-to-channel coupling and not an op-amp against its own
+feedback. It is not a criticism of Freerouting: nothing told it
+there was a spec. That is the point of the whole exercise -- it is the first
+column in this benchmark where our router is doing something a mature one
+does not, rather than catching up.
+
+`cabal run pcbgen -- log <board>` was added to print the router's own trace,
+escalation included, because all three bugs above were invisible in the score
+and obvious in the log.
+
+### Verification
+
+`cabal test` 59 of 59; attenuverter, mult and both panels clean under ERC and
+DRC with schematic parity; `test-scripts.sh` 42 of 42. The real modules
+regenerate unchanged in behaviour: the attenuverter meets its limit at
+lambda 0, so the escalation costs it one comparison.
+
+### Not run, not done, not proven
+
+- No board has been measured on a bench. Every crosstalk number here is a
+  prediction from a 2D field solve and a single-pole circuit model, checked
+  against ngspice but never against an oscilloscope. The model is
+  conservative for short or skewed neighbours and ignores the far layer
+  entirely, both stated in `Route.Coupling`.
+- The escalation gives up after four prices. A board that cannot meet its
+  limit is reported as missing it, not refused: crosstalk is intent, not
+  manufacturability, and `check.sh` is still the gate on whether a board can
+  be built.
+- Building the coupling map is quadratic in the cutoff radius per noisy cell.
+  It only happens when a board is over budget, so no current board pays it,
+  but a dense board with many aggressors would.
+- `cabal test` takes about 15 minutes, because every routing test runs six
+  negotiations and one now runs the escalation as well. Sparking the six
+  orderings with `par` was tried and removed: the RTS converted none of them
+  ("6 sparks, 0 converted, 6 GC'd"), because `pick` evaluates each result in
+  the main thread before the scheduler can hand it out, and the timing did
+  not move. Real parallelism needs explicit concurrency and an IO-shaped
+  `autoroute`.
+- M3's CI and dependency pinning are still owed. M4 has not started.
+
+### Next action
+
+**Bench-measure one prediction.** The chain from field solve to millivolts is
+now long, self-consistent and entirely unvalidated against reality. The
+cheapest honest check is a two-trace coupon: two 0.3 mm traces at a known gap
+and length over a ground plane, drive one, measure the other with a known
+load, and compare against `nodebudget.py`. Until then every number in the
+crosstalk column is a claim about a model.
+
+Failing that, the other open thread is the via-cost objective: the sweep
+still shows no undominated value, and now that a via can be weighed against
+millivolts there may finally be something to price it against.
+
+---
+
 ## 2026-09-10, session 6: net order dominates, and what analog layout actually binds
 
 Two threads. The router's remaining instability turned out to be net ordering,

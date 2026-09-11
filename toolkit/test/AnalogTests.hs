@@ -16,13 +16,15 @@ module AnalogTests (tests) where
 import qualified Data.Text     as T
 
 import           Attenuverter  (attenuverter)
+import           BenchFixtures (crosstalk)
 import           Design
 import           Emit.Pcb      (routeConfigFor, routeProblemFor)
 import           Harness
 import           Kicad.Library (newLibCache)
 import           Route.Analog
+import           Route.Coupling
 import           Route.Geometry
-import           Route.Router  (RouteResult (..), RoutedNet (..), autoroute)
+import           Route.Router  (RouteConfig (..), RouteResult (..), RoutedNet (..), autoroute)
 
 tests :: [Test]
 tests =
@@ -34,9 +36,11 @@ tests =
   , couplingFallsWithGap
   , crossingCopperIsNotCharged
   , approachCouplesLessThanRunning
+  , sameCircuitIsNotCrosstalk
   , findsAMismatchedPair
   , findsAnOverLengthNet
   , attenuverterChannelsStaySeparate
+  , routerHonoursTheCrosstalkLimit
   ]
 
 -- | Coupling must fall with the gap, and the interpolation must not wander
@@ -47,16 +51,24 @@ tableIsMonotone = test "mutual capacitance falls with the gap" $ expectAll $
     , "coupling should fall from " ++ show a ++ " to " ++ show b ++ " mm")
   | (a, b) <- zip gaps (drop 1 gaps) ]
   ++
-  [ (abs (mutualPfPerMm 0.2 - 0.03156) < 1e-9, "0.2 mm should be the solved value")
-  , (abs (mutualPfPerMm 2.0 - 0.00395) < 1e-9, "2.0 mm should be the solved value")
-    -- Held, not extrapolated, outside the solved range.
-  , (mutualPfPerMm 0.05 == mutualPfPerMm 0.2, "below the table should hold the first entry")
-  , (mutualPfPerMm 20 == mutualPfPerMm 2.0, "above the table should hold the last entry")
-    -- An interpolated point has to sit between its neighbours.
+  [ (abs (mutualPfPerMm g - c) < 1e-9
+    , "the table should be returned exactly at " ++ show g ++ " mm")
+  | (g, c) <- solvedMutual ]
+  ++
+  -- Held, not extrapolated, outside the solved range: a gap the solve does
+  -- not cover is treated as the nearest one it does.
+  [ (mutualPfPerMm (first / 4) == mutualPfPerMm first
+    , "below the table should hold the first entry")
+  , (mutualPfPerMm (last' * 4) == mutualPfPerMm last'
+    , "above the table should hold the last entry")
+    -- An interpolated point sits between its neighbours.
   , (mutualPfPerMm 0.4 < mutualPfPerMm 0.3 && mutualPfPerMm 0.4 > mutualPfPerMm 0.5
     , "0.4 mm should interpolate between 0.3 and 0.5")
   ]
-  where gaps = [0.2, 0.3, 0.5, 1.0, 2.0]
+  where
+    gaps = map fst solvedMutual
+    first = head gaps
+    last' = last gaps
 
 -- | An edge much faster than the node's time constant is a pure capacitive
 -- divider: the resistor has no time to do anything.
@@ -158,6 +170,29 @@ approachCouplesLessThanRunning =
            , "an approach should couple at least three times less than a 10 mm"
              ++ " parallel run: approach " ++ show app ++ ", parallel " ++ show par) ]
 
+-- | Coupling inside one signal path is the circuit working, not crosstalk.
+--
+-- An op-amp output beside its own inverting input is a feedback network. On
+-- the attenuverter those same-channel pairs were the only non-zero numbers in
+-- the report, so without this the check reports exactly the two pairs nobody
+-- should care about, and a tighter limit would set the router prising each
+-- op-amp away from its own feedback.
+sameCircuitIsNotCrosstalk :: Test
+sameCircuitIsNotCrosstalk = test "coupling inside one signal path is ignored" $
+  let base = noAnalog { anRoles = [("W", Quiet 1e6), ("O", Noisy 22 16e-6)]
+                      , anInjectMv = 0.001, anNodePf = 5 }
+      traces = [ RTrace "W" F 0.3 [(0, 0), (20, 0)]
+               , RTrace "O" F 0.3 [(0, 0.5), (20, 0.5)] ]
+      apart = couplingPredictions base traces []
+      together = couplingPredictions base { anSameCircuit = [["W", "O"]] } traces []
+  in expectAll
+       [ (length apart == 1 && any (\(_, _, _, mv) -> mv > 0) apart
+         , "two separate circuits running alongside should couple, got " ++ show apart)
+       , (null together
+         , "one signal path should report nothing, got " ++ show together)
+       , (null (analogFindings base { anSameCircuit = [["W", "O"]] } traces [])
+         , "and should raise no finding either") ]
+
 -- | Two nets meant to match, routed to different lengths, must be reported
 -- with both lengths so the reader can see which one moved.
 findsAMismatchedPair :: Test
@@ -190,6 +225,47 @@ findsAnOverLengthNet = test "a length budget counts vias as copper" $
        , (length withVias == 1, "10 mm plus two vias should fail, got " ++ show withVias)
        , (abs (netLength "A" traces vias - 13.2) < 1e-9
          , "length should be 13.2 mm, got " ++ show (netLength "A" traces vias)) ]
+
+-- | The objective, end to end: the router must pay to keep a crosstalk limit
+-- it has been told about.
+--
+-- The fixture's pads put a 1M quiet net 2 mm from a 5 V gate net for 32 mm,
+-- which is 85 mV on a 10 mV budget. Bowing the quiet net into the empty half
+-- of the board costs about a millimetre of copper and no vias, and that is
+-- what the escalation is supposed to buy.
+--
+-- Asserted on the emitted geometry, by the same integral the report uses, not
+-- on the router's own opinion. An earlier version passed its own check and
+-- missed by 8x, because the string-pulling straightened the quiet net back
+-- alongside the aggressor after the search had moved it away.
+routerHonoursTheCrosstalkLimit :: Test
+routerHonoursTheCrosstalkLimit =
+  testIO "the router pays copper to keep a crosstalk limit" $ do
+    lc <- newLibCache
+    prob <- routeProblemFor lc crosstalk
+    case routeConfigFor crosstalk of
+      Nothing -> pure ["the fixture should be autorouted"]
+      Just cfg -> do
+        let an = bdAnalog (modBoard crosstalk)
+            strip n = maybe n id (T.stripPrefix "/" n)
+            emitted c =
+              let res = autoroute c prob
+                  ts = [ t { rtNet = strip (rtNet t) } | rn <- rrNets res, t <- rnTraces rn ]
+                  vs = [ v { rvNet = strip (rvNet v) } | rn <- rrNets res, v <- rnVias rn ]
+              in ( maximum (0 : [ mv | (_, _, _, mv) <- couplingPredictions an ts vs ])
+                 , sum [ dist a b | t <- ts, (a, b) <- zip (rtPath t) (drop 1 (rtPath t)) ] )
+            (withMv, withMm) = emitted cfg
+            (withoutMv, withoutMm) = emitted cfg { rcCoupling = Nothing }
+        pure $ expectAll
+          [ (withoutMv > anInjectMv an
+            , "the fixture should be over budget when the limit is ignored, got "
+              ++ show withoutMv ++ " mV")
+          , (withMv <= anInjectMv an
+            , "the router should meet the " ++ show (anInjectMv an) ++ " mV limit, got "
+              ++ show withMv ++ " mV")
+          , (withMm < withoutMm * 1.1
+            , "meeting it should cost under 10% more copper: " ++ show withoutMm
+              ++ " mm became " ++ show withMm) ]
 
 -- | Regression on the real board. The attenuverter declares -80 dB of
 -- channel crosstalk (2.2 mV on a 22 V swing) and today's routing achieves

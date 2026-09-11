@@ -286,6 +286,16 @@ attenuverterIntent = Analog
   , anMaxLength = [("WIPER1", 120), ("WIPER2", 120)]
   , anMatched = [("channels", ["IN1", "IN2"], 10), ("outputs", ["OUT1", "OUT2"], 10)]
   , anInjectMv = 2.2
+    -- Each channel is one signal path, so an output near its own wiper is
+    -- feedback and not crosstalk. Without this the only non-zero numbers in
+    -- the report are WIPER1 against OA1 and WIPER2 against OA2, which are
+    -- exactly the two pairs nobody should care about, and a tighter limit
+    -- would have the router spend copper prising each op-amp away from its
+    -- own feedback network.
+  , anSameCircuit =
+      [ ["IN1", "INV1", "WIPER1", "OA1", "OUT1"]
+      , ["IN2", "INV2", "WIPER2", "OA2", "OUT2"]
+      ]
   , anNodePf = 5
   }
 
