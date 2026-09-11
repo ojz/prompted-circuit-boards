@@ -28,6 +28,11 @@ setup owns tool versions and commands. See [README.md](README.md).
   (27 mV worst-case offset, 2.3 % inversion error, unguaranteed ±10 V swing and
   input range, no feedback compensation). The parts/topology choice is waiting
   in [decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md).
+- Module form factor and composition are settled user decisions (ROADMAP.md,
+  "Module Form Factor And Composition"): 4 to 20 HP, PCB height to drop from
+  108 to 100 mm inside the option B rework, no dual modules, combined distinct
+  functions per board, chainable CV, Ripples-derived filter under CC-BY-SA.
+  Note the 4 HP floor does not clear JLCPCB's 30 mm small-board threshold; 8 HP does.
 - No purchases are approved. Panel development remains deferred. Joint
   placement/routing is planned, not implemented, and does not replace circuit
   validation. See [ROADMAP.md](ROADMAP.md) for the gates and wishlist.

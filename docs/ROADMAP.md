@@ -86,6 +86,52 @@ Keep such objectives only where they serve a real electrical or search purpose,
 and say which one. The objective that is genuinely missing is ground-plane
 integrity, not a better via price.
 
+### Module Form Factor And Composition
+
+Stated by the user on 2026-09-11. These are decisions, not proposals.
+
+**Width: no module narrower than 4 HP, none wider than 20 HP.** The intent is
+to stay inside JLCPCB's standard tier, which is 100 x 100 mm. The upper bound
+does exactly that: 20 HP is a 101.3 mm panel and a 99.3 mm PCB, the widest
+Eurorack size that fits; 22 HP (109.4 mm PCB) does not. The lower bound does
+not do what it was meant to. JLCPCB treats any board with a dimension of
+30 mm or less as a small board and applies handling charges; a 4 HP PCB is
+18.0 mm wide and a 6 HP PCB is 28.0 mm, so both attract them, and **8 HP
+(38.3 mm PCB) is the first width that clears the threshold**. The 4 HP floor
+stands as stated; whether it becomes 8 HP is the user's call, and the charge
+involved is small and not yet confirmed against an invoice
+([JLCPCB.md](JLCPCB.md)).
+
+**Height: the PCB drops from 108 mm to 100 mm** (`eurorackPcbHeight`), or the
+100 x 100 tier is missed regardless of width. This is feasible for the
+attenuverter, whose six panel items at 13.7 mm pitch span 68.5 mm, but its
+parts currently reach y = 106.75, so the constant cannot change alone without
+breaking placement. Apply it inside the option B rework that re-lays the board
+anyway, and require it of every new module.
+
+**No doubling up.** Every order is five boards, so a dual VCA yields ten VCAs.
+Instead, one board combines *different* functions: a VCA with a precision
+attenuverter, half a DUSG with a VCA on its output, and so on -- small analog
+computers. Five identical filters is acceptable because five filters are
+useful; ten attenuverters are not.
+
+**Chainability is a requirement, not a feature.** CV inputs get buffered
+thru/mult jacks so that one control voltage feeds several modules without an
+external mult, and sequencing modules are designed from the start to link to
+each other. Record the linking scheme in the first sequencer's SPEC before its
+board exists.
+
+**The filter is a slight adaptation of Mutable Instruments Ripples**, with
+chaining built in and possibly an added output. Two consequences follow before
+any drawing is copied. Ripples' hardware is licensed CC-BY-SA 3.0: any module
+derived from it, and its documentation, carries the same license and credits
+the original, and the Mutable Instruments name, a registered trademark, does
+not appear on the module. And Ripples provides 2-pole BP, 2-pole LP and 4-pole
+LP outputs and no high-pass; an HP output is therefore an addition. From a
+cascaded OTA low-pass ladder it would be subtractive (input minus LP), which
+is not a state-variable high-pass and has its own phase behaviour, so it is
+claimed only after a deck shows its response.
+
 ### Proven Circuit Reuse
 
 Start from established attenuverter, buffer, reference, protection, integrator
