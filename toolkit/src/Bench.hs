@@ -343,8 +343,16 @@ benchReport scores = T.unlines $
     , "our connectivity and via/pad checks with router-reported failures and"
     , "contested cells; it is not full independent KiCad DRC. Spec is a modelled"
     , "coupling check, not measured circuit performance. Time is omitted because"
-    , "the recorded process CPU time excludes external-router execution. See"
-    , "docs/ROADMAP.md for comparison limitations and planned benchmark work."
+    , "the recorded process CPU time excludes external-router execution."
+    , ""
+    , "Vias and copper length are diagnostics, not quality scores. JLCPCB charges"
+    , "for neither at this board size, and a via is worth about half a millimetre"
+    , "of trace electrically at audio; see docs/JLCPCB.md. Prefer Legal and Spec."
+    , "Freerouting rows are not deterministic: the same board and jar can score"
+    , "differently between runs (the attenuverter's coupling moved 2.22 to 2.31 mV"
+    , "with no change on our side), so a moved freerouting row is not evidence of"
+    , "a change in our router; grid-astar rows are deterministic and are the diff."
+    , "See docs/ROADMAP.md for comparison limitations and planned benchmark work."
      ]
   where
     row s = T.concat

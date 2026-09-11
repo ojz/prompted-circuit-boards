@@ -1,9 +1,12 @@
-# Decision Inbox
+---
+status: "maintained"
+owner: "agent workflow; the user owns their answers"
+read_when: "starting a session, answering a question, or processing edited answers"
+update_when: "the decision workflow needs clarification; questions belong in separate files"
+retire_when: "a replacement workflow is agreed and all outstanding answers are transferred"
+---
 
-> Status: maintained. Owner: agent workflow; the user owns their answers.
-> Read when: starting a session, answering a question, or processing edited answers.
-> Update when: the decision workflow needs clarification; questions belong in separate files.
-> Retire when: a replacement workflow is agreed and all outstanding answers are transferred.
+# Decision Inbox
 
 When a researched choice genuinely needs your input, the agent puts a Markdown
 file here and links it in the conversation. Edit its **Your answer** section,
@@ -22,12 +25,15 @@ Use one decision per `YYYY-MM-DD-topic.md`. The following is an example format,
 not an unanswered decision; create a file only when its prerequisites exist.
 
 ```markdown
-# Short Decision Title
+---
+status: "pending"
+owner: "user answer; agent research and integration"
+read_when: "working on the affected module or after the user edits this file"
+update_when: "the user answers, evidence changes, or the agent records the outcome"
+retire_when: "the answer and rationale are integrated and the resulting work is checkpointed"
+---
 
-> Status: pending. Owner: user answer; agent research and integration.
-> Read when: working on the affected module or after the user edits this file.
-> Update when: the user answers, evidence changes, or the agent records the outcome.
-> Retire when: the answer and rationale are integrated and the resulting work is checkpointed.
+# Short Decision Title
 
 ## Decision Needed
 

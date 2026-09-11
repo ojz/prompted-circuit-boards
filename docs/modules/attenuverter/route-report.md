@@ -1,9 +1,12 @@
-# Routing report: attenuverter
+---
+status: "generated"
+owner: "pcbgen"
+read_when: "comparing this design's routing or predicted analog margins"
+update_when: "regenerate with `cabal run pcbgen -- attenuverter`; do not hand-edit results"
+retire_when: "the corresponding design is removed; Git retains superseded results"
+---
 
-> Status: generated. Owner: pcbgen.
-> Read when: comparing this design's routing or predicted analog margins.
-> Update when: regenerate with `cabal run pcbgen -- attenuverter`; do not hand-edit results.
-> Retire when: the corresponding design is removed; Git retains superseded results.
+# Routing report: attenuverter
 
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|

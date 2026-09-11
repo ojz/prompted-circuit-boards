@@ -239,9 +239,10 @@ if cabal build -v0 exe:pcbgen > "$LOG" 2>&1; then
   REPORT="$GEN_ROOT/docs/modules/mult/route-report.md"
   expect "g: default report lives under docs/modules" test -f "$REPORT"
   expect "g: no report beside the KiCad project" test ! -e "$GEN_ROOT/modules/mult/kicad/route-report.md"
-  for field in 'Status:' 'Owner:' 'Read when:' 'Update when:' 'Retire when:'; do
+  for field in 'status:' 'owner:' 'read_when:' 'update_when:' 'retire_when:'; do
     expect "g: report has '$field'" grep -q "$field" "$REPORT"
   done
+  expect "g: report metadata is frontmatter" test "$(head -n 1 "$REPORT")" = "---"
   report_before="$(sha256_file "$REPORT")"
   if (cd "$GEN_ROOT" && "$GENERATOR" mult --out "custom bundle") > "$LOG" 2>&1; then
     pass "g: custom output with spaces succeeds"
@@ -251,8 +252,10 @@ if cabal build -v0 exe:pcbgen > "$LOG" 2>&1; then
   expect "g: custom report is bundled under docs" test -f "$GEN_ROOT/custom bundle/docs/route-report.md"
   expect "g: no Markdown at custom bundle root" test ! -e "$GEN_ROOT/custom bundle/route-report.md"
   expect "g: custom generation leaves canonical report unchanged" test "$(sha256_file "$REPORT")" = "$report_before"
+  # The command lives in a YAML double-quoted scalar, so its own quotes are
+  # escaped: the file carries --out \"custom bundle\", not the bare form.
   expect "g: custom report records its regeneration command" \
-    grep -qF -- '--out "custom bundle"' "$GEN_ROOT/custom bundle/docs/route-report.md"
+    grep -qF -- '--out \"custom bundle\"' "$GEN_ROOT/custom bundle/docs/route-report.md"
   if (cd "$GEN_ROOT" && FREEROUTING_JAR="$GEN_ROOT/not-installed.jar" "$GENERATOR" bench mult) > "$LOG" 2>&1; then
     pass "g: benchmark writes a report with an unavailable external router"
   else
@@ -260,9 +263,10 @@ if cabal build -v0 exe:pcbgen > "$LOG" 2>&1; then
   fi
   expect "g: benchmark lives under docs" test -f "$GEN_ROOT/docs/BENCH.md"
   expect "g: no root benchmark is recreated" test ! -e "$GEN_ROOT/BENCH.md"
-  for field in 'Status:' 'Owner:' 'Read when:' 'Update when:' 'Retire when:'; do
+  for field in 'status:' 'owner:' 'read_when:' 'update_when:' 'retire_when:'; do
     expect "g: benchmark has '$field'" grep -q "$field" "$GEN_ROOT/docs/BENCH.md"
   done
+  expect "g: benchmark metadata is frontmatter" test "$(head -n 1 "$GEN_ROOT/docs/BENCH.md")" = "---"
   expect "g: benchmark qualifies its reference length" grep -qF 'not a lower bound' "$GEN_ROOT/docs/BENCH.md"
   expect "g: benchmark qualifies its legality checks" grep -qF 'not full independent KiCad DRC' "$GEN_ROOT/docs/BENCH.md"
 else

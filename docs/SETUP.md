@@ -1,9 +1,12 @@
-# Workstation Setup
+---
+status: "maintained"
+owner: "the agent verifying the workstation"
+read_when: "setting up a machine, reproducing checks, or diagnosing a tool mismatch"
+update_when: "a verified tool version, command, dependency or integration pitfall changes"
+retire_when: "a supported workflow is replaced; remove obsolete recipes after transferring required behavior"
+---
 
-> Status: maintained. Owner: the agent verifying the workstation.
-> Read when: setting up a machine, reproducing checks, or diagnosing a tool mismatch.
-> Update when: a verified tool version, command, dependency or integration pitfall changes.
-> Retire when: a supported workflow is replaced; remove obsolete recipes after transferring required behavior.
+# Workstation Setup
 
 This project is developed on Windows with KiCad 10. The versions below are a
 known-good baseline, not strict pins unless stated otherwise.
@@ -16,8 +19,14 @@ known-good baseline, not strict pins unless stated otherwise.
    convenient but not required: `toolkit/check.sh` finds `kicad-cli` in either
    location, or honours `KICAD_CLI`.
 2. Install the Haskell toolchain with [ghcup](https://www.haskell.org/ghcup/):
-   GHC 9.2 or newer and cabal 3.6 or newer. Then, once, from the repository
-   root:
+   **GHC 9.6.7 specifically**, and cabal 3.10 or newer:
+   ```
+   ghcup install ghc 9.6.7 && ghcup set ghc 9.6.7
+   ```
+   The version is not a recommendation. `cabal.project.freeze` pins
+   `base ==4.18.3.0`, which ships only with GHC 9.6.7, so any other GHC fails
+   dependency resolution before compiling anything. Both workstations must
+   match. Then, once, from the repository root:
    ```
    cabal update
    cabal build
@@ -25,7 +34,9 @@ known-good baseline, not strict pins unless stated otherwise.
    This builds `pcbgen`, which generates every KiCad project in `modules/`.
    `cabal.project.freeze` pins every dependency version, so a fresh checkout
    resolves the same set; only run `cabal freeze` again when a dependency
-   change is intended, and commit the result.
+   change is intended, and commit the result. A freeze file is the one kind of
+   change the machine that makes it cannot validate: it constrains the *other*
+   workstation's compiler. Re-pinning means checking both machines still build.
 3. Install KiKit into KiCad's own Python. Open **KiCad 10 Command Prompt** from
    the Start menu (an ordinary shell will not see KiCad's Python) and run:
    ```
@@ -154,21 +165,22 @@ lifecycle headers, and preservation of the canonical report in scratch fixtures.
 It must end in `0 failed`. It takes a few minutes and removes its scratch copies
 on exit; the simulator failure tests do not need ngspice.
 
-Expected tool versions from the verified setup on 2026-09-09:
+Expected tool versions:
 
 ```text
-KiCad CLI 10.0.6
-GHC 9.2.8, cabal 3.6.2
+KiCad CLI 10.0.x
+GHC 9.6.7 exactly, cabal 3.10 or newer
 KiKit 1.8.1 on KiCad's bundled Python 3.11.5
 ```
 
-Patch versions may be newer. The important compatibility requirement is
-KiCad 10.
+KiCad patch versions may differ; the compatibility requirement is KiCad 10.
+**GHC is the exception and is pinned exactly**, for the reason in step 2.
 
 Work-laptop verification on 2026-09-11: KiCad CLI 10.0.3, GHC 9.6.7,
 cabal 3.14.2.0, KiKit 1.8.1, bundled Python 3.11.5, NumPy 2.4.2 and ngspice 47.
-No KiCad upgrade was needed to reproduce the existing checks. Current results
-and outstanding reproduction gaps are recorded only in [HANDOFF.md](HANDOFF.md).
+Home laptop ran GHC 9.2.8 until 2026-09-11, when the freeze file made the
+project unbuildable there and it was upgraded to 9.6.7 to match. Current
+results and reproduction gaps are recorded only in [HANDOFF.md](HANDOFF.md).
 
 ## Known Development Traps
 

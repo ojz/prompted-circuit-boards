@@ -1,16 +1,24 @@
-# prompted-circuit-boards
+---
+status: "maintained"
+owner: "collaborating agents, with user direction"
+read_when: "starting any task in this repository"
+update_when: "a standing rule, workflow or ownership boundary changes"
+retire_when: "replaced by a deliberately chosen repository instruction entry point; never remove silently"
+---
 
-> Status: maintained. Owner: collaborating agents, with user direction.
-> Read when: starting any task in this repository.
-> Update when: a standing rule, workflow or ownership boundary changes.
-> Retire when: replaced by a deliberately chosen repository instruction entry point; never remove silently.
+# prompted-circuit-boards
 
 Prompt-driven design of Eurorack modules. Designs are Haskell; KiCad 10 files are generated from them and are the verification format; JLCPCB is the fab.
 Document index: [docs/README.md](docs/README.md). Current state and next action:
 [docs/HANDOFF.md](docs/HANDOFF.md). Workstation bootstrap and known traps:
 [docs/SETUP.md](docs/SETUP.md). Priorities and acceptance gates:
-[docs/ROADMAP.md](docs/ROADMAP.md). Check `docs/decisions/` for edited user answers
-before choosing work; old handoffs in Git history are not current instructions.
+[docs/ROADMAP.md](docs/ROADMAP.md). What the fab charges for, before justifying any
+objective on cost: [docs/JLCPCB.md](docs/JLCPCB.md). Check `docs/decisions/` for edited
+user answers before choosing work; old handoffs in Git history are not current instructions.
+
+Every tracked Markdown file carries its status, owner and lifecycle as YAML
+frontmatter at the top of the file; generated reports get theirs from
+`frontMatter` in `toolkit/app/Main.hs`. It is metadata, so it stays out of the prose.
 
 ## Toolchain
 
@@ -22,7 +30,7 @@ before choosing work; old handoffs in Git history are not current instructions.
   - SMD passives carry no silkscreen reference (`partRefOnSilk = False`); JLCPCB places from BOM and CPL. Assembly intent is declared per part with `partAssembly` (`Factory` needs an `LCSC Part #` field and is placed by JLCPCB; `Hand`, `DNP` and `Mechanical` must not carry one and are left out of the assembly files). `part` defaults to `Hand`.
   - Every design is validated before anything is written (`toolkit/src/Validate.hs`): unique references and net names, every `(ref, pin)` must exist on the library symbol, every symbol pin must be on exactly one net or listed in `partNoConnect` (e.g. `partNoConnect = ["TN"]` for a jack's unused switch pin), assembly class and LCSC field must agree, dimensions and routing settings must be positive. On any diagnostic pcbgen prints them to stderr and exits non-zero without touching the project.
   - `cabal run pcbgen -- bench [board ...]` scores every router in `strategies` against the benchmark boards and writes `docs/BENCH.md` (committed, so a change in routing quality shows in a diff). A router is a `Bench.Strategy`, a record of functions, so alternatives sit side by side; scores stay a vector and the harness never declares a winner. Synthetic fixtures live in `modules/_bench/BenchFixtures.hs` and are never emitted as projects: `pinch` is deliberately unroutable and records the completeness cost of the 0.2 mm grid.
-  - `cabal run pcbgen -- sweep-via [--iters N] [--costs N,N,...] [board ...]` prices a via several ways over the benchmark boards and prints the scores without writing `docs/BENCH.md`: a sweep answers a question once, and the answer belongs in the default. It doubles as the convergence probe. If a setting leaves contested cells, rerun it with a larger `--iters`: if more rounds fix it the negotiation is merely slow, and if they do not it has stalled, which is a bug in the negotiation and not in the setting. That is how the history-congestion defect was found.
+  - `cabal run pcbgen -- sweep-via [--iters N] [--costs N,N,...] [board ...]` prices a via several ways over the benchmark boards and prints the scores without writing `docs/BENCH.md`: a sweep answers a question once, and the answer belongs in the default. It doubles as the convergence probe. If a setting leaves contested cells, rerun it with a larger `--iters`: if more rounds fix it the negotiation is merely slow, and if they do not it has stalled, which is a bug in the negotiation and not in the setting. That is how the history-congestion defect was found. Note that `rcViaCost` is a **congestion heuristic, not a price**: JLCPCB charges nothing for vias at our board size ([docs/JLCPCB.md](docs/JLCPCB.md)), and a via is worth about half a millimetre of trace electrically against the 8 mm the router charges. Do not justify it, or via count in `docs/BENCH.md`, on cost or electrical grounds.
   - Electrical intent beyond the netlist is declared per board in `bdAnalog` (`Design.Analog`): which nets are high-impedance (`Quiet`, carrying their node impedance) and which carry switching edges (`Noisy`, carrying volts and rise time), optional per-net length budgets, groups whose copper lengths should match, the millivolts a noisy net may inject into a quiet one, and `anSameCircuit`, the groups of nets that are one signal path. `toolkit/src/Route/Coupling.hs` holds the physics, `Route/Analog.hs` evaluates the routed board, and `docs/modules/<name>/route-report.md` carries the findings and margins. These model-based findings do not establish physical accuracy; same-circuit exclusions avoid charging for intended feedback, not every possible parasitic effect.
   - **The router routes against the crosstalk limit.** When a board declares one, `autoroute` charges a quiet net for copper near a noisy one, measures the injection on the copper it would actually emit, and raises the price until the limit is met or the escalation runs out (Lagrangian relaxation, the same shape as the congestion multiplier the negotiation already uses). Three things have to hold together or it silently does nothing, and each of them failed once: aggressors must be routed before victims, the post-convergence descent must compare totals *including* coupling, and string-pulling must refuse a shortcut that puts a quiet net back alongside an aggressor. The benchmark's own independent check is what caught each failure. `modules/_bench/crosstalk` is the fixture: 85 mV on a 10 mV budget if coupling is ignored, 0.55 mV for 2.8% more copper when it is not.
   - `cabal run pcbgen -- log <board>` routes one benchmark board and prints the router's own trace of what it did, iteration by iteration, including the coupling escalation. The report says what came out; this says how.
@@ -98,3 +106,16 @@ modules/<name>/
 ```
 
 Adding a module: create `modules/<name>/<Name>.hs`, add its directory to `hs-source-dirs` and its module to `exposed-modules` in `pcbgen.cabal`, register it in `toolkit/app/Main.hs`, write `docs/modules/<name>/SPEC.md`, link it from the document index, and add it to the valid-design cases in `toolkit/test/ValidateTests.hs`.
+
+## User direction
+
+- I keep seeing the following error, hundreds of times already:
+    Heredoc quoting is fighting me again — using Write instead.
+  Do with this information what you will ;-)
+
+- AI is being used to solve millenium problems now! navier-stokes!
+  Please try as hard as you can to push the envelope
+
+- I understand that we need to have external dependencies, but why
+  wouldn't SOTA be able to write the algorithms which open-source
+  developers have been working on for decades?

@@ -1,13 +1,16 @@
-# Routing benchmark
+---
+status: "generated"
+owner: "pcbgen benchmark harness"
+read_when: "comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats"
+update_when: "regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores"
+retire_when: "replaced by a validated benchmark; Git retains the previous results"
+---
 
-> Status: generated. Owner: pcbgen benchmark harness.
-> Read when: comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats.
-> Update when: regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores.
-> Retire when: replaced by a validated benchmark; Git retains the previous results.
+# Routing benchmark
 
 | Board | Router | Legal | Spec | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |
 |---|---|:-:|:-:|--:|--:|--:|--:|--:|--:|
-| attenuverter | freerouting | **no** | **2.22 mV** | 16 | 114 | 8 | 540.58 | 626.36 | 0.86 |
+| attenuverter | freerouting | **no** | **2.31 mV** | 16 | 114 | 8 | 540.58 | 626.36 | 0.86 |
 | attenuverter | grid-astar | yes | ok 0.00 mV | 16 | 211 | 5 | 689.85 | 626.36 | 1.10 |
 | crosstalk | freerouting | yes | **85.00 mV** | 2 | 2 | 0 | 60.35 | 60.35 | 1.00 |
 | crosstalk | grid-astar | yes | ok 0.55 mV | 2 | 8 | 0 | 62.04 | 60.35 | 1.03 |
@@ -23,7 +26,7 @@
 | route-test | grid-astar | yes | - | 21 | 226 | 9 | 689.45 | 524.57 | 1.31 |
 
 Faults:
-- attenuverter / freerouting: crosstalk 2.22 mV over a limit of 2.20 mV, 1 nets not one island (GND)
+- attenuverter / freerouting: crosstalk 2.31 mV over a limit of 2.20 mV, 1 nets not one island (GND)
 - pinch / grid-astar: produced no copper, 1 nets unrouted, 1 nets not one island (/SIG, /SIG)
 - pinch / freerouting: produced no copper, note: import added no copper (0 tracks before, 0 after), 1 nets not one island (/SIG)
 - pinch-wide / freerouting: produced no copper, note: import added no copper (0 tracks before, 0 after), 1 nets not one island (/SIG)
@@ -38,5 +41,13 @@ prove missing connections; use the connectivity findings. Legal combines
 our connectivity and via/pad checks with router-reported failures and
 contested cells; it is not full independent KiCad DRC. Spec is a modelled
 coupling check, not measured circuit performance. Time is omitted because
-the recorded process CPU time excludes external-router execution. See
-docs/ROADMAP.md for comparison limitations and planned benchmark work.
+the recorded process CPU time excludes external-router execution.
+
+Vias and copper length are diagnostics, not quality scores. JLCPCB charges
+for neither at this board size, and a via is worth about half a millimetre
+of trace electrically at audio; see docs/JLCPCB.md. Prefer Legal and Spec.
+Freerouting rows are not deterministic: the same board and jar can score
+differently between runs (the attenuverter's coupling moved 2.22 to 2.31 mV
+with no change on our side), so a moved freerouting row is not evidence of
+a change in our router; grid-astar rows are deterministic and are the diff.
+See docs/ROADMAP.md for comparison limitations and planned benchmark work.

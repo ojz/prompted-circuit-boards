@@ -1,9 +1,12 @@
-# UTIL-01 ATTENUVERTER — dual attenuverter / offset, 6HP
+---
+status: "maintained requirements; precision redesign pending a decision in `docs/decisions/`"
+owner: "module-design agent, with user decisions"
+read_when: "designing, reviewing, simulating or preparing to build this module"
+update_when: "requirements, approved parts/circuit, evidence or model limitations change"
+retire_when: "the module is removed or a replacement spec takes ownership; retain build-revision evidence in its checkpoint"
+---
 
-> Status: maintained requirements; precision redesign pending a decision in `docs/decisions/`. Owner: module-design agent, with user decisions.
-> Read when: designing, reviewing, simulating or preparing to build this module.
-> Update when: requirements, approved parts/circuit, evidence or model limitations change.
-> Retire when: the module is removed or a replacement spec takes ownership; retain build-revision evidence in its checkpoint.
+# UTIL-01 ATTENUVERTER — dual attenuverter / offset, 6HP
 
 Two channels of the classic single-op-amp attenuverter. Each channel has an
 input jack, a centre-detent-free 100k pot and an output jack. With nothing

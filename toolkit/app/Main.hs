@@ -103,6 +103,19 @@ main = do
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
+-- | YAML frontmatter for a generated document. Lifecycle information is
+-- metadata, so it lives before the first @---@ rather than in the prose.
+-- Values are emitted as double-quoted scalars because they routinely contain
+-- colons, commas and backticks, and a regeneration command carries its own
+-- quotes when @--out@ names a directory with a space in it.
+frontMatter :: [(Text, Text)] -> Text
+frontMatter fields = T.unlines (["---"] ++ map line fields ++ ["---", ""])
+  where
+    line (k, v) = k <> ": \"" <> T.concatMap esc v <> "\""
+    esc '\\' = "\\\\"
+    esc '"'  = "\\\""
+    esc c    = T.singleton c
+
 run :: String -> Maybe FilePath -> IO ()
 run name mOut = do
   m <- maybe (hPutStrLn stderr ("unknown design: " ++ name) >> exitFailure) pure (lookup name designs)
@@ -130,13 +143,14 @@ run name mOut = do
         , (outDir </> stem <.> "kicad_pro", emitProject m (siSheetUuid info))
         , (outDir </> stem <.> "kicad_dru", emitDru m)
         ]
-        ++ [ (docDir </> "route-report.md", T.unlines
+        ++ [ (docDir </> "route-report.md", frontMatter
+             [ ("status", "generated")
+             , ("owner", "pcbgen")
+             , ("read_when", "comparing this design's routing or predicted analog margins")
+             , ("update_when", "regenerate with `" <> regenerate <> "`; do not hand-edit results")
+             , ("retire_when", "the corresponding design is removed; Git retains superseded results")
+             ] <> T.unlines
              [ "# Routing report: " <> modName m
-             , ""
-             , "> Status: generated. Owner: pcbgen."
-             , "> Read when: comparing this design's routing or predicted analog margins."
-             , "> Update when: regenerate with `" <> regenerate <> "`; do not hand-edit results."
-             , "> Retire when: the corresponding design is removed; Git retains superseded results."
              , ""
              ] <> reportText)
            | Just reportText <- [report] ]
@@ -167,13 +181,14 @@ bench names = do
   lc <- newLibCache
   _ <- findKicadShare
   scores <- runBench lc strategies boards
-  let rep = T.unlines
+  let rep = frontMatter
+        [ ("status", "generated")
+        , ("owner", "pcbgen benchmark harness")
+        , ("read_when", "comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats")
+        , ("update_when", "regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores")
+        , ("retire_when", "replaced by a validated benchmark; Git retains the previous results")
+        ] <> T.unlines
         [ "# Routing benchmark"
-        , ""
-        , "> Status: generated. Owner: pcbgen benchmark harness."
-        , "> Read when: comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats."
-        , "> Update when: regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores."
-        , "> Retire when: replaced by a validated benchmark; Git retains the previous results."
         , ""
         ] <> benchReport scores
   TIO.putStr rep

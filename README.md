@@ -1,9 +1,12 @@
-# prompted-circuit-boards
+---
+status: "maintained"
+owner: "collaborating agents"
+read_when: "arriving at the repository or locating the workflow and documents"
+update_when: "entry points, architecture or document locations change; keep live test results in the handoff"
+retire_when: "the repository is retired or a replacement entry point is deliberately adopted"
+---
 
-> Status: maintained. Owner: collaborating agents.
-> Read when: arriving at the repository or locating the workflow and documents.
-> Update when: entry points, architecture or document locations change; keep live test results in the handoff.
-> Retire when: the repository is retired or a replacement entry point is deliberately adopted.
+# prompted-circuit-boards
 
 Prompt-driven design of Eurorack modules. Each module is described in code, the
 KiCad project is generated from that description, and KiCad's command-line

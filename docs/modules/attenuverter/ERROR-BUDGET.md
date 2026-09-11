@@ -1,9 +1,12 @@
-# UTIL-01 ATTENUVERTER — precision error budget
+---
+status: "derived 2026-09-11; limits proposed, awaiting the decision in `docs/decisions/`"
+owner: "module-design agent"
+read_when: "choosing parts or circuit changes for this module, writing its simulation assertions, or planning its bench measurements"
+update_when: "a part, the topology, the operating envelope or a datasheet figure changes; when measurements replace predictions"
+retire_when: "the module is removed, or the adopted limits and their evidence have been folded into SPEC.md and a measured prototype record supersedes the predictions"
+---
 
-> Status: derived 2026-09-11; limits proposed, awaiting the decision in `docs/decisions/`. Owner: module-design agent.
-> Read when: choosing parts or circuit changes for this module, writing its simulation assertions, or planning its bench measurements.
-> Update when: a part, the topology, the operating envelope or a datasheet figure changes; when measurements replace predictions.
-> Retire when: the module is removed, or the adopted limits and their evidence have been folded into SPEC.md and a measured prototype record supersedes the predictions.
+# UTIL-01 ATTENUVERTER — precision error budget
 
 This document derives, from manufacturer figures, how far the attenuverter's
 output can deviate from the ideal `Vout = (2k − 1)·Vin` and from a stable

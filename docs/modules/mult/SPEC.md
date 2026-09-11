@@ -1,9 +1,12 @@
-# MULT — passive 2×6 multiple
+---
+status: "maintained requirements"
+owner: "module-design agent, with user decisions"
+read_when: "reviewing connectivity, loading, geometry, assembly or a proposed change to this module"
+update_when: "requirements, circuit/geometry or supporting evidence change"
+retire_when: "the module is removed or a replacement spec takes ownership; preserve applicable build-revision evidence"
+---
 
-> Status: maintained requirements. Owner: module-design agent, with user decisions.
-> Read when: reviewing connectivity, loading, geometry, assembly or a proposed change to this module.
-> Update when: requirements, circuit/geometry or supporting evidence change.
-> Retire when: the module is removed or a replacement spec takes ownership; preserve applicable build-revision evidence.
+# MULT — passive 2×6 multiple
 
 6HP passive multiple. Two independent groups of six Thonkiconn jacks, one
 group per column; a solder jumper on the back of the PCB joins the groups into

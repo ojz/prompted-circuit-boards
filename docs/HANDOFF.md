@@ -1,11 +1,14 @@
+---
+status: "maintained checkpoint"
+owner: "the agent completing the latest task"
+read_when: "starting a session, after reading AGENTS.md and checking the decision inbox"
+update_when: "a validated checkpoint, blocker or next action changes; replace superseded prose"
+retire_when: "the project ends or another current-state record takes over; Git is the session archive"
+---
+
 # Current Handoff
 
-> Status: maintained checkpoint. Owner: the agent completing the latest task.
-> Read when: starting a session, after reading AGENTS.md and checking the decision inbox.
-> Update when: a validated checkpoint, blocker or next action changes; replace superseded prose.
-> Retire when: the project ends or another current-state record takes over; Git is the session archive.
-
-Updated 2026-09-11 by Claude (home laptop). This is current state, not an append-only
+Updated 2026-09-11 by Claude Fable 5.1 (home laptop), after pulling the work laptop's five commits. This is current state, not an append-only
 diary. The roadmap owns priorities, module specs own circuit requirements and
 setup owns tool versions and commands. See [README.md](README.md).
 
@@ -31,42 +34,56 @@ setup owns tool versions and commands. See [README.md](README.md).
 
 ## Latest Change
 
-- The attenuverter error budget exists, derived from datasheets fetched on
-  2026-09-11 (TI SLOS080W, SBOS737C, SBOS410G; UNI-ROYAL and Yageo resistor
-  listings; the Taiwan Alpha RD901F sheet) and from the Mutable Instruments
-  Shades v4.0 BOM and Befaco Dual Attenuverter v2 guide as reference designs.
-  Limits are proposed in volts and cents; nothing is implemented yet.
-- One decision is pending: option A (OPA2197, 0.1 % thin film, REF5050A, 10 pF
-  compensation, same topology) or option B (A plus a unity-gain input buffer per
-  channel, recommended). Both are costed from LCSC at quantity 10.
-- `cabal.project.freeze` pins the Haskell dependency set (M3 pinning item).
-  CI is still open.
-- The generated routing report now says that matched-group lengths include
-  1.6 mm per via, which explains why they differ from the table above them.
-  The attenuverter's source comments and schematic note give the simulated
-  4.67 V reference instead of the 4.8 V arithmetic; the schematic text changed
-  accordingly and ERC/DRC were rerun.
-- The documentation consolidation of the previous session (everything under
-  `docs/`, lifecycle headers, decision inbox, relocated generated reports) is
-  unchanged; Git history has its details.
+- **The toolchain split broke the home laptop, and is fixed.** `cabal.project.freeze`
+  (added in `1ea98dc`) pins `base ==4.18.3.0`, which ships only with GHC 9.6.7. The
+  home laptop had GHC 9.2.8, so dependency resolution failed before compiling
+  anything. On the user's instruction GHC 9.6.7 and cabal 3.18.1.0 were installed
+  to match the work laptop rather than widening the pin. SETUP.md had said "GHC 9.2
+  or newer", which invited the break; it now says 9.6.7 exactly and why. A freeze
+  file is the one change the machine that makes it cannot validate.
+- **Lifecycle metadata is YAML frontmatter.** All 17 tracked Markdown files carry
+  `status`, `owner`, `read_when`, `update_when`, `retire_when` fenced by `---` at
+  the top, replacing the blockquote headers. Generated reports get theirs from
+  `frontMatter` in `toolkit/app/Main.hs`, which escapes quotes because the
+  regeneration command carries its own when `--out` names a directory with a
+  space. `test-scripts.sh` checks the new keys and that the block starts at
+  line 1; its custom-bundle check now expects the YAML-escaped command.
+- **[JLCPCB.md](JLCPCB.md) records what the fab actually charges for**, read from
+  JLCPCB's capability and surcharge pages on 2026-09-11. Vias and trace length cost
+  nothing at our size: the attenuverter has 38 drilled holes against a 453-hole
+  free allowance. Two real thresholds sit close: the via drill (0.3 mm) is exactly
+  on the free boundary, and the board (108 mm) misses the 100 mm cheap tier by
+  8 mm. Electrically a via is worth about 0.5 mm of trace at audio; the router
+  charges 8 mm. `rcViaCost` is therefore documented as a congestion heuristic in
+  AGENTS.md, ROADMAP.md and the BENCH.md caveats, not as a price. Not confirmed
+  against an invoice: no order has been placed.
+- **Decision B is recorded** in the decision file from the user's conversational
+  answer (not a file edit), with their reasoning quoted. ROADMAP.md gains "Cost Is
+  Not An Optimisation Target": only market parity against buying a commercial
+  module matters. Implementation has not started; see Next Action.
+- **Benchmark caveat on Freerouting.** Regenerating BENCH.md moved the attenuverter
+  freerouting row from 2.22 to 2.31 mV with no change on our side; grid-astar rows
+  were identical. The harness now says freerouting rows are not deterministic and
+  only grid-astar rows are the diff.
 
 ## Verification
 
-Home laptop, 2026-09-11, after the error-budget session:
+Home laptop, 2026-09-11, GHC 9.6.7 / cabal 3.18.1.0, after this session:
 
 | Check | Result |
 |---|---|
-| `cabal build exe:pcbgen` | passes with the report wording change |
-| `cabal run -v0 pcbgen -- all` | all five projects regenerated; only the attenuverter schematic note text and the matched-group wording in its routing report changed; mult and route-test reproduced byte for byte |
-| `toolkit/check.sh attenuverter` | ERC clean, DRC clean with parity, `check.ok` written |
-| `cabal test` | 65/65 passed |
-| `toolkit/sim.sh attenuverter` | 6 decks, 0 failed (unchanged circuit; the decks still assert the historical limits) |
-| Markdown integrity | 16 tracked Markdown files carry lifecycle headers; every relative link resolves |
+| `cabal build exe:pcbgen` | passes with the freeze file (failed on GHC 9.2.8 before the upgrade) |
+| `cabal run -v0 pcbgen -- all` | all five projects regenerated; **no KiCad file changed content**; only report frontmatter changed. The one `.kicad_sch` that showed as modified was CRLF-only and was restored |
+| `cabal test` | 65/65 passed under the pinned toolchain |
+| `toolkit/test-scripts.sh` | 79 passed, 0 failed (77 before, plus two frontmatter-position checks) |
+| `toolkit/sim.sh attenuverter` | 6 decks, 0 failed (unchanged circuit) |
+| `cabal run pcbgen -- bench` | regenerated; grid-astar rows byte-identical, one freerouting row moved (see above) |
+| Frontmatter | 17 files parse with PyYAML; every required key present; every generated report starts at `---` |
 
-Not rerun this session: `toolkit/test-scripts.sh`, the mult pipeline, the
-panels and the Freerouting benchmark; none of their inputs changed. The
-previous session's run of those (77 script checks passed, mult board and panel
-clean) stands. No manufacturing release or physical measurement was made.
+Not rerun: `toolkit/check.sh`, the pipelines and the panels, because no design
+or KiCad output changed; the field-solver and `nodebudget.py` checks, because
+none of their inputs changed. No manufacturing release or physical measurement
+was made.
 
 ## Earlier Circuit Evidence
 
@@ -119,15 +136,20 @@ SHA-256 of the earlier validation artifacts (filled boards depend on KiCad versi
 
 ## Next Action
 
-Read the user's answer in
-[decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md).
-Then, for the chosen option: build OPA2197 and REF5050 models from the cited
-datasheet figures in `modules/_models/devices.lib` (with input capacitance and
-common-mode limits), change `Attenuverter.hs`, regenerate, extend the decks with
-the acceptance limits from the error budget (offset ≤ 1 mV, interaction
-≤ 0.1 mV, inversion ≤ 0.3 %, ±10 V at 11.4 V rails, phase margin ≥ 45°), run
+**Implement option B**, now that the answer is recorded in
+[decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md):
+build OPA2197 and REF5050 models from the cited datasheet figures in
+`modules/_models/devices.lib` (with input capacitance and common-mode limits),
+add the unity-gain input buffer per channel and the 1 M input resistor in
+`Attenuverter.hs`, regenerate, extend the decks with the acceptance limits from
+the error budget (offset <= 1 mV, interaction <= 0.1 mV, inversion <= 0.3 %,
++/-10 V at 11.4 V rails, phase margin >= 45 deg), run
 `toolkit/pipeline.sh attenuverter` and `toolkit/sim.sh attenuverter`, record the
-limits in SPEC.md, and retire the decision file. If the answer is blank, do the
-model-building, which both options need, and leave the design untouched.
+limits in SPEC.md, and retire the decision file.
+
+One placement question for the user, not for the agent: the board is 108 mm tall
+and JLCPCB's cheap tier ends at 100 mm. Components reach y = 106.75, so fitting
+100 mm means moving panel controls; that is an ergonomics decision. It is the
+largest cost lever on the board and has nothing to do with routing.
 
 CI on a runner with KiCad 10 remains owed by M3.

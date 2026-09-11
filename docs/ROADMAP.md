@@ -1,9 +1,12 @@
-# Roadmap: From A Musical Idea To A Tested Module
+---
+status: "maintained"
+owner: "user direction, maintained by collaborating agents"
+read_when: "selecting work, defining acceptance limits, or evaluating a scope/cost tradeoff"
+update_when: "a direction, gate or priority changes; keep detailed run evidence in HANDOFF.md"
+retire_when: "the project direction is replaced; merge lasting decisions and remove obsolete plans rather than archiving copies"
+---
 
-> Status: maintained. Owner: user direction, maintained by collaborating agents.
-> Read when: selecting work, defining acceptance limits, or evaluating a scope/cost tradeoff.
-> Update when: a direction, gate or priority changes; keep detailed run evidence in HANDOFF.md.
-> Retire when: the project direction is replaced; merge lasting decisions and remove obsolete plans rather than archiving copies.
+# Roadmap: From A Musical Idea To A Tested Module
 
 Updated: 2026-09-11. Status: M1-M2 complete; M3 lacks CI; M4 has the attenuverter error budget and an open parts decision; no measured prototype.
 
@@ -60,6 +63,28 @@ interaction are not. Additional analysis is authorized; material cost,
 architecture and scope changes still need explained decisions, and purchases
 still need approval. Use measurable acceptance gates, not an unbounded quest
 for more simulated decimal places.
+
+### Cost Is Not An Optimisation Target
+
+Stated by the user on 2026-09-11, when choosing the more expensive of two
+attenuverter options: *"we are not optimizing for price"*. A few dollars per
+board is not a reason to accept a worse circuit, and effort spent finding a
+cheaper build of an already-good circuit is effort misspent.
+
+There is exactly one cost constraint, and it is about the market rather than
+the bill of materials: **if a module built this way costs more than buying an
+equivalent commercial module** — Doepfer, Behringer and similar — **that is a
+project-level failure**, and the user would rather buy the commercial one.
+Fixed per-order fees and the panel dominate that comparison at prototype
+quantities; layout does not move it.
+
+This has a direct consequence for the generator. Via count and trace length
+cost nothing at the fab — see [JLCPCB.md](JLCPCB.md), which records the actual
+thresholds and shows our boards sitting at 8% of the free drill allowance. Any
+routing objective justified on cost grounds is justified on a false premise.
+Keep such objectives only where they serve a real electrical or search purpose,
+and say which one. The objective that is genuinely missing is ground-plane
+integrity, not a better via price.
 
 ### Proven Circuit Reuse
 

@@ -1,9 +1,12 @@
-# Attenuverter precision: parts swap only, or parts swap plus input buffers?
+---
+status: "pending"
+owner: "user answer; agent research and integration"
+read_when: "working on the attenuverter or after the user edits this file"
+update_when: "the user answers, evidence changes, or the agent records the outcome"
+retire_when: "the answer and rationale are integrated into `docs/modules/attenuverter/SPEC.md` and the resulting design is generated, simulated, checked and checkpointed"
+---
 
-> Status: pending. Owner: user answer; agent research and integration.
-> Read when: working on the attenuverter or after the user edits this file.
-> Update when: the user answers, evidence changes, or the agent records the outcome.
-> Retire when: the answer and rationale are integrated into `docs/modules/attenuverter/SPEC.md` and the resulting design is generated, simulated, checked and checkpointed.
+# Attenuverter precision: parts swap only, or parts swap plus input buffers?
 
 ## Decision Needed
 
@@ -88,12 +91,37 @@ protection is a separate M4 item; the hand-built models remain models.
 
 ## Your Answer
 
-Choice (A or B):
+Choice (A or B): **B**
 
 Notes or constraints:
 
-Ready for integration: no
+Given in conversation on 2026-09-11, not by editing this file. The user's
+reasoning, in their words: *"i have a token budget that i can spend on finding
+the best circuits, and i don't want to be ordering sub-par modules. and so
+making the board a couple bucks more expensive means nothing for me."*
+
+So **cost is not an optimisation target**. The one cost constraint is looser
+than a budget and is about the market, not the bill: if a module built this way
+ends up more expensive than simply buying an equivalent commercial module
+(Doepfer, Behringer), the user would rather buy the commercial one. Recorded as
+a standing requirement in [ROADMAP.md](../ROADMAP.md); see
+[JLCPCB.md](../JLCPCB.md) for what the fab actually charges for.
+
+Ready for integration: yes
 
 ## Processing Record
 
-Empty until an answer is supplied.
+Answer recorded 2026-09-11 by Claude Fable 5.1 (home laptop) from an explicit
+conversational instruction; the user did not edit this file.
+
+**Implementation is not done yet**, and this file stays until it is. It was
+blocked on the toolchain: the `cabal.project.freeze` added in `1ea98dc` pins
+`base ==4.18.3.0` (GHC 9.6.7), and the home laptop had only GHC 9.2.8, so
+nothing could be built or regenerated here. GHC 9.6.7 was installed to match
+the work laptop rather than widening the pin, on the user's instruction.
+
+Remaining work, unchanged from the options section above: OPA2197 and REF5050
+models in `modules/_models/devices.lib` with input capacitance and common-mode
+limits, the `Attenuverter.hs` change, regeneration, the decks extended with the
+error budget's acceptance limits, `toolkit/pipeline.sh attenuverter` and
+`toolkit/sim.sh attenuverter`, and the record in SPEC.md. Retire this file then.

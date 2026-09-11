@@ -1,9 +1,12 @@
-# Routing report: route-test
+---
+status: "generated"
+owner: "pcbgen"
+read_when: "comparing this design's routing or predicted analog margins"
+update_when: "regenerate with `cabal run pcbgen -- route-test`; do not hand-edit results"
+retire_when: "the corresponding design is removed; Git retains superseded results"
+---
 
-> Status: generated. Owner: pcbgen.
-> Read when: comparing this design's routing or predicted analog margins.
-> Update when: regenerate with `cabal run pcbgen -- route-test`; do not hand-edit results.
-> Retire when: the corresponding design is removed; Git retains superseded results.
+# Routing report: route-test
 
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|
