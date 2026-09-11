@@ -31,8 +31,8 @@ Disconnected nets: none.
 
 ## Analog intent
 
-- matched group channels spans 28.28 mm (tolerance 10.00 mm): IN1 67.63 mm, IN2 39.35 mm
-- matched group outputs spans 46.27 mm (tolerance 10.00 mm): OUT1 58.03 mm, OUT2 11.76 mm
+- matched group channels spans 28.28 mm (tolerance 10.00 mm; lengths count 1.6 mm per via): IN1 67.63 mm, IN2 39.35 mm
+- matched group outputs spans 46.27 mm (tolerance 10.00 mm; lengths count 1.6 mm per via): OUT1 58.03 mm, OUT2 11.76 mm
 
 Coupling predicted from the copper, limit 2.20 mV:
 

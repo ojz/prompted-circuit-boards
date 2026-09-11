@@ -5,7 +5,7 @@
 > Update when: a direction, gate or priority changes; keep detailed run evidence in HANDOFF.md.
 > Retire when: the project direction is replaced; merge lasting decisions and remove obsolete plans rather than archiving copies.
 
-Updated: 2026-09-11. Status: M1-M2 complete; M3-M4 partly complete; no measured prototype.
+Updated: 2026-09-11. Status: M1-M2 complete; M3 lacks CI; M4 has the attenuverter error budget and an open parts decision; no measured prototype.
 
 ## Goal And Constraints
 
@@ -122,7 +122,7 @@ simulator false-pass cases live in [../toolkit/test-scripts.sh](../toolkit/test-
 M0 Direction recorded [DONE]
   -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
-  -> M3 Reproducible, fail-closed pipeline [PART DONE; CI and pinning open]
+  -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11, CI open]
   -> R0 Routing benchmark [DONE 2026-09-10] -> routing research, timeboxed
   -> M4 Circuit evidence and complete prototype package [PART DONE; attenuverter simulation]
   -> human approval -> order -> delivery -> M5 guided build and measurements
@@ -206,7 +206,7 @@ evaluation described above before building more routing features.
 
 Prerequisites: M1-M2 passing tests. `toolkit/pipeline.sh` now provides the
 generation/check/export entry point; `toolkit/sim.sh` runs circuit simulations
-separately. CI and dependency pinning remain open.
+separately. `cabal.project.freeze` pins the Haskell dependencies; CI remains open.
 
 - Provide a single documented entry point for tool preflight, validation, generation, checks, and prototype export. Keep inexpensive test-only use available.
 - Stage fresh outputs: validate -> schematic -> ERC -> layout -> DRC with refill/parity -> assembly/manufacturing checks -> exports -> manifest. Publish a successful package only after all required steps succeed.
@@ -386,16 +386,14 @@ M1-M2 are closed, M3 has working local gates but no CI or dependency pinning,
 and M4 has attenuverter simulation evidence but no measured prototype. See
 [HANDOFF.md](HANDOFF.md) for commands, results and model limitations.
 
-Next: derive the attenuverter's precision error budget from its intended
-pitch-CV use and exact-part/datasheet evidence. Cover source and output loading,
-reference/channel interaction, gain/offset, drift and headroom, with limits
-expressed in volts and cents where applicable. The 41.8 mV patching shift
-needs correction; the roughly 0.35 V nominal headroom is not a guaranteed
-operating envelope. Present a supported circuit improvement with its cost
-and assembly implications, then implement and validate the chosen design.
-Follow with the mult's short simulation pass and mechanical-stack validation;
-no panel art or purchases are needed for these checks.
+Next: the attenuverter error budget is derived
+([modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md))
+and the parts/topology choice is in the decision inbox. Once answered,
+implement the chosen option: datasheet-based OPA2197 and REF5050 models,
+the design change, decks asserting the budget's limits, regeneration and
+checks. Follow with the mult's short simulation pass and mechanical-stack
+validation; no panel art or purchases are needed for these checks.
 
-CI and reproducible dependencies remain a parallel M3 obligation, requiring
-a runner with KiCad 10 and its libraries. Do not treat local test passes as
+CI remains a parallel M3 obligation, requiring a runner with KiCad 10 and its
+libraries; the dependency pin exists. Do not treat local test passes as
 completion of that gate or as approval to order.

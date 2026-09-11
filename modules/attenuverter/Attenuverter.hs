@@ -7,8 +7,11 @@
 -- divider, the non-inverting input of the same op-amp. With the pot fraction
 -- k the output is (2k - 1) * Vin: -1x fully anticlockwise, silence in the
 -- middle, +1x fully clockwise. With nothing patched the jack's switch pin
--- normals the input to about +4.8 V, so the channel doubles as a bipolar
--- offset source.
+-- normals the input to about +4.7 V (4.8 V by open-circuit arithmetic, 4.67 V
+-- simulated under load), so the channel doubles as a bipolar offset source.
+-- docs/modules/attenuverter/ERROR-BUDGET.md derives why this divider and the
+-- TL072C do not meet the precision requirement; the replacement is pending a
+-- decision in docs/decisions/.
 --
 -- All SMD parts and the power header are on the back of the board (one
 -- JLCPCB assembly side); jacks and pots are through-hole on the front.
@@ -153,8 +156,9 @@ parts =
   , smd "R4" "100k" rSym r0805 "C17407" (23.5, 94.5) (95.25, rowY2)
   , smd "R5" "100k" rSym r0805 "C17407" (23.5, 98.0) (113.03, rowY2)
   , smd "R6" "1k"   rSym r0805 "C17513" (23.5, 101.5) (130.81, rowY2)
-    -- Offset reference: 12 V * 1k / 2.5k = 4.8 V, filtered, on the back
-    -- between the jack columns.
+    -- Offset reference: 12 V * 1k / 2.5k = 4.8 V open-circuit, 4.67 V once the
+    -- Schottky drop and both channels' loading are counted; filtered, on the
+    -- back between the jack columns.
   , smd "R7" "1.5k" rSym r0805 "C4310"  (15.0, 44.5) (218.44, rowY3)
   , smd "R8" "1k"   rSym r0805 "C17513" (15.0, 48.0) (236.22, rowY3)
   , smd "C5" "100n" cSym c0805 "C49678" (15.0, 51.5) (200.66, rowY3)
@@ -311,7 +315,7 @@ attenuverter = Module
   , modNotes =
       [ "UTIL-01 ATTENUVERTER - dual attenuverter with offset normalling, 6HP"
       , "Vout = (2k - 1) * Vin per channel; k = pot fraction (CW = +1x, CCW = -1x)."
-      , "Unpatched inputs are normalled to OFFSET (~ +4.8 V): bipolar offset source."
+      , "Unpatched inputs are normalled to OFFSET (~ +4.7 V simulated): bipolar offset source."
       , "SMD and power header on the back (JLCPCB assembly side); jacks and pots on the front."
       , "J2.TN and J4.TN intentionally unconnected."
       ]

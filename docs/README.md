@@ -15,6 +15,8 @@
 | [SETUP.md](SETUP.md) | Installation, reproduction commands and known tool pitfalls. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, operating requirements, current circuit and model limitations. |
+| [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, current versus proposed parts, proposed limits. |
+| [decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md) | Pending: attenuverter parts swap alone, or with input buffers. |
 | [modules/mult/SPEC.md](modules/mult/SPEC.md) | Passive mult intent, connectivity, geometry and assembly. |
 | [BENCH.md](BENCH.md) | Recorded routing benchmark output, not a fabrication or SOTA approval. |
 | [modules/attenuverter/route-report.md](modules/attenuverter/route-report.md) | Generated attenuverter routing and predicted analog findings. |

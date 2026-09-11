@@ -71,6 +71,7 @@ before choosing work; old handoffs in Git history are not current instructions.
 
 ```
 pcbgen.cabal, cabal.project   the Haskell package (run cabal from here)
+cabal.project.freeze          pinned dependency versions; regenerate deliberately with `cabal freeze`
 toolkit/src/                  generator: Design model, KiCad emitters, router
 toolkit/app/Main.hs           registry of designs by name
 toolkit/pipeline.sh           preflight, generate, check, export: the entry point
@@ -81,6 +82,7 @@ toolkit/xsection.py           cross-section capacitance solver (numpy, KiCad's p
 toolkit/nodebudget.py         capacitance to layout budget, via ngspice
 toolkit/test-scripts.sh       fault-injection tests for those scripts
 modules/_bench/               synthetic router benchmark fixtures (never emitted)
+modules/_tests/route-test/    routing fixture design, generated like a module
 docs/                         roadmap, current handoff, setup and document index
 docs/decisions/               editable decision inbox, retired after integration
 docs/BENCH.md                 routing benchmark scores (generated, committed)

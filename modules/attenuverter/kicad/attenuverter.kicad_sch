@@ -6555,7 +6555,7 @@
 			)
 		)
 	)
-	(text "UTIL-01 ATTENUVERTER - dual attenuverter with offset normalling, 6HP\nVout = (2k - 1) * Vin per channel; k = pot fraction (CW = +1x, CCW = -1x).\nUnpatched inputs are normalled to OFFSET (~ +4.8 V): bipolar offset source.\nSMD and power header on the back (JLCPCB assembly side); jacks and pots on the front.\nJ2.TN and J4.TN intentionally unconnected."
+	(text "UTIL-01 ATTENUVERTER - dual attenuverter with offset normalling, 6HP\nVout = (2k - 1) * Vin per channel; k = pot fraction (CW = +1x, CCW = -1x).\nUnpatched inputs are normalled to OFFSET (~ +4.7 V simulated): bipolar offset source.\nSMD and power header on the back (JLCPCB assembly side); jacks and pots on the front.\nJ2.TN and J4.TN intentionally unconnected."
 		(exclude_from_sim no)
 		(at 25.4 190.5 0)
 		(effects

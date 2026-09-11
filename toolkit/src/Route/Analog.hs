@@ -142,7 +142,7 @@ describeAnalog f = case f of
     <> ", predicting " <> mv2 mv <> " on it; limit " <> mv2 limit
   Mismatched name lens tol ->
     "matched group " <> name <> " spans " <> mm (maximum ls - minimum ls)
-    <> " (tolerance " <> mm tol <> "): "
+    <> " (tolerance " <> mm tol <> "; lengths count 1.6 mm per via): "
     <> T.intercalate ", " [ n <> " " <> mm l | (n, l) <- lens ]
     where ls = map snd lens
 

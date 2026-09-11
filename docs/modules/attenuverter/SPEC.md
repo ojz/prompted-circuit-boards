@@ -1,6 +1,6 @@
 # UTIL-01 ATTENUVERTER — dual attenuverter / offset, 6HP
 
-> Status: maintained requirements; precision redesign pending. Owner: module-design agent, with user decisions.
+> Status: maintained requirements; precision redesign pending a decision in `docs/decisions/`. Owner: module-design agent, with user decisions.
 > Read when: designing, reviewing, simulating or preparing to build this module.
 > Update when: requirements, approved parts/circuit, evidence or model limitations change.
 > Retire when: the module is removed or a replacement spec takes ownership; retain build-revision evidence in its checkpoint.
@@ -31,6 +31,16 @@ precision suitability. The agent must derive a numerical error budget covering
 gain, offset, input/output loading, channel independence, noise, supply and
 temperature drift, and headroom. Express pitch errors in cents at 1 V/octave
 as well as volts, with explicit operating conditions and model limitations.
+
+The budget is derived in [ERROR-BUDGET.md](ERROR-BUDGET.md) (2026-09-11) from
+the TL072C, resistor, pot, OPA2197 and REF5050 datasheets, with proposed
+acceptance limits. Beyond the reference defect it finds, for the parts as
+designed: a worst-case output offset of about 27 mV (33 cents), an inversion
+gain error of 2.3 % (28 cents per octave), an output swing the datasheet does
+not guarantee to reach ±10 V, an input common-mode range that a −10 V input
+exceeds, no feedback compensation capacitor, and a 50 kΩ input impedance that
+loads a 1 kΩ source 2 %. The parts and topology choice is the open decision in
+[../../decisions/2026-09-11-attenuverter-precision-parts.md](../../decisions/2026-09-11-attenuverter-precision-parts.md).
 
 Those limits and circuit improvements are not implemented yet. The existing
 decks remain characterization/regression evidence; they must be extended with
@@ -88,7 +98,7 @@ stated in [devices.lib](../../../modules/_models/devices.lib#L1).
 | Question | Answer | Deck |
 |---|---|---|
 | Does `Vout = (2k − 1)·Vin` hold? | Yes, within 6 mV — the op-amp's 3 mV input offset at a noise gain of 2 | `transfer` |
-| Does ±10 V full scale fit? | Yes at nominal supply and light load; the model's output limits are +10.34 V and −10.37 V | `headroom` |
+| Does ±10 V full scale fit? | In the model, yes at nominal supply and light load: its output limits are +10.34 V and −10.37 V. The TL072C datasheet does not support this: it guarantees only 3 V from each rail and an input common-mode range 4 V above the negative rail, so ±10 V is not assured (see ERROR-BUDGET.md) | `headroom` |
 | What is the offset reference really? | 4.67 V, not the 4.8 V the open-circuit arithmetic gives | `interaction` |
 | Do the channels interact? | Yes, 41.8 mV: patching one moves the other's idle output | `interaction` |
 | What does a load cost? | 0.99% into 100k, 1.96% into 50k, 9.1% into 10k — the 1k output resistor dividing | `loading` |
@@ -149,7 +159,7 @@ vertically, 108 mm tall so it clears every rail type.
 - Routed entirely by pcbgen's grid router, GND included, with GND pours on
   both layers on top. 0.3 mm traces, 0.6/0.3 mm vias.
 
-## Parts (JLCPCB, verified 2026-09-08)
+## Parts (JLCPCB, verified 2026-09-08; LCSC numbers re-checked 2026-09-11)
 
 | Ref | Value | Package | LCSC |
 |-----|-------|---------|------|

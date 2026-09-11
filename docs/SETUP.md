@@ -23,6 +23,9 @@ known-good baseline, not strict pins unless stated otherwise.
    cabal build
    ```
    This builds `pcbgen`, which generates every KiCad project in `modules/`.
+   `cabal.project.freeze` pins every dependency version, so a fresh checkout
+   resolves the same set; only run `cabal freeze` again when a dependency
+   change is intended, and commit the result.
 3. Install KiKit into KiCad's own Python. Open **KiCad 10 Command Prompt** from
    the Start menu (an ordinary shell will not see KiCad's Python) and run:
    ```

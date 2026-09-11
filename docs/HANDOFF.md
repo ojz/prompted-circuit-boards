@@ -5,7 +5,7 @@
 > Update when: a validated checkpoint, blocker or next action changes; replace superseded prose.
 > Retire when: the project ends or another current-state record takes over; Git is the session archive.
 
-Updated 2026-09-11 by GitHub Copilot. This is current state, not an append-only
+Updated 2026-09-11 by Claude (home laptop). This is current state, not an append-only
 diary. The roadmap owns priorities, module specs own circuit requirements and
 setup owns tool versions and commands. See [README.md](README.md).
 
@@ -15,52 +15,58 @@ setup owns tool versions and commands. See [README.md](README.md).
   projects and the attenuverter's simulation netlist come from Haskell.
   Neither module has been built or measured.
 - M1/M2's rejection, routing and assembly-intent work is complete for existing
-  fixtures. M3 still needs CI and dependency/library pinning. M4 has nominal
-  attenuverter simulations but not precision acceptance or a reviewed prototype.
+  fixtures. M3 has pinned dependencies but no CI. M4 has nominal attenuverter
+  simulations and a derived error budget, but not precision acceptance or a
+  reviewed prototype.
 - Precision-first design and reuse of proven circuit approaches are settled
-  user decisions. The roughly 41.8 mV simulated channel-patching shift is an
-  unresolved precision defect; the historical 50 mV test budget does not approve it.
+  user decisions. The attenuverter's precision error budget is derived in
+  [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md):
+  the 41.8 mV channel-patching shift is one of several datasheet-level defects
+  (27 mV worst-case offset, 2.3 % inversion error, unguaranteed ±10 V swing and
+  input range, no feedback compensation). The parts/topology choice is waiting
+  in [decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md).
 - No purchases are approved. Panel development remains deferred. Joint
   placement/routing is planned, not implemented, and does not replace circuit
   validation. See [ROADMAP.md](ROADMAP.md) for the gates and wishlist.
 
 ## Latest Change
 
-- Maintained and generated Markdown now lives under `docs/`, except the root
-  README and agent instruction files. Code, decks, KiCad projects and ignored
-  build artifacts retain their original locations.
-- [decisions/README.md](decisions/README.md) defines an editable inbox for
-  researched user choices. Read edited answers before affected work; preserve
-  and integrate the decision in the owning spec/roadmap, validate and checkpoint,
-  then delete the processed inbox file. Blanks and recommendations are not approval.
-  There are no pending questions: precision and circuit reuse are already decided.
-- Every document states when to read, update and retire it. The old module
-  list, duplicate collaborator handout and obsolete broad tool survey are retired.
-  Live ideas are in the roadmap; useful tool cautions and references are in
-  [SETUP.md](SETUP.md). Git retains the original discussions and older handoffs.
-- The report writer targets `docs/modules/<name>/route-report.md` and
-  `docs/BENCH.md`; custom `--out DIR` exports use `DIR/docs/` without changing
-  canonical reports. The pipeline also checks the relocated report for drift.
-- Benchmark scores and findings are preserved, not rerun or improved. The
-  report explanation now qualifies the spanning-tree reference and selected
-  legality checks. Circuit topology, routing algorithms and assertion limits
-  have not changed. Source/deck comment references were updated.
+- The attenuverter error budget exists, derived from datasheets fetched on
+  2026-09-11 (TI SLOS080W, SBOS737C, SBOS410G; UNI-ROYAL and Yageo resistor
+  listings; the Taiwan Alpha RD901F sheet) and from the Mutable Instruments
+  Shades v4.0 BOM and Befaco Dual Attenuverter v2 guide as reference designs.
+  Limits are proposed in volts and cents; nothing is implemented yet.
+- One decision is pending: option A (OPA2197, 0.1 % thin film, REF5050A, 10 pF
+  compensation, same topology) or option B (A plus a unity-gain input buffer per
+  channel, recommended). Both are costed from LCSC at quantity 10.
+- `cabal.project.freeze` pins the Haskell dependency set (M3 pinning item).
+  CI is still open.
+- The generated routing report now says that matched-group lengths include
+  1.6 mm per via, which explains why they differ from the table above them.
+  The attenuverter's source comments and schematic note give the simulated
+  4.67 V reference instead of the 4.8 V arithmetic; the schematic text changed
+  accordingly and ERC/DRC were rerun.
+- The documentation consolidation of the previous session (everything under
+  `docs/`, lifecycle headers, decision inbox, relocated generated reports) is
+  unchanged; Git history has its details.
 
-## Migration Verification
+## Verification
+
+Home laptop, 2026-09-11, after the error-budget session:
 
 | Check | Result |
 |---|---|
-| `cabal build exe:pcbgen` | passes with the updated report writer |
-| `toolkit/test-scripts.sh` | 77 passed, 0 failed; includes native attenuverter checks, scratch export, simulation stubs, report paths/headers and custom-output isolation |
-| `toolkit/pipeline.sh mult` | board and panel ERC/DRC/parity pass; relocated report changes are detected |
-| `cabal run -v0 exe:pcbgen -- all` | all five projects generated; three routing reports emitted under docs |
-| `toolkit/sim.sh attenuverter` | six decks, 13 assertions pass after updating documentation pointers |
-| Document integrity and output comparisons | 14 Markdown files have valid locations/lifecycle headers; 61 local links resolve; generated KiCad content and all three routing results match the prior checkpoint |
+| `cabal build exe:pcbgen` | passes with the report wording change |
+| `cabal run -v0 pcbgen -- all` | all five projects regenerated; only the attenuverter schematic note text and the matched-group wording in its routing report changed; mult and route-test reproduced byte for byte |
+| `toolkit/check.sh attenuverter` | ERC clean, DRC clean with parity, `check.ok` written |
+| `cabal test` | 65/65 passed |
+| `toolkit/sim.sh attenuverter` | 6 decks, 0 failed (unchanged circuit; the decks still assert the historical limits) |
+| Markdown integrity | 16 tracked Markdown files carry lifecycle headers; every relative link resolves |
 
-The full Freerouting benchmark and expensive Haskell routing test suite were
-not rerun for the documentation migration. The report-writer test deliberately
-uses an unavailable external router in a scratch directory; it tests reporting,
-not routing quality. No manufacturing release or physical measurement was made.
+Not rerun this session: `toolkit/test-scripts.sh`, the mult pipeline, the
+panels and the Freerouting benchmark; none of their inputs changed. The
+previous session's run of those (77 script checks passed, mult board and panel
+clean) stands. No manufacturing release or physical measurement was made.
 
 ## Earlier Circuit Evidence
 
@@ -90,9 +96,11 @@ SHA-256 of the earlier validation artifacts (filled boards depend on KiCad versi
 
 ## Remaining Limits
 
-- Exact-part/datasheet verification, a numerical precision error budget,
-  mechanical-fit review, current sourcing and a complete first-power-up guide
-  remain outstanding. No hardware has been assembled, powered or measured.
+- The error budget covers the electrical terms with datasheet evidence; pot
+  end resistance and linearity are unpublished and need measurement. Input
+  protection, mechanical-fit review, current sourcing at order time and a
+  complete first-power-up guide remain outstanding. No hardware has been
+  assembled, powered or measured.
 - Roughly 0.35 V of nominal headroom is a model prediction, not a worst-case
   guarantee. The low-supply assertion tests a 5 V signal, not +/-10 V. Output
   loading, offset and shared-reference movement matter for pitch use.
@@ -111,14 +119,15 @@ SHA-256 of the earlier validation artifacts (filled boards depend on KiCad versi
 
 ## Next Action
 
-Derive the attenuverter's precision error budget and compare established
-reference/buffer/attenuverter approaches using exact-part manufacturer evidence.
-Cover source/load, gain/offset, channel interaction, noise, drift and headroom
-over explicit conditions; express pitch errors in cents. No payment card is
-needed. Do not invent circuitry instead of evaluating proven approaches or
-weaken limits to pass the existing design.
+Read the user's answer in
+[decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md).
+Then, for the chosen option: build OPA2197 and REF5050 models from the cited
+datasheet figures in `modules/_models/devices.lib` (with input capacitance and
+common-mode limits), change `Attenuverter.hs`, regenerate, extend the decks with
+the acceptance limits from the error budget (offset ≤ 1 mV, interaction
+≤ 0.1 mV, inversion ≤ 0.3 %, ±10 V at 11.4 V rails, phase margin ≥ 45°), run
+`toolkit/pipeline.sh attenuverter` and `toolkit/sim.sh attenuverter`, record the
+limits in SPEC.md, and retire the decision file. If the answer is blank, do the
+model-building, which both options need, and leave the design untouched.
 
-When the evidence exposes a real cost, scope or architecture choice for the
-user, create a focused decision file with options, a recommendation and an
-acceptance check. Integrate the answer before implementing that scope. Physical
-confirmation remains a later hardware gate; CI/pinning is still owed by M3.
+CI on a runner with KiCad 10 remains owed by M3.
