@@ -1,4 +1,4 @@
-* UTIL-01 channel 1: does it do what SPEC.md says it does?
+* UTIL-01 channel 1: does it do what docs/modules/attenuverter/SPEC.md says?
 *
 * The claim under test, from SPEC.md: "With R_a = R_f the non-inverting gain
 * is 2, so Vout = (2k - 1) * Vin, k = pot fraction. Fully anticlockwise -1x,

@@ -221,6 +221,54 @@ sim_expect "s: simulator reports an error despite exiting 0" error 1 "ngspice re
 sim_expect "s: failed assertion" fail 1 "1 decks, 1 failed"
 sim_expect "s: successful assertion" pass 0 "1 decks, 0 failed"
 
+echo "== g: generated documentation stays in its owning output directory"
+GEN_ROOT="$SCRATCH/reports"
+mkdir -p "$GEN_ROOT/toolkit"
+GEN_ROOT="$(cd "$GEN_ROOT" && pwd)"
+cp "$HERE/freeroute.py" "$GEN_ROOT/toolkit/"
+if cabal build -v0 exe:pcbgen > "$LOG" 2>&1; then
+  GENERATOR="$(cabal list-bin -v0 exe:pcbgen | tr -d '\r')"
+  if command -v cygpath >/dev/null 2>&1; then
+    GENERATOR="$(cygpath -u "$GENERATOR")"
+  fi
+  if (cd "$GEN_ROOT" && "$GENERATOR" mult) > "$LOG" 2>&1; then
+    pass "g: default generation succeeds"
+  else
+    fail "g: default generation succeeds"; show_log_tail
+  fi
+  REPORT="$GEN_ROOT/docs/modules/mult/route-report.md"
+  expect "g: default report lives under docs/modules" test -f "$REPORT"
+  expect "g: no report beside the KiCad project" test ! -e "$GEN_ROOT/modules/mult/kicad/route-report.md"
+  for field in 'Status:' 'Owner:' 'Read when:' 'Update when:' 'Retire when:'; do
+    expect "g: report has '$field'" grep -q "$field" "$REPORT"
+  done
+  report_before="$(sha256_file "$REPORT")"
+  if (cd "$GEN_ROOT" && "$GENERATOR" mult --out "custom bundle") > "$LOG" 2>&1; then
+    pass "g: custom output with spaces succeeds"
+  else
+    fail "g: custom output with spaces succeeds"; show_log_tail
+  fi
+  expect "g: custom report is bundled under docs" test -f "$GEN_ROOT/custom bundle/docs/route-report.md"
+  expect "g: no Markdown at custom bundle root" test ! -e "$GEN_ROOT/custom bundle/route-report.md"
+  expect "g: custom generation leaves canonical report unchanged" test "$(sha256_file "$REPORT")" = "$report_before"
+  expect "g: custom report records its regeneration command" \
+    grep -qF -- '--out "custom bundle"' "$GEN_ROOT/custom bundle/docs/route-report.md"
+  if (cd "$GEN_ROOT" && FREEROUTING_JAR="$GEN_ROOT/not-installed.jar" "$GENERATOR" bench mult) > "$LOG" 2>&1; then
+    pass "g: benchmark writes a report with an unavailable external router"
+  else
+    fail "g: benchmark writes a report with an unavailable external router"; show_log_tail
+  fi
+  expect "g: benchmark lives under docs" test -f "$GEN_ROOT/docs/BENCH.md"
+  expect "g: no root benchmark is recreated" test ! -e "$GEN_ROOT/BENCH.md"
+  for field in 'Status:' 'Owner:' 'Read when:' 'Update when:' 'Retire when:'; do
+    expect "g: benchmark has '$field'" grep -q "$field" "$GEN_ROOT/docs/BENCH.md"
+  done
+  expect "g: benchmark qualifies its reference length" grep -qF 'not a lower bound' "$GEN_ROOT/docs/BENCH.md"
+  expect "g: benchmark qualifies its legality checks" grep -qF 'not full independent KiCad DRC' "$GEN_ROOT/docs/BENCH.md"
+else
+  fail "g: generator builds for report regression tests"; show_log_tail
+fi
+
 echo
 echo "== test-scripts.sh: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | MULT: passive 2x6 multiple, 6HP. See modules/mult/SPEC.md.
+-- | MULT: passive 2x6 multiple, 6HP. See docs/modules/mult/SPEC.md.
 --
 -- Why 6HP and two columns rather than 4HP and one column: with the official
 -- Thonkiconn footprint the minimum vertical pitch is 13.6 mm (tip pad of one

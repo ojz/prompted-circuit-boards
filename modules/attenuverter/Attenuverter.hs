@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | UTIL-01 ATTENUVERTER: dual attenuverter with +5 V offset normalling, 6HP.
--- See modules/attenuverter/SPEC.md.
+-- See docs/modules/attenuverter/SPEC.md.
 --
 -- Each channel is the classic single op-amp attenuverter: the input feeds an
 -- inverting stage of gain -1 (R_a = R_f = 100k) and, through the pot as a

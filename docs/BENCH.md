@@ -1,5 +1,10 @@
 # Routing benchmark
 
+> Status: generated. Owner: pcbgen benchmark harness.
+> Read when: comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats.
+> Update when: regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores.
+> Retire when: replaced by a validated benchmark; Git retains the previous results.
+
 | Board | Router | Legal | Spec | Nets | Segments | Vias | Copper mm | Ideal mm | Detour |
 |---|---|:-:|:-:|--:|--:|--:|--:|--:|--:|
 | attenuverter | freerouting | **no** | **2.22 mV** | 16 | 114 | 8 | 540.58 | 626.36 | 0.86 |
@@ -27,10 +32,11 @@ Faults:
 Rows: 14. Legal: 9.
 
 Detour is copper length over the sum of the minimum spanning trees of each
-net's pads: the shortest any routing of those nets could be. 1.00 is not
-reachable on a real board. Legal means every net asked for is present as a
-single copper island, nothing is contested and no via touches a pad; those
-checks run on the emitted geometry, so an external router is measured the
-same way as our own. A detour below 1.00 means copper is missing, not that a
-router beat the lower bound: check the faults. Time is left out: one runs
-in-process and one in a subprocess, so the numbers are not comparable.
+net's pad centres. This is a reference length, not a lower bound: branched
+copper and pad geometry can reduce it. A detour below 1.00 alone does not
+prove missing connections; use the connectivity findings. Legal combines
+our connectivity and via/pad checks with router-reported failures and
+contested cells; it is not full independent KiCad DRC. Spec is a modelled
+coupling check, not measured circuit performance. Time is omitted because
+the recorded process CPU time excludes external-router execution. See
+docs/ROADMAP.md for comparison limitations and planned benchmark work.

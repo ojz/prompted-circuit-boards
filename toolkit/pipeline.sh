@@ -16,7 +16,7 @@
 # Exit status is non-zero when any step failed. "Checks passed" means ERC,
 # DRC with zone refill and schematic parity, and (with --fab) the fabrication
 # sanity checks passed; it does not make the module a reviewed prototype
-# candidate, which is a separate human/agent review step (ROADMAP.md, M4).
+# candidate, which is a separate human/agent review step (docs/ROADMAP.md, M4).
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,7 +53,7 @@ missing=()
 if command -v cabal >/dev/null 2>&1; then
   echo "   cabal:     $(cabal --version 2>/dev/null | head -1)"
 else
-  missing+=("cabal (Haskell build tool; see SETUP.md)")
+  missing+=("cabal (Haskell build tool; see docs/SETUP.md)")
 fi
 if KCLI="$(find_kicad_cli)"; then
   echo "   kicad-cli: $("$KCLI" version 2>/dev/null | tr -d '\r') ($KCLI)"
@@ -100,10 +100,11 @@ if [ "$GEN_OK" = 1 ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; the
   # `* text=auto eol=lf` filter from .gitattributes, and pcbgen writes CRLF on
   # Windows, which git status reports as a change on every single run even
   # though the committed content is byte-identical.
-  changed="$( { git diff --name-only -- "modules/$MODULE/kicad"
-                git ls-files --others --exclude-standard -- "modules/$MODULE/kicad"; } 2>/dev/null )"
+  generated_paths=("modules/$MODULE/kicad" "docs/modules/$(basename "$MODULE")/route-report.md")
+  changed="$( { git diff --name-only -- "${generated_paths[@]}"
+                git ls-files --others --exclude-standard -- "${generated_paths[@]}"; } 2>/dev/null )"
   if [ -n "$changed" ]; then
-    echo "   note: regeneration changed committed files under modules/$MODULE/kicad (review and commit):"
+    echo "   note: regeneration changed project files or the routing report (review and commit):"
     echo "$changed" | sed 's/^/     /'
   else
     echo "   regenerated files match the committed project"

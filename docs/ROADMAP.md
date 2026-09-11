@@ -1,5 +1,10 @@
 # Roadmap: From A Musical Idea To A Tested Module
 
+> Status: maintained. Owner: user direction, maintained by collaborating agents.
+> Read when: selecting work, defining acceptance limits, or evaluating a scope/cost tradeoff.
+> Update when: a direction, gate or priority changes; keep detailed run evidence in HANDOFF.md.
+> Retire when: the project direction is replaced; merge lasting decisions and remove obsolete plans rather than archiving copies.
+
 Updated: 2026-09-11. Status: M1-M2 complete; M3-M4 partly complete; no measured prototype.
 
 ## Goal And Constraints
@@ -14,6 +19,7 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | First priority | A reliable agent-driven design, verification, and export workflow |
 | Long-term modules | Serge DUSG (Dual Universal Slope Generator) and SSG (Smooth & Stepped Generator) behavior and patching possibilities |
 | Fidelity | Musical behavior matters more than historical circuitry; modern components are acceptable |
+| Circuit approach | Reuse established circuit topologies and documented reference designs; improve precision and validation rather than inventing circuitry for novelty |
 | Precision | Precision-first, confirmed 2026-09-11: accuracy, stability and channel independence are default requirements, including pitch CV; invest extra agent effort before fabrication |
 | Human role | Describe features, choose between explained alternatives, approve purchases, install larger parts, and perform guided measurements |
 | Agent role | Own design code, tooling, sourcing research, calculations, checks, documentation, and troubleshooting |
@@ -55,6 +61,19 @@ architecture and scope changes still need explained decisions, and purchases
 still need approval. Use measurable acceptance gates, not an unbounded quest
 for more simulated decimal places.
 
+### Proven Circuit Reuse
+
+Start from established attenuverter, buffer, reference, protection, integrator
+and sample/hold approaches where they meet the required behavior. Reuse is
+not evidence by itself: verify the exact implementation, parts, operating
+conditions, stability and error budget. Track manufacturer documents and
+source/licensing restrictions before reusing published drawings or models.
+
+Only propose a new circuit topology when a concrete requirement cannot be
+met adequately by a proven approach. This is distinct from topological
+routing, which describes how copper paths are represented in software.
+Precision remains the goal for either existing or adapted circuitry.
+
 ## Stack Decision
 
 Keep the current foundation provisionally. A language rewrite would not, by
@@ -86,30 +105,16 @@ preserve the working path until the replacement passes.
 
 ## Current Baseline
 
-The 2026-09-11 work-laptop validation established the following. These results do not
-constitute fabrication approval, and ignored local review files are not a
-dependency of this roadmap.
+Use [HANDOFF.md](HANDOFF.md) for the current tested checkpoint, commands,
+results and gaps. Native rule checks, software regression tests and simulation
+results are different evidence; none alone is fabrication approval. Module
+requirements live in [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md)
+and [modules/mult/SPEC.md](modules/mult/SPEC.md), not a second status table here.
 
-| Capability | Actual state |
-|---|---|
-| Generator | Builds; validates every design before emission and refuses to write an invalid or unroutable one; regeneration is byte-stable |
-| Native checks | Both circuit boards, both front panels, and the routing fixture passed ERC, DRC with zone refill, and schematic parity |
-| Export | Gated by `check.ok`; `toolkit/pipeline.sh attenuverter --fab` produced Gerbers, BOM and 16 placements with a hashed manifest, 2026-09-09 |
-| Test suite | 65 Haskell tests and 54 script fault-injection checks pass, including simulator failure and missing-result rejection |
-| Electrical evidence | ngspice 47 runs six attenuverter decks with 13 passing assertions; modelled, not measured; no completed manufacturer-datasheet audit |
-| Procurement | No approved equipment list, chosen mechanical stack, or approved prototype order |
-
-Carry these review findings into tracked regression tests, not just a narrative:
-
-Status added 2026-09-09; see [HANDOFF.md](HANDOFF.md) for the evidence.
-
-| Finding | Reproduction / source | Required outcome | Status |
-|---|---|---|---|
-| Implicit no-connects and power flags hide errors | Removing U1.8, mistyping it as U1.88, assigning it to both rails, or removing D2.1 from the positive rail all passed ERC. See [toolkit/src/Emit/Schematic.hs](toolkit/src/Emit/Schematic.hs). | Design validation rejects each fault before emission; intentional NC and power sourcing are explicit | Rejected by `Validate` before emission; four faults covered by tests |
-| SMD pad drills | Native KiCad geometry found 0.3 mm via drills inside C1.2, C4.2, R3.2, and R4.1 solder lands. See [toolkit/src/Route/Router.hs](toolkit/src/Route/Router.hs). | Ordinary assembly forbids these intersections; fix the four current locations | Confirmed: the pre-fix board really had 4, at R4.1, R3.2, C4.2 and C1.2. Vias in or against any pad, own net included, now abort generation; both boards report 0 |
-| Pre-route connectivity | Pads at (2,5) and (18,5), with an existing trace only from (15,5) to (18,5), produced router success without connecting the first pad. | Treat copper islands as separate components to connect, and test the final connectivity | Each pre-routed island is its own terminal; per-net connectivity recomputed on emitted geometry |
-| Export accepts stale or failed inputs | [toolkit/fab.sh](toolkit/fab.sh) only requires a build PCB; [toolkit/check.sh](toolkit/check.sh) leaves copied files after failures. | Export requires successful checks on exactly the artifacts being exported | `check.ok` hashes gate `fab.sh`; stale copies removed first; fault-injection tests pass |
-| Sourcing omission changes assembly | [toolkit/src/Emit/Pcb.hs](toolkit/src/Emit/Pcb.hs) interprets a missing LCSC field as hand assembly. | Missing data for an intended factory-installed part fails validation | `partAssembly` is declared per part; `Factory` without an LCSC number is rejected |
+M1/M2's wiring, via/pad, disconnected-pre-route and assembly faults are retained
+as regression cases in [../toolkit/test/ValidateTests.hs](../toolkit/test/ValidateTests.hs)
+and [../toolkit/test/RouteTests.hs](../toolkit/test/RouteTests.hs). Export and
+simulator false-pass cases live in [../toolkit/test-scripts.sh](../toolkit/test-scripts.sh).
 
 ## Delivery Sequence
 
@@ -147,6 +152,28 @@ that an earlier stage's artifacts, equipment, or approvals exist.
   an improvement in completion or electrical margins on held-out boards
   against fixed placement within a stated compute budget; shorter copper
   alone does not establish a better analog design.
+
+Known limits to address before stronger routing claims:
+
+- The benchmark's selected connectivity/via checks are not a full independent
+  native DRC for every strategy. External routing uses a limited configuration;
+  the attenuverter's unbonded ground-pour assumptions confound that comparison.
+- The reported minimum spanning tree is a reference length, not a proven lower
+  bound for branched copper. Do not infer a missing connection from a detour
+  below 1 alone. The report now explains that limit; independent native checking
+  and scoring improvements remain planned.
+- The coupling model ignores the opposite layer and full ground-return behavior,
+  has a cutoff, and approximates nearby geometry. Predicted zero is not physical
+  zero. More model digits and an optimiser that exploits those omissions do not
+  establish higher precision.
+- Grid pitch, via cost and multi-start count are heuristics tested on a small
+  fixture set. Broader held-out boards, equal constraints and compute budgets,
+  and eventually measured coupons are needed for credible general claims.
+
+The recorded scores belong in [BENCH.md](BENCH.md); the current algorithm and
+model details are in [../toolkit/src/Route/Router.hs](../toolkit/src/Route/Router.hs)
+and [../toolkit/src/Route/Coupling.hs](../toolkit/src/Route/Coupling.hs). Do not
+retune them merely because this wishlist exists.
 
 ### M1: Make Invalid Designs Fail
 
@@ -290,6 +317,23 @@ the complete layout, then validate the full module and its interactions.
 Gate: the selected SSG behaviors and numerical limits are supported by measured
 hardware, with calibration and a repeatable build/test package.
 
+### Unscheduled Module Ideas
+
+These preserve the still-relevant ideas from the retired module list; they
+are not designs, approvals or prerequisites for the current precision work.
+
+- POW-01: low-voltage power management/distribution and regulation, if a
+  concrete module or test setup needs it. No DIY mains work.
+- OUT-01: stereo output stage with level control and appropriate amplification.
+- Optional attenuverter interface ideas: status LED or push button. Do not add
+  them to the existing board merely to fill time.
+- Parked: an SMT remake of Gijs Gieskes' 3TrinsRGB+1c video synthesizer, possibly
+  standalone/Eurorack-compatible with enclosure, monitor and speaker. Confirm
+  permissions and scope before using or publishing derivative material.
+
+Remove an idea when explicitly rejected or superseded; when promoted, give it
+an owned module specification and acceptance gate rather than a parallel list.
+
 ## Weekly Session Contract
 
 The agent may choose and execute a bounded task within this roadmap. It asks
@@ -300,11 +344,11 @@ and push completed, validated checkpoints without asking each time. Follow
 the two-workstation rule in `AGENTS.md`; this does not authorize purchases,
 force-pushes, or committing unrelated work or secrets.
 
-1. Read this roadmap, the current operating rules in [CLAUDE.md](CLAUDE.md), and the last tracked handoff. Check actual inputs and worktree state before choosing work.
+1. Read [../AGENTS.md](../AGENTS.md), the current [HANDOFF.md](HANDOFF.md), and edited questions in `docs/decisions/`. Use this roadmap for the affected gate; check actual inputs and worktree state before choosing work.
 2. Select one main outcome: a named failing behavior, an evidence gap, or a guide with a concrete acceptance check. Announce the scope and what would disprove the proposed solution.
 3. Implement in small steps and run the narrow relevant checks. Escalate only on evidence; do not use remaining tokens as a reason to add unrelated features or endlessly compare tools.
 4. Before stopping, leave a tested checkpoint or explicitly mark partial work as blocked/non-releasable. Preserve existing user changes and record which edits belong to this task.
-5. Update durable state with the exact result, artifact paths/hashes, commands and tool versions, remaining risks, open questions, and one next action with its prerequisites. Say what has not been run.
+5. Update the compact handoff with the exact result, artifact paths/hashes, commands and tool versions, remaining risks and one next action. If user input is genuinely needed, create a researched question using [decisions/README.md](decisions/README.md), integrate edited answers, and retire processed files. Remove superseded status prose instead of appending an unbounded session diary. Say what has not been run.
 
 There is no promise of background work between sessions. Every new agent must
 be able to resume from tracked documents, not private memory or ignored scratch
@@ -319,9 +363,10 @@ scaffolding. The first M1 work item should start the compact session handoff.
 | Artifact | Purpose / owner |
 |---|---|
 | This roadmap | Agreed priorities, constraints, milestone status; update at material decisions |
-| [HANDOFF.md](HANDOFF.md) | Agent-maintained current/blocked/next state, actual outputs, evidence locations, and missing prerequisites; started 2026-09-09 |
+| [HANDOFF.md](HANDOFF.md) | Agent-maintained compact current/blocked/next state and evidence; Git retains past checkpoints |
 | Stack decision and toolchain record | Agent-maintained versions, installation checks, tested library inputs, and reasons for any migration; build on [SETUP.md](SETUP.md) |
-| Per-module specification and tests | Musical intent translated into numerical limits, simulations, and measurement assertions; build on the existing specifications |
+| Per-module specification and tests | `docs/modules/<name>/SPEC.md` owns intent and limits; executable simulations and tests stay with the design/code |
+| `docs/decisions/` inbox | Concrete researched user choices; answers are integrated into their authoritative documents, then inbox files are deleted |
 | Part evidence and manufacturing recipe | Exact identities/ratings, sourcing checks, assembly intent, approved process options, and complete order list |
 | Lab and board-specific assembly/test guides | Instructions sufficient for a beginner to buy, set up, measure, and stop safely |
 | Prototype record | Human observations plus agent analysis, tied to board revision and actual installed parts |

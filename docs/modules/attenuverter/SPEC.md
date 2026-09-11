@@ -1,12 +1,20 @@
 # UTIL-01 ATTENUVERTER — dual attenuverter / offset, 6HP
 
+> Status: maintained requirements; precision redesign pending. Owner: module-design agent, with user decisions.
+> Read when: designing, reviewing, simulating or preparing to build this module.
+> Update when: requirements, approved parts/circuit, evidence or model limitations change.
+> Retire when: the module is removed or a replacement spec takes ownership; retain build-revision evidence in its checkpoint.
+
 Two channels of the classic single-op-amp attenuverter. Each channel has an
 input jack, a centre-detent-free 100k pot and an output jack. With nothing
 patched the input is normalled to about +4.7 V, so the channel becomes a
 bipolar offset source.
 
-Design source: `Attenuverter.hs` (module) and `AttenuverterPanel.hs` (panel)
-in this directory. Generated projects: `kicad/` and `kicad/panel/`; regenerate
+Design source: [Attenuverter.hs](../../../modules/attenuverter/Attenuverter.hs#L1)
+and [AttenuverterPanel.hs](../../../modules/attenuverter/AttenuverterPanel.hs#L1).
+Commands and artifact paths below are relative to the repository root, not
+this documentation directory. Projects live in `modules/attenuverter/kicad/`
+and its `panel/` subdirectory; regenerate
 with `cabal run pcbgen -- all` from the repo root, verify with
 `toolkit/check.sh attenuverter [panel]`, fab bundle with
 `toolkit/fab.sh attenuverter`. Do not edit the generated KiCad files.
@@ -46,7 +54,7 @@ Per channel (TL072, one op-amp per channel):
 Offset reference: +12 V → 1.5k / 1k divider, 100 nF to GND, on the jacks'
 switch (TN) pins. The open-circuit arithmetic gives 4.8 V, and that is what
 this line used to claim; simulation says **4.67 V with both channels idle**
-(`sim/interaction.cir`). The difference is two things the arithmetic left
+([interaction.cir](../../../modules/attenuverter/sim/interaction.cir#L1)). The difference is two things the arithmetic left
 out: the series Schottky drops the rail to about 11.84 V, and the two
 channels' pots and input resistors load the divider. Nothing depends on the
 exact nominal value for basic knob operation, but reference stability matters
@@ -54,8 +62,8 @@ for pitch use; the current supply-derived divider is not a precision reference.
 
 Patching a cable into one channel lifts that channel's loading off the
 divider and moves the reference. Simulated: **+41.8 mV**, which appears at the
-other channel's output at full gain. It passes the historical 50 mV budget in
-`sim/interaction.cir`, but does not meet the precision-first requirement above.
+other channel's output at full gain. It passes the interaction deck's historical
+50 mV budget, but does not meet the precision-first requirement above.
 This is a DC shift through the shared reference, not a complete bound on all
 possible cross-channel effects.
 
@@ -71,11 +79,11 @@ per rail. Header pins 1–2 = −12 V, 3–8 = GND, 9–10 = +12 V.
 
 ## Simulated behaviour
 
-`toolkit/sim.sh attenuverter` runs the decks in `sim/`. The netlist is
-generated from `Attenuverter.hs`, the same source the board is generated
+`toolkit/sim.sh attenuverter` runs the decks in `modules/attenuverter/sim/`. The netlist is
+generated from the Haskell design, the same source the board is generated
 from, so it cannot describe a different circuit than the one being built.
 The device models are hand-built from datasheet figures and their limits are
-stated at the top of `modules/_models/devices.lib`.
+stated in [devices.lib](../../../modules/_models/devices.lib#L1).
 
 | Question | Answer | Deck |
 |---|---|---|
@@ -159,7 +167,6 @@ vertically, 108 mm tall so it clears every rail type.
 ## Status
 
 - Precision acceptance pending: correct channel interaction and establish the full error budget before recommending an order; existing simulation passes are not precision approval.
-- Module and panel generated; ERC and DRC clean with every severity enabled.
-- Autorouted: 16 nets, 6 vias, 1.13 detour ratio, 11 negotiation iterations.
-- JLCPCB bundle via `toolkit/fab.sh attenuverter` (SMD assembly, back side).
-- Not yet built or measured.
+- Latest checks and hardware status: [../../HANDOFF.md](../../HANDOFF.md).
+- Computed routing and analog findings: [route-report.md](route-report.md).
+- Diagnostic fabrication command: `toolkit/fab.sh attenuverter` (SMD assembly, back side); this is not purchase approval.

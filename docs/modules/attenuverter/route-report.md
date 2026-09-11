@@ -1,5 +1,10 @@
 # Routing report: attenuverter
 
+> Status: generated. Owner: pcbgen.
+> Read when: comparing this design's routing or predicted analog margins.
+> Update when: regenerate with `cabal run pcbgen -- attenuverter`; do not hand-edit results.
+> Retire when: the corresponding design is removed; Git retains superseded results.
+
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|
 | +12V | B | 20 | 0 | 75.63 | 72.32 | 1.05 |

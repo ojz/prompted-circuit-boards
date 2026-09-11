@@ -43,7 +43,7 @@ if [ -z "$ngspice" ]; then
   done
 fi
 if [ -z "$ngspice" ]; then
-  echo "ngspice not found; set NGSPICE (see SETUP.md)" >&2
+  echo "ngspice not found; set NGSPICE (see docs/SETUP.md)" >&2
   exit 2
 fi
 

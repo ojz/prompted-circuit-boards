@@ -1,5 +1,10 @@
 # Routing report: mult
 
+> Status: generated. Owner: pcbgen.
+> Read when: comparing this design's routing or predicted analog margins.
+> Update when: regenerate with `cabal run pcbgen -- mult`; do not hand-edit results.
+> Retire when: the corresponding design is removed; Git retains superseded results.
+
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|
 | MULT_A | B | 31 | 0 | 79.35 | 75.35 | 1.05 |

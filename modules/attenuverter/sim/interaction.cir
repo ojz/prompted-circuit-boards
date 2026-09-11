@@ -1,6 +1,6 @@
 * UTIL-01: do the two channels stay out of each other's way?
 *
-* They share one thing, and SPEC.md names it as a risk: a single
+* They share one thing, and docs/modules/attenuverter/SPEC.md names it as a risk: a single
 * supply-derived offset reference normalled to both input jacks. Patching a
 * cable into channel 1 lifts that channel's loading off the divider, the
 * reference rises, and channel 2's idle output moves with it -- without

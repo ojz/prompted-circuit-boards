@@ -1,5 +1,10 @@
 # Routing report: route-test
 
+> Status: generated. Owner: pcbgen.
+> Read when: comparing this design's routing or predicted analog margins.
+> Update when: regenerate with `cabal run pcbgen -- route-test`; do not hand-edit results.
+> Retire when: the corresponding design is removed; Git retains superseded results.
+
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|
 | RA | F | 8 | 0 | 19.96 | 15.87 | 1.26 |

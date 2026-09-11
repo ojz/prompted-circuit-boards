@@ -3,9 +3,9 @@
 --
 --   pcbgen <design> [--out DIR]
 --
--- With no --out, files go to modules/<design>/ relative to the working
--- directory. Existing generated files are overwritten; SPEC.md and anything
--- else in the directory are left alone.
+-- With no --out, KiCad files go to the design's configured directory and
+-- reports to docs/modules/<design>/. Custom bundles put reports in DIR/docs.
+-- Existing generated files are overwritten; other files are left alone.
 module Main (main) where
 
 import           Control.Monad      (forM_, unless, when)
@@ -17,7 +17,7 @@ import qualified Data.Text.IO       as TIO
 import           System.Directory   (createDirectoryIfMissing)
 import           System.Environment (getArgs)
 import           System.Exit        (exitFailure)
-import           System.FilePath    ((</>), (<.>))
+import           System.FilePath    ((</>), (<.>), takeDirectory)
 import           System.IO          (hPutStrLn, stderr)
 
 import           Design
@@ -65,7 +65,7 @@ strategies = [gridRouter, freeroutingRouter]
 -- | The via-cost ladder for @sweep-via@: the same router with a layer change
 -- priced from 10 to 320 cells (2 mm to 64 mm of trace). This is an experiment,
 -- not a baseline, so it prints and writes nothing: the result belongs in the
--- default, and BENCH.md then records it.
+-- default, and docs/BENCH.md then records it.
 defaultLadder :: [Double]
 defaultLadder = [10, 20, 40, 80, 160, 320]
 
@@ -96,7 +96,7 @@ main = do
     [name, "--out", d]  -> run name (Just d)
     _ -> do
       hPutStrLn stderr "usage: pcbgen <design>|all [--out DIR]"
-      hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
+      hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write docs/BENCH.md"
       hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--starts N] [--costs N,N] [board ...]"
       hPutStrLn stderr "       pcbgen log <board>            route one board and print the router's log"
       hPutStrLn stderr "       pcbgen spice <design>         write the SPICE netlist for simulation"
@@ -107,6 +107,9 @@ run :: String -> Maybe FilePath -> IO ()
 run name mOut = do
   m <- maybe (hPutStrLn stderr ("unknown design: " ++ name) >> exitFailure) pure (lookup name designs)
   let outDir = fromMaybe (modOutDir m) mOut
+      docDir = maybe ("docs" </> "modules" </> name) (</> "docs") mOut
+      regenerate = "cabal run pcbgen -- " <> T.pack name
+        <> maybe "" (\dir -> " --out \"" <> T.pack dir <> "\"") mOut
   lc <- newLibCache
   share <- findKicadShare
   putStrLn ("KiCad libraries: " ++ share)
@@ -127,12 +130,21 @@ run name mOut = do
         , (outDir </> stem <.> "kicad_pro", emitProject m (siSheetUuid info))
         , (outDir </> stem <.> "kicad_dru", emitDru m)
         ]
-        -- Routing score next to the board so quality is diffable across commits.
-        ++ [ (outDir </> "route-report.md", "# Routing report: " <> modName m <> "\n\n" <> r) | Just r <- [report] ]
+        ++ [ (docDir </> "route-report.md", T.unlines
+             [ "# Routing report: " <> modName m
+             , ""
+             , "> Status: generated. Owner: pcbgen."
+             , "> Read when: comparing this design's routing or predicted analog margins."
+             , "> Update when: regenerate with `" <> regenerate <> "`; do not hand-edit results."
+             , "> Retire when: the corresponding design is removed; Git retains superseded results."
+             , ""
+             ] <> reportText)
+           | Just reportText <- [report] ]
         -- Footprints from the repository's own library need a project
         -- library table so KiCad's library-mismatch check can find them.
         ++ [ (outDir </> "fp-lib-table", fpLibTable) | any ((== "pcbgen") . libNick . partFootprint) (modParts m) ]
   forM_ files $ \(path, txt) -> do
+    createDirectoryIfMissing True (takeDirectory path)
     TIO.writeFile path txt
     putStrLn ("wrote " ++ path)
   when (null (modParts m)) $ hPutStrLn stderr "warning: design has no parts"
@@ -147,7 +159,7 @@ fpLibTable = T.unlines
   , ")"
   ]
 
--- | Score every strategy against the benchmark boards and write BENCH.md.
+-- | Score every strategy against the benchmark boards and write docs/BENCH.md.
 -- Named boards restrict the run; no names means all of them.
 bench :: [String] -> IO ()
 bench names = do
@@ -155,13 +167,22 @@ bench names = do
   lc <- newLibCache
   _ <- findKicadShare
   scores <- runBench lc strategies boards
-  let rep = benchReport scores
+  let rep = T.unlines
+        [ "# Routing benchmark"
+        , ""
+        , "> Status: generated. Owner: pcbgen benchmark harness."
+        , "> Read when: comparing routing strategies; interpret scores with docs/ROADMAP.md's benchmark caveats."
+        , "> Update when: regenerate with `cabal run pcbgen -- bench` after a routing or fixture change; do not hand-edit scores."
+        , "> Retire when: replaced by a validated benchmark; Git retains the previous results."
+        , ""
+        ] <> benchReport scores
   TIO.putStr rep
-  TIO.writeFile "BENCH.md" (T.unlines ["# Routing benchmark", ""] <> rep)
-  putStrLn "wrote BENCH.md"
+  createDirectoryIfMissing True "docs"
+  TIO.writeFile ("docs" </> "BENCH.md") rep
+  putStrLn "wrote docs/BENCH.md"
 
 -- | Score the via-cost ladder and print it. Deliberately does not touch
--- BENCH.md: a sweep answers a question once, and the answer is a changed
+-- docs/BENCH.md: a sweep answers a question once, and the answer is a changed
 -- default rather than a permanent set of rows.
 --
 -- @--costs 15,20,25@ replaces the ladder, which is how a cliff found by the

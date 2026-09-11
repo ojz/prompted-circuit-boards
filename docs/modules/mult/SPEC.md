@@ -1,5 +1,10 @@
 # MULT — passive 2×6 multiple
 
+> Status: maintained requirements. Owner: module-design agent, with user decisions.
+> Read when: reviewing connectivity, loading, geometry, assembly or a proposed change to this module.
+> Update when: requirements, circuit/geometry or supporting evidence change.
+> Retire when: the module is removed or a replacement spec takes ownership; preserve applicable build-revision evidence.
+
 6HP passive multiple. Two independent groups of six Thonkiconn jacks, one
 group per column; a solder jumper on the back of the PCB joins the groups into
 one 1×12 multiple.
@@ -10,7 +15,9 @@ one 1×12 multiple.
 - J7–J12: group B, right column, all tips wired together (net `MULT_B`).
 - JP1 (back side, between the third jacks): open = 2×6, bridged = 1×12.
 - All sleeves to GND. Jack switch contacts (TN) are left unconnected.
-- No power. The 2×5 power header rule in CLAUDE.md does not apply.
+- No power. The powered-module header rule in [../../../AGENTS.md](../../../AGENTS.md) does not apply.
+- No buffering: loading depends on the source and every connected destination.
+  A passive multiple is not automatically a precision pitch distribution buffer.
 
 ## Why 6HP and two columns
 
@@ -40,7 +47,8 @@ Panel 30.0 × 128.5 mm (Doepfer table value for 6HP), 2 mm aluminium or a
 
 Rail holes follow Doepfer: 3.0 mm from the top and bottom edges, first hole
 7.5 mm from the left edge, further holes on the 5.08 mm grid. The panel is
-itself a generated KiCad project in `panel/` with the legend on F.SilkS.
+itself a generated KiCad project in `modules/mult/kicad/panel/` with the legend
+on F.SilkS. Paths and commands here are relative to the repository root.
 
 ## PCB
 
@@ -51,10 +59,11 @@ itself a generated KiCad project in `panel/` with the legend on F.SilkS.
 - The board is held by the twelve jack nuts; no separate mounting holes.
 - Jack bodies point toward the bottom of the module. The lowest body ends at
   board y = 100.7, inside the board and 17.8 mm from the bottom panel edge.
-- Copper: GND pour on both layers with thermal relief on the sleeve pads. Tip
-  buses are 0.5 mm traces on F.Cu at x = 9.5 (A) and 18.5 (B); the two jumper
-  links are straight 0.4 mm traces on B.Cu along the third row of tip pads.
-- Project DRC rules (`mult.kicad_dru`) allow up to 1.5 mm courtyard overlap
+- Copper: GND pours on both layers with thermal relief on the sleeve pads;
+  the tip nets use the grid router at 0.5 mm width. The alternative hand-routed
+  buses in the design source are a retained reference, not the current board.
+  See [route-report.md](route-report.md) for generated routing details.
+- Project DRC rules allow up to 1.5 mm courtyard overlap
   and touching silkscreen between jacks only. The official footprint's
   courtyard is 14.4 mm long, longer than the 10.5 mm body; the barrel sits on
   top of the body so stacked jacks do not physically collide.
@@ -71,11 +80,12 @@ so no `LCSC Part #` fields are set. Order bare boards only.
 
 ## Source and status
 
-Designed in `Mult.hs` and `MultPanel.hs` in this directory; the KiCad projects
-in `kicad/` and `kicad/panel/` are generated from them (`cabal run pcbgen -- all`
-from the repo root), verified by `toolkit/check.sh mult` and
+Design sources: [Mult.hs](../../../modules/mult/Mult.hs#L1) and
+[MultPanel.hs](../../../modules/mult/MultPanel.hs#L1). Projects in
+`modules/mult/kicad/` and its `panel/` subdirectory are generated from them
+(`cabal run pcbgen -- all` from the repo root), checked by `toolkit/check.sh mult` and
 `toolkit/check.sh mult panel`, fab bundle by `toolkit/fab.sh mult`. Do not edit
 the `.kicad_*` files by hand.
 
-- Module: ERC clean, DRC clean with schematic parity, zero unconnected items.
-- Panel: ERC clean, DRC clean.
+Current check results and hardware status belong in
+[../../HANDOFF.md](../../HANDOFF.md), not a second status summary here.

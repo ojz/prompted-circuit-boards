@@ -1,19 +1,25 @@
 # prompted-circuit-boards
 
+> Status: maintained. Owner: collaborating agents.
+> Read when: arriving at the repository or locating the workflow and documents.
+> Update when: entry points, architecture or document locations change; keep live test results in the handoff.
+> Retire when: the repository is retired or a replacement entry point is deliberately adopted.
+
 Prompt-driven design of Eurorack modules. Each module is described in code, the
 KiCad project is generated from that description, and KiCad's command-line
 tools verify it and produce the files JLCPCB needs. The KiCad GUI is a viewer,
 not an editor.
 
-[HANDOUT.md](HANDOUT.md) is the orientation document: what is verified, what
-is only modelled and never measured, the traps that have already cost time,
-and the open work. It is written for a collaborator arriving cold, including
-another model working from the other workstation.
+[docs/README.md](docs/README.md) is the document index. Start with
+[docs/HANDOFF.md](docs/HANDOFF.md) for the current evidence and next action,
+[docs/ROADMAP.md](docs/ROADMAP.md) for priorities and acceptance gates, and
+[docs/SETUP.md](docs/SETUP.md) for workstation setup. Standing agent rules are
+in [AGENTS.md](AGENTS.md).
 
-The [ROADMAP.md](ROADMAP.md) sets the direction for a non-technical,
-agent-assisted workflow, staged home-lab setup, and eventual DUSG/SSG modules.
-It records the current validation gaps and the gates still required before
-prototype ordering; passing ERC/DRC alone is not fabrication approval.
+The design direction is to reuse proven circuit approaches and validate them
+to explicit precision requirements, not invent new circuitry for novelty.
+When a researched decision needs the user's input, the agent creates an editable
+question in [docs/decisions/README.md](docs/decisions/README.md)'s inbox workflow.
 
 ## Why this shape
 
@@ -36,18 +42,19 @@ been removed.
 
 | Tool | Role | Why |
 |------|------|-----|
-| **KiCad 10** | Symbol and footprint libraries, ERC/DRC, zone filling, Gerber/drill/position export, renders. | The libraries are the reference for real parts, the checks are the industry standard, and everything we need runs from `kicad-cli` without a GUI. `kicad-cli pcb drc --refill-zones --save-board` fills copper pours headlessly, which removed the last reason to open the editor. |
-| **pcbgen** (`toolkit/`, Haskell) | Turns a design description into a complete KiCad project. | Designs become reviewable code with stable diffs. Library symbols and footprints are embedded verbatim from KiCad's own files, so the generated project passes KiCad's "matches library" check. Deterministic UUIDs keep regenerated files identical. Haskell because the s-expression format maps cleanly onto algebraic data types and the type checker catches malformed output before KiCad does. |
-| **pcbgen router** (`toolkit/src/Route/`) | Autoroutes every board: two-layer grid A* per net with negotiated congestion, then string pulling into any-angle traces. | Written in Haskell to get to the bottom of the problem rather than treat routing as a black box. Every result is verified by KiCad's DRC, never by the router itself, and `route-report.md` next to each board scores every net (length, vias, detour ratio) so changes are comparable across commits. |
+| **KiCad 10** | Symbol and footprint libraries, ERC/DRC, zone filling, exports and renders. | Headless native checks provide independent design-consistency evidence. Library agreement is not manufacturer-datasheet verification. |
+| **pcbgen** (`toolkit/`, Haskell) | Turns a design description into a complete KiCad project. | Structured circuit definitions, design validation and deterministic identifiers make changes reviewable. Types, tests and native checks address different failure modes; none alone proves electrical correctness. |
+| **pcbgen router** (`toolkit/src/Route/`) | Routes the declared nets on a two-layer grid, with negotiated congestion and any-angle simplification. | Generates per-design reports under `docs/modules/`. Native KiCad checks remain a separate gate; the benchmark's selected geometry checks are not full DRC. |
 | **kicad-cli** | ERC, DRC with schematic parity, zone refill, SVG/PNG renders, fabrication exports. | Exit codes gate commits. The repo rule is that no schematic or layout change lands without a clean ERC and DRC. |
 | **KiKit** | JLCPCB fabrication bundle (Gerbers, drill, BOM, CPL) and panelization of several modules into one order. | Headless, scriptable, supports KiCad 10 since v1.8.0, and replaces the GUI-only Fabrication Toolkit plugin. Runs on KiCad's bundled Python. |
 | **kicad-happy** skills | Design review, EMC and DFM checks, distributor lookups. | Independent second opinion on a generated design before ordering. |
-| **Freerouting** | Available as a fallback, unused. | Kept in case a board outgrows the in-house router. |
+| **ngspice and NumPy** | Circuit experiments and supporting field calculations. | Numerical evidence with explicit model limits; not a substitute for physical measurement. |
+| **Freerouting** | External comparison baseline for the routing benchmark. | Compared through KiCad's DSN/SES interface; not the generator's production routing path. |
 
 ## Workflow
 
 1. Describe or change a module in `modules/<name>/<Name>.hs` and write or
-   update `modules/<name>/SPEC.md` next to it with the panel geometry and
+   update `docs/modules/<name>/SPEC.md` with the operating limits, geometry and
    intent. The design file is the netlist and the placement; there is no other
    input.
 2. Generate the KiCad projects from the repository root (`all`, or one design
@@ -56,8 +63,9 @@ been removed.
    cabal run pcbgen -- all
    ```
    Files land in `modules/<name>/kicad/` (and `modules/<name>/kicad/panel/`
-   for a front panel), together with `route-report.md`. Generated files are
-   never edited by hand; they are committed so the repo shows the result.
+   for an existing front panel), with reports in `docs/modules/<name>/route-report.md`.
+   Generated files are never edited by hand; they are committed so the repo
+   shows the result. `--out DIR` keeps a custom bundle's report in `DIR/docs/`.
 3. Verify headlessly. This copies the project to `modules/<name>/build/`, runs
    ERC, DRC with zone refill and schematic parity, and renders both sides:
    ```
@@ -65,12 +73,17 @@ been removed.
    toolkit/check.sh mult panel
    ```
 4. Look at the renders in `build/`, or open the project in KiCad to inspect it.
-5. Export for JLCPCB with KiKit. Output goes to `build/fab/` and is never
-   committed:
+5. Run circuit experiments separately with `toolkit/sim.sh <name>` where
+   decks exist. The source netlist is generated from the same Haskell design.
+6. After checks and the documented design review, export a diagnostic JLCPCB
+   bundle with KiKit. Output goes to `build/fab/` and is never committed:
    ```
    toolkit/fab.sh mult
-   toolkit/fab.sh mult panel
    ```
+
+`toolkit/pipeline.sh <name> [--fab]` combines generation, native checks and
+optional export. Panel development and ordering remain deferred. An export
+does not constitute approval to purchase or a claim of measured performance.
 
 ## Repository layout
 
@@ -78,36 +91,33 @@ been removed.
 pcbgen.cabal        the Haskell package; cabal runs from the repo root
 toolkit/src/        pcbgen: design model, KiCad emitters, router
 toolkit/app/        pcbgen executable and design registry
-toolkit/*.sh        check.sh (ERC/DRC/renders) and fab.sh (JLCPCB bundle)
+toolkit/*.sh        generation/check/export orchestration and regression checks
 lib/footprints/     footprints the official KiCad library lacks
 modules/<name>/     one directory per module:
   <Name>.hs           design source (module), <Name>Panel.hs (front panel)
-  SPEC.md             hand-written intent and geometry
   kicad/, kicad/panel/  generated KiCad projects (committed)
   build/              verification and fabrication output (ignored)
-CLAUDE.md           rules the agent follows (panel geometry, power, footprints)
-SETUP.md            workstation bootstrap
-RESEARCH.md         background and tool survey
-MODULES.md          module roadmap
+docs/              specifications, setup, roadmap, handoff and generated reports
+   decisions/         editable user decision inbox; processed files are retired
+   modules/<name>/    specification and generated routing report
+AGENTS.md          standing rules, including documentation lifecycle
+CLAUDE.md          imports AGENTS.md
 ```
 
 ## Modules
 
-| Module | HP | Status |
+| Module | HP | Scope |
 |--------|----|--------|
-| [mult](modules/mult/SPEC.md) | 6 | 2×6 passive multiple. Module and panel generated, ERC and DRC clean, JLCPCB bundle via KiKit. |
-| [attenuverter](modules/attenuverter/SPEC.md) | 6 | UTIL-01: dual attenuverter with offset normalling, TL072. Autorouted (16 nets, 6 vias), ERC and DRC clean, JLCPCB assembly bundle for the SMD side. Not yet built. |
+| [docs/modules/mult/SPEC.md](docs/modules/mult/SPEC.md) | 6 | 2x6 passive multiple; no power. |
+| [docs/modules/attenuverter/SPEC.md](docs/modules/attenuverter/SPEC.md) | 6 | Dual attenuverter with offset normalling; precision redesign is pending. |
+
+Current check results and hardware status belong in
+[docs/HANDOFF.md](docs/HANDOFF.md), not a second status table here.
 
 ## Eurorack conventions baked in
 
-Doepfer 3U, from Doepfer's own construction notes: panel height 128.5 mm,
-width from Doepfer's table (4HP = 20.0, 6HP = 30.0, 8HP = 40.3 mm, roughly
-`HP × 5.08 − 0.3`), rail holes Ø3.2 mm at 3.0 mm from the top and bottom
-edges, first hole 7.5 mm from the left edge and further holes on the 5.08 mm
-grid. The PCB behind the panel is at most 108 mm tall and centred, so it clears
-the rails on every case, and at least 1 mm narrower than the panel per side.
-Panel-mounted parts are placed from exact panel coordinates, never eyeballed.
-Power enters on a 2×5 shrouded IDC header with series Schottky diodes on ±12 V
-and 10 µF + 100 nF per rail. Official KiCad footprints are used where they
-exist; the Thonkiconn jack is `Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles`,
-which forces a 13.7 mm pitch when jacks are stacked in a column.
+Mechanical and power conventions are owned by [AGENTS.md](AGENTS.md) and
+implemented in [Design.hs](toolkit/src/Design.hs#L1). Each module's specification
+records its exact coordinates and exceptions. Manufacturing and physical-fit
+evidence must support those conventions before an order; a passing CAD check
+does not establish that real parts have been test-fitted.

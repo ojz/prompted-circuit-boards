@@ -337,13 +337,14 @@ benchReport scores = T.unlines $
                ++ show (length (filter scLegal scores)) ++ ".")
      , ""
      , "Detour is copper length over the sum of the minimum spanning trees of each"
-     , "net's pads: the shortest any routing of those nets could be. 1.00 is not"
-     , "reachable on a real board. Legal means every net asked for is present as a"
-     , "single copper island, nothing is contested and no via touches a pad; those"
-     , "checks run on the emitted geometry, so an external router is measured the"
-     , "same way as our own. A detour below 1.00 means copper is missing, not that a"
-     , "router beat the lower bound: check the faults. Time is left out: one runs"
-     , "in-process and one in a subprocess, so the numbers are not comparable."
+    , "net's pad centres. This is a reference length, not a lower bound: branched"
+    , "copper and pad geometry can reduce it. A detour below 1.00 alone does not"
+    , "prove missing connections; use the connectivity findings. Legal combines"
+    , "our connectivity and via/pad checks with router-reported failures and"
+    , "contested cells; it is not full independent KiCad DRC. Spec is a modelled"
+    , "coupling check, not measured circuit performance. Time is omitted because"
+    , "the recorded process CPU time excludes external-router execution. See"
+    , "docs/ROADMAP.md for comparison limitations and planned benchmark work."
      ]
   where
     row s = T.concat
