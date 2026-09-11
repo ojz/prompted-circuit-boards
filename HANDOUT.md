@@ -72,8 +72,9 @@ current if you change what is in it.
 - Both modules pass ERC and DRC with schematic parity, and so do their
   panels. `toolkit/check.sh` writes `check.ok` only when they do, and
   `fab.sh` refuses to export unless every hash in it still matches.
-- The fault-injection tests (`toolkit/test-scripts.sh`, 42 checks) prove those
-  refusals actually fire, by tampering with sources and boards.
+- The fault-injection tests (`toolkit/test-scripts.sh`, 54 checks) prove those
+  refusals actually fire, by tampering with sources and boards, and exercise
+  the simulation runner's success, failure and missing-result paths.
 - The router's output is checked by geometry code that does not trust the
   router: no via in a pad, every net one copper island. The same checks are
   applied to Freerouting's output in the benchmark.
@@ -148,6 +149,11 @@ the new term did nothing at all.
 
 **`cabal build` does not rebuild the test suite.** Use `cabal build
 pcbgen-test`, or you will read a stale pass count.
+
+**Simulator exit status and assertion output both matter.** On the work
+laptop, substituting `NGSPICE=/usr/bin/false` originally reported six decks
+and zero failures. `sim.sh` now rejects nonzero exits, missing assertions and
+zero experiment decks; stub-based regression tests keep those refusals live.
 
 **Never `git checkout` a file with uncommitted work in it.** I destroyed a
 subagent's changes that way.

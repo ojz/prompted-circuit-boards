@@ -1,6 +1,6 @@
 # Roadmap: From A Musical Idea To A Tested Module
 
-Updated: 2026-09-09. Status: agreed direction; implementation milestones below are not complete.
+Updated: 2026-09-11. Status: M1-M2 complete; M3-M4 partly complete; no measured prototype.
 
 ## Goal And Constraints
 
@@ -62,7 +62,7 @@ preserve the working path until the replacement passes.
 
 ## Current Baseline
 
-The 2026-09-09 local review established the following. These results do not
+The 2026-09-11 work-laptop validation established the following. These results do not
 constitute fabrication approval, and ignored local review files are not a
 dependency of this roadmap.
 
@@ -71,8 +71,8 @@ dependency of this roadmap.
 | Generator | Builds; validates every design before emission and refuses to write an invalid or unroutable one; regeneration is byte-stable |
 | Native checks | Both circuit boards, both front panels, and the routing fixture passed ERC, DRC with zone refill, and schematic parity |
 | Export | Gated by `check.ok`; `toolkit/pipeline.sh attenuverter --fab` produced Gerbers, BOM and 16 placements with a hashed manifest, 2026-09-09 |
-| Test suite | 40 assertions in `toolkit/test/` (validation and routing geometry); 2026-09-09 |
-| Electrical evidence | No completed manufacturer-datasheet audit, supported SPICE executable, or measured prototype |
+| Test suite | 65 Haskell tests and 54 script fault-injection checks pass, including simulator failure and missing-result rejection |
+| Electrical evidence | ngspice 47 runs six attenuverter decks with 13 passing assertions; modelled, not measured; no completed manufacturer-datasheet audit |
 | Procurement | No approved equipment list, chosen mechanical stack, or approved prototype order |
 
 Carry these review findings into tracked regression tests, not just a narrative:
@@ -93,9 +93,9 @@ Status added 2026-09-09; see [HANDOFF.md](HANDOFF.md) for the evidence.
 M0 Direction recorded [DONE]
   -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
-  -> M3 Reproducible, fail-closed pipeline [PART DONE; CI, pinning, SPICE open]
+  -> M3 Reproducible, fail-closed pipeline [PART DONE; CI and pinning open]
   -> R0 Routing benchmark [DONE 2026-09-10] -> routing research, timeboxed
-  -> M4 Circuit evidence and complete prototype package
+  -> M4 Circuit evidence and complete prototype package [PART DONE; attenuverter simulation]
   -> human approval -> order -> delivery -> M5 guided build and measurements
   -> M6 one DUSG core, then the complete module
   -> M7 one SSG core, then the complete module
@@ -137,8 +137,9 @@ evaluation described above before building more routing features.
 
 ### M3: One Reproducible Pipeline
 
-Prerequisites: M1-M2 passing tests. The command described here is a deliverable,
-not a command that already exists.
+Prerequisites: M1-M2 passing tests. `toolkit/pipeline.sh` now provides the
+generation/check/export entry point; `toolkit/sim.sh` runs circuit simulations
+separately. CI and dependency pinning remain open.
 
 - Provide a single documented entry point for tool preflight, validation, generation, checks, and prototype export. Keep inexpensive test-only use available.
 - Stage fresh outputs: validate -> schematic -> ERC -> layout -> DRC with refill/parity -> assembly/manufacturing checks -> exports -> manifest. Publish a successful package only after all required steps succeed.
@@ -254,8 +255,10 @@ hardware, with calibration and a repeatable build/test package.
 The agent may choose and execute a bounded task within this roadmap. It asks
 at material design decisions, budget changes, purchases, uncertain safety
 steps, or stack migrations. It does not require approval for every routine
-code edit or test. Repository writes, commits, and upstream pushes remain
-subject to the user's explicit instructions; a roadmap is not push authority.
+code edit or test. The user gave standing authorization on 2026-09-11 to commit
+and push completed, validated checkpoints without asking each time. Follow
+the two-workstation rule in `AGENTS.md`; this does not authorize purchases,
+force-pushes, or committing unrelated work or secrets.
 
 1. Read this roadmap, the current operating rules in [CLAUDE.md](CLAUDE.md), and the last tracked handoff. Check actual inputs and worktree state before choosing work.
 2. Select one main outcome: a named failing behavior, an evidence gap, or a guide with a concrete acceptance check. Announce the scope and what would disprove the proposed solution.
@@ -293,13 +296,18 @@ and model redistribution terms.
 
 ## Next Work Item
 
-M1 and M2 are closed and M3 is partly done; see [HANDOFF.md](HANDOFF.md) for
-what was run, the judgement calls made, and what was explicitly not proven.
-The tracked handoff is now the place to look for current state, and it names
-the next slice: M3's reproducibility items (CI on a clean checkout, pinned or
-reproducibly retrieved dependencies, headless SPICE), which need a decision
-about where CI runs, since the test suite needs KiCad 10 and its libraries.
+Validation remains the priority while payment cards and hardware are unavailable.
+M1-M2 are closed, M3 has working local gates but no CI or dependency pinning,
+and M4 has attenuverter simulation evidence but no measured prototype. See
+[HANDOFF.md](HANDOFF.md) for commands, results and model limitations.
 
-After M3, progress through the gates above. Further technical questions should
-be asked when they control the next decision, not presented to the user as a
-prerequisite to learning the entire engineering discipline.
+Next: build the attenuverter's exact-part and datasheet evidence record,
+checking pin/package mapping, ratings and the supply/load conditions behind
+its headroom claim. The roughly 0.35 V nominal simulated margin is not a
+guaranteed operating envelope. Any circuit change to widen it is the user's
+decision. Follow with the mult's short simulation pass and mechanical-stack
+validation; no panel art or purchases are needed for these checks.
+
+CI and reproducible dependencies remain a parallel M3 obligation, requiring
+a runner with KiCad 10 and its libraries. Do not treat local test passes as
+completion of that gate or as approval to order.

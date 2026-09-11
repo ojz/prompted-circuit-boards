@@ -25,8 +25,8 @@ known-good baseline, not strict pins unless stated otherwise.
    kikit --help
    ```
    KiKit 1.8.0 or newer is required for KiCad 10.
-4. Optional: ngspice, needed only to re-derive the analog budgets in
-   `toolkit/nodebudget.py`, not by generation or verification. KiCad ships
+4. ngspice is required for `toolkit/sim.sh` and for re-deriving analog budgets
+   in `toolkit/nodebudget.py`; generation and native ERC/DRC do not need it. KiCad ships
    only `ngspice.dll` for its internal simulator, there is no batch
    executable in it, and ngspice is not in winget, so fetch the console
    build from the [ngspice
@@ -35,13 +35,29 @@ known-good baseline, not strict pins unless stated otherwise.
    `59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a`) and
    unpack its `Spice64` directory to `%LOCALAPPDATA%\ngspice`. Windows'
    built-in `tar.exe` reads .7z, so no archiver is needed. The scripts look
-   there, on `PATH`, and at `NGSPICE`. Check it with:
+   there, on `PATH`, and at `NGSPICE`.
+
+   SourceForge can return an HTML download page with a successful HTTP status.
+   This PowerShell download worked on the work laptop; compare its SHA-256
+   with the value above before extracting or executing anything:
+   ```powershell
+   curl.exe --fail --location --user-agent "Wget/1.21.4" --output "$env:TEMP\ngspice-47_64.7z" "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/47/ngspice-47_64.7z?download=1"
+   Get-FileHash "$env:TEMP\ngspice-47_64.7z" -Algorithm SHA256
+   ```
+
+   Check the installed console build with:
    ```
    "%LOCALAPPDATA%\ngspice\Spice64\bin\ngspice_con.exe" --version
    python toolkit/nodebudget.py verify
    ```
+   Then run `toolkit/sim.sh attenuverter` from Git Bash: six decks and 13
+   assertions must pass. The runner rejects nonzero simulator exits, error
+   diagnostics, missing assertions and an empty set of experiment decks.
    `toolkit/xsection.py` needs numpy rather than ngspice; KiCad's bundled
-   Python has it, so run that one the way `freeroute.py` is run.
+   Python has it, so run that one the way `freeroute.py` is run. For a bounded
+   workstation check use `toolkit/xsection.py verify --pitch 0.025`; the
+   default 0.0125 mm grid takes substantially longer. A coarse-grid pass is
+   not a substitute for a refinement study when changing the field solver.
 5. Optional: Freerouting from KiCad's Plugin and Content Manager plus a Java 25
    runtime on `PATH` (the verified setup uses the Temurin 25 JRE). It is the
    routing benchmark's parity baseline, not part of generation; pcbgen routes
@@ -107,8 +123,9 @@ cd modules/attenuverter/build/fab && grep '^output ' manifest.txt | cut -c8- | s
 To verify the scripts rather than a module, `toolkit/test-scripts.sh`
 fault-injects the attenuverter fixture - a single tampered source byte, a
 tampered filled board, a missing `check.ok`, and a board whose tracks are
-widened until DRC fails - and must end in `0 failed`. It takes a few minutes
-and removes its scratch copies on exit.
+widened until DRC fails - and exercises the simulation runner with isolated
+stubs. It must end in `54 passed, 0 failed`. It takes a few minutes and removes
+its scratch copies on exit; the simulator failure tests do not need ngspice.
 
 Expected tool versions from the verified setup on 2026-09-09:
 
@@ -120,6 +137,13 @@ KiKit 1.8.1 on KiCad's bundled Python 3.11.5
 
 Patch versions may be newer. The important compatibility requirement is
 KiCad 10.
+
+Work-laptop verification on 2026-09-11: KiCad CLI 10.0.3, GHC 9.6.7,
+cabal 3.14.2.0, KiKit 1.8.1, bundled Python 3.11.5, NumPy 2.4.2 and ngspice 47.
+All 65 Haskell tests and 54 script checks passed. Both module pipelines
+reproduced committed content and passed native checks, as did the routing
+fixture. All six attenuverter simulation decks passed. No KiCad upgrade was
+needed to reproduce these results; CI and dependency pinning remain open.
 
 ## Development utilities
 

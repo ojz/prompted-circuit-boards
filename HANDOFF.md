@@ -7,6 +7,121 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-11, session 9: work-laptop validation (GitHub Copilot)
+
+Pulled Fable's work with `git pull --ff-only`: 12 commits from `1ede48e` to
+`b9b5a2b`, a clean fast-forward with no local commits waiting to push. Read
+`HANDOUT.md` and reproduced the existing validation on the work laptop.
+The user's priority remains validation while payment cards and hardware are
+unavailable. No circuit, routing objective, part choice or panel design changed.
+
+### Software and reproducibility
+
+Installed ngspice 47's console build at
+`%LOCALAPPDATA%/ngspice/Spice64`, matching the home-laptop archive's SHA-256:
+`59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a`.
+SourceForge returned HTML with HTTP success to ordinary downloads; curl with
+the `Wget/1.21.4` user agent retrieved the correct archive. The rejected
+downloads were never extracted or executed. `SETUP.md` records the working
+download command and the requirement to check its hash.
+
+Existing tools needed no upgrades: KiCad CLI 10.0.3, GHC 9.6.7, cabal
+3.14.2.0, KiKit 1.8.1, KiCad Python 3.11.5 and NumPy 2.4.2. Despite the
+different KiCad patch and GHC versions at home, both module pipelines
+regenerated exactly the committed content after Git's line-ending
+normalization, including their existing panels.
+
+### A false simulation pass, reproduced and fixed
+
+`NGSPICE=/usr/bin/false toolkit/sim.sh attenuverter` reported **six decks,
+zero failures**, despite the substituted simulator exiting 1 without running
+anything. The runner scanned error text but ignored process status, and also
+accepted successful processes that printed no assertions.
+
+`toolkit/sim.sh` now requires a successful process, no recognized error
+diagnostics, assertion output from every executed deck, and at least one
+experiment deck. `toolkit/test-scripts.sh` adds isolated stub tests for a
+nonzero exit even after printing PASS, empty output, an error with exit 0,
+an explicit FAIL, a valid PASS, and no experiment decks. These add 12 checks
+to the existing 42. Real ngspice still passes all six attenuverter decks.
+
+### Commands run, with results
+
+| Command | Result |
+|---|---|
+| `cabal build all` | exit 0; compiler warnings remain |
+| `cabal test --test-show-details=direct` | 65/65 passed |
+| `toolkit/pipeline.sh attenuverter` | regeneration matches; board and panel ERC/DRC/parity clean; renders pass; export skipped |
+| `toolkit/pipeline.sh mult` | regeneration matches; board and panel ERC/DRC/parity clean; renders pass; export skipped |
+| `toolkit/check.sh _tests/route-test` | ERC/DRC/parity clean; renders pass |
+| `toolkit/test-scripts.sh` | 54 passed, 0 failed after the fix; includes a successful scratch export and all refusal cases |
+| `toolkit/sim.sh attenuverter` | 6 decks, 13 assertions, 0 failed after the fix |
+| `python toolkit/nodebudget.py verify` | closed form vs ngspice: worst difference 0.2% |
+| `python toolkit/xsection.py verify --pitch 0.025` | exit 0; worst difference 7.4%, 5.9% at 0.3 mm trace width |
+
+Shell scripts were run with Git Bash, not the WSL `bash` on this machine's
+PATH. Both Python commands used KiCad's bundled interpreter. Native reports,
+renders and `check.ok` manifests are in each project's ignored `build/`
+directory, with panel results under `build/panel/`. The Cabal test log is in
+`dist-newstyle/build/x86_64-windows/ghc-9.6.7/pcbgen-0.1.0.0/t/pcbgen-test/test/`.
+
+SHA-256 of this run's artifacts (filled boards are KiCad-version-specific):
+
+| Artifact | SHA-256 |
+|---|---|
+| `modules/attenuverter/build/attenuverter.kicad_pcb` | `a0d681edb2584c6cadb99a9388eb325b04898df8e1b1b622f197036b77b42b10` |
+| `modules/mult/build/mult.kicad_pcb` | `0838974db2ab529ac17e138bbf1fb7afb91d5f44c26b490bc8c6ea7dce1e29fe` |
+| `modules/attenuverter/sim/attenuverter.cir` | `220bcae4dfc813f2198f468c12f1de0c9afd5370940a1739a94998b97916824d` |
+
+### Not run, not done, not proven
+
+- No manufacturer-datasheet audit, new EMC/thermal review, mechanical-fit
+  review, sourcing/stock check, purchase, assembly or physical measurement.
+- The roughly 0.35 V headroom is a nominal model result, not a guaranteed
+  supply/load/temperature envelope. The existing supply-corner assertion uses
+  a 5 V signal; it does not prove +/-10 V headroom at the low-supply corner.
+  Load current, overload/protection and temperature remain model limitations.
+- The full-resolution `xsection.py verify` run was stopped after more than
+  12 CPU-minutes without completing its first width. The 0.025 mm check above
+  passed; a full refinement/convergence study was not repeated.
+- Freerouting parity benchmarks were not rerun. The new standalone default
+  jar location and `FREEROUTING_JAR` are not configured on this laptop; the
+  previously installed KiCad plugin is not part of these checks.
+- No retained manufacturing bundle was produced. The fault suite's successful
+  export was a disposable control; its scratch files were removed on exit.
+- M3 still owes CI and dependency/library pinning. The mult still has no
+  simulation decks. The user subsequently gave standing authorization to
+  commit and push validated checkpoints routinely; that rule is recorded in
+  `AGENTS.md` and `ROADMAP.md`.
+
+### Follow-up: language choice and voltage explanation
+
+The user asked whether the Python helpers meant Haskell was the wrong
+foundation. Recommendation: retain Haskell for the circuit source of truth,
+validation, generation and routing; use Python for concrete integration or
+scientific-library needs such as pcbnew and NumPy. No language migration was
+requested or performed. Python's ecosystem is useful, but a rewrite would
+not establish electrical correctness or address the current evidence gaps.
+
+The attenuverter spec now distinguishes nominal output headroom from gain,
+explains the shared-reference shift as about +4.67 V to +4.71 V in the untouched
+channel, and qualifies the low-supply result as a 5 V test. It also corrects
+"measured" to "simulated". A 41.8 mV shift corresponds to about 50 cents at
+1 V/octave, so the deck's 50 mV acceptance budget is not automatically adequate
+for precision pitch use. No component or acceptance threshold was changed.
+
+### Next action
+
+Build the attenuverter's exact-part and datasheet evidence record: identities,
+source URLs/document versions, pin-to-package mapping, ratings and the
+supply/load conditions behind the headroom assumption. Prerequisites are the
+existing design and access to manufacturer documents, not a payment card.
+Then choose meaningful corner checks and a short mult simulation pass. Any
+circuit change to widen headroom remains the user's decision. Keep panel art
+and purchases deferred, and close CI/pinning before calling M3 complete.
+
+---
+
 ## 2026-09-11, session 8: the first electrical evidence
 
 The roadmap's timebox on routing research had run out and module work had
@@ -39,7 +154,7 @@ file.
 
 ### What the simulation says about the attenuverter
 
-Six decks, twelve assertions, all passing:
+Six decks, thirteen assertions, all passing:
 
 | Question | Answer |
 |---|---|
