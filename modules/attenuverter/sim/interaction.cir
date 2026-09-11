@@ -1,0 +1,68 @@
+* UTIL-01: do the two channels stay out of each other's way?
+*
+* They share one thing, and SPEC.md names it as a risk: a single
+* supply-derived offset reference normalled to both input jacks. Patching a
+* cable into channel 1 lifts that channel's loading off the divider, the
+* reference rises, and channel 2's idle output moves with it -- without
+* anyone touching channel 2.
+*
+* That is the mechanism this deck measures. It is a DC shift in an offset
+* voltage, which on a module used as a bipolar offset source is the output
+* moving on its own.
+*
+* Budget: 50 mV at channel 2's output, with channel 2's pot fully clockwise
+* so the shift is passed through at full gain. 50 mV on a +/-10 V range is
+* 0.5%, under the 1% the SPEC already accepts for this reference, and it is
+* a number to argue with rather than a law.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+* Channel 1's patch cable. A plug does two things at once and the deck has
+* to do both: it opens the normalling switch AND connects a source. Wiring
+* the source straight to the tip instead would drive the shared reference
+* through the closed switch, which is a short that no unpatched jack has.
+.param rp1=1G
+Vsig CABLE1 0 DC 5
+Rp1  CABLE1 IN1 {rp1}
+
+.control
+* Channel 2 idle and passing its offset through at full gain.
+alterparam k_RV2 = 1
+
+* Nothing patched anywhere: switch closed, no cable.
+alterparam norm_J1 = 1m
+alterparam rp1 = 1G
+reset
+op
+* `reset` starts a new plot, so vectors do not survive it. Copy the numbers
+* into shell variables, which do.
+let t1 = v(OFFSET)
+let t2 = v(OUT2)
+set idle_ref = $&t1
+set idle_out2 = $&t2
+
+* A cable goes into channel 1: switch opens, cable connects. Channel 2 has
+* not been touched.
+alterparam norm_J1 = 1G
+alterparam rp1 = 1m
+reset
+op
+let busy_ref = v(OFFSET)
+let busy_out2 = v(OUT2)
+let ref_shift = busy_ref - $idle_ref
+let out2_shift = busy_out2 - $idle_out2
+
+echo "--- shared offset reference ---"
+echo "idle:  reference $idle_ref V, channel 2 out $idle_out2 V"
+print busy_ref busy_out2 ref_shift out2_shift
+
+if abs(out2_shift) < 0.050
+  echo "PASS  channel 2 moves less than 50 mV when channel 1 is patched"
+else
+  echo "FAIL  channel 2 moves when channel 1 is patched"
+end
+.endc
+.end

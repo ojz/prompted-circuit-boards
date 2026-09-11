@@ -30,6 +30,7 @@ import           BenchFixtures (benchFixtures)
 import           Bench
 import           Emit.Pcb
 import           Emit.Project
+import           Emit.Spice
 import           Emit.Schematic
 import           Kicad.Library
 import           Route.Router       (RouteConfig (..), RouteResult (..), RoutedNet (..), autoroute)
@@ -90,6 +91,7 @@ main = do
     ("bench" : rest)    -> bench rest
     ("sweep-via" : rest) -> sweepVia rest
     ["log", b]         -> routeLog b
+    ["spice", d]       -> spiceFor d
     [name]              -> run name Nothing
     [name, "--out", d]  -> run name (Just d)
     _ -> do
@@ -97,6 +99,7 @@ main = do
       hPutStrLn stderr "       pcbgen bench [board ...]      score routers, write BENCH.md"
       hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--starts N] [--costs N,N] [board ...]"
       hPutStrLn stderr "       pcbgen log <board>            route one board and print the router's log"
+      hPutStrLn stderr "       pcbgen spice <design>         write the SPICE netlist for simulation"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -196,6 +199,25 @@ splitOn :: Char -> String -> [String]
 splitOn c str = case break (== c) str of
   (before, [])       -> [before]
   (before, _ : rest) -> before : splitOn c rest
+
+-- | Write a design's SPICE netlist, for the hand-written experiments in
+-- modules/<name>/sim/ to include. Refuses on any part it cannot model,
+-- because a part quietly missing from a netlist is a circuit that simulates
+-- beautifully and is not the one on the board.
+spiceFor :: String -> IO ()
+spiceFor name = do
+  m <- maybe (hPutStrLn stderr ("unknown design: " ++ name) >> exitFailure) pure
+         (lookup name designs)
+  let problems = spiceProblems m
+  unless (null problems) $ do
+    hPutStrLn stderr ("cannot build a netlist for " ++ name ++ ":")
+    mapM_ (\sp -> TIO.hPutStrLn stderr ("  " <> spRef sp <> ": " <> spMessage sp)) problems
+    exitFailure
+  let dir = "modules" </> name </> "sim"
+      path = dir </> name <.> "cir"
+  createDirectoryIfMissing True dir
+  TIO.writeFile path (emitSpice m)
+  putStrLn ("wrote " ++ path)
 
 -- | Route one benchmark board and print what the router did, iteration by
 -- iteration. The report says what came out; this says how, which is what a

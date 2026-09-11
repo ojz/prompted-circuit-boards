@@ -27,6 +27,7 @@ Workstation bootstrap and verification: `SETUP.md`.
   - `toolkit/xsection.py` solves the board cross-section (2D finite volume over `div(eps grad phi) = 0`, capacitance from field energy) and reports capacitance to the plane and between neighbouring traces for the stackup we order. `xsection.py verify` checks it against the Hammerstad closed form and `xsection.py converge` shows the difference shrinking with the grid, which is what makes the numbers usable. Needs numpy, so run it with KiCad's bundled Python.
   - `toolkit/nodebudget.py` turns those capacitances into layout budgets with ngspice: `length` for how long a high-impedance trace may be, `coupling` for what a switching neighbour injects, `verify` for the closed form the Haskell check uses against ngspice in both regimes, and `report` for what actually binds on a board this size.
   - The answer `report` gives, and it is worth knowing before adding constraints: **trace length never binds** (a 100k node may carry 1.7 m of copper before losing 3 dB at 20 kHz, and the longest trace a 6HP board can hold is about 110 mm) while **coupling binds hard**, and a gap is a weak lever against it. At the 0.2 mm minimum spacing two traces are coupled to each other as strongly as to the ground plane. What controls coupling is how far two nets run alongside each other, which is why the check is written that way.
+- **Circuit simulation**: `cabal run pcbgen -- spice <design>` writes `modules/<name>/sim/<name>.cir`, a SPICE netlist generated from the same `Module` the board comes from, so it cannot describe a different circuit than the one being fabricated. It refuses on any part it cannot model, and on any two nets that would scrub to the same SPICE node (`+12V` and `-12V` did exactly that once, shorting the rails in a netlist that read fine). What is *not* generated is the experiment: decks in `modules/<name>/sim/*.cir` are hand-written, `.include` the netlist, and echo `PASS`/`FAIL`. `toolkit/sim.sh <name>` regenerates the netlist, runs every deck and fails closed. Device models live in `modules/_models/devices.lib`, hand-built from datasheet figures with their sources and their limits recorded there rather than taken from vendor files. Two parameters are left for a deck to set: `k_<ref>` for a pot's rotation and `norm_<ref>` for a jack's normalling contact -- and a deck modelling a patch cable must open the switch *and* connect the source, since a plug does both.
 - **kicad-happy** skills (kicad, spice, emc, bom, lcsc, jlcpcb, ...) are installed globally for review and fab prep.
 - No MCP server is used. Konnect was dropped after the first module; everything runs through `kicad-cli`.
 
@@ -53,15 +54,18 @@ toolkit/app/Main.hs           registry of designs by name
 toolkit/pipeline.sh           preflight, generate, check, export: the entry point
 toolkit/check.sh, fab.sh      verification and fabrication, gated by check.ok
 toolkit/tools.sh, fabcheck.py shared shell helpers, assembly/gerber checks
+toolkit/sim.sh                circuit simulation: regenerate netlist, run decks
 toolkit/xsection.py           cross-section capacitance solver (numpy, KiCad's python)
 toolkit/nodebudget.py         capacitance to layout budget, via ngspice
 toolkit/test-scripts.sh       fault-injection tests for those scripts
 modules/_bench/               synthetic router benchmark fixtures (never emitted)
 BENCH.md                      routing benchmark scores (generated, committed)
 lib/footprints/               repository footprint libraries
+modules/_models/              SPICE device models, hand-built from datasheets
 modules/<name>/
   <Name>.hs, <Name>Panel.hs   the design (source of truth), a Haskell module per project
   SPEC.md                     hand-written intent and panel geometry
+  sim/                        generated netlist plus hand-written test decks
   kicad/                      generated module project (committed)
   kicad/panel/                generated front-panel project (committed)
   build/                      check.sh and fab.sh output (ignored)

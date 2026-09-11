@@ -1,0 +1,39 @@
+* UTIL-01 ATTENUVERTER - dual attenuverter / offset
+* Generated from attenuverter by pcbgen. Do not edit.
+*
+* Nodes are the design's net names. GND is node 0.
+* Parameters this netlist expects a deck to set:
+*   norm_J1 = 1m   normalling contact, ohms
+*   norm_J2 = 1m   normalling contact, ohms
+*   norm_J3 = 1m   normalling contact, ohms
+*   norm_J4 = 1m   normalling contact, ohms
+*   k_RV1 = 0.5   rotation, 0 to 1
+*   k_RV2 = 0.5   rotation, 0 to 1
+*
+.param norm_J1=1m norm_J2=1m norm_J3=1m norm_J4=1m k_RV1=0.5 k_RV2=0.5
+RJ1n IN1 OFFSET {norm_J1}
+* J2: tip on OUT1, switch pin unused
+RJ3n IN2 OFFSET {norm_J3}
+* J4: tip on OUT2, switch pin unused
+RRV1hi IN1 WIPER1 {max(1m,100k*(1-k_RV1))}
+RRV1lo WIPER1 0 {max(1m,100k*k_RV1)}
+RRV2hi IN2 WIPER2 {max(1m,100k*(1-k_RV2))}
+RRV2lo WIPER2 0 {max(1m,100k*k_RV2)}
+XU1_1 WIPER1 INV1 P12V N12V OA1 TL072
+XU1_7 WIPER2 INV2 P12V N12V OA2 TL072
+RR1 IN1 INV1 100k
+RR2 INV1 OA1 100k
+RR3 OA1 OUT1 1k
+RR4 IN2 INV2 100k
+RR5 INV2 OA2 100k
+RR6 OA2 OUT2 1k
+RR7 P12V OFFSET 1.5k
+RR8 OFFSET 0 1k
+CC5 OFFSET 0 100n
+CC4 N12V 0 100n
+CC3 P12V 0 100n
+DD1 N12V N12_RAW B5819W
+CC1 P12V 0 10u
+CC2 N12V 0 10u
+DD2 P12_RAW P12V B5819W
+* J5: connector, nodes come from the deck

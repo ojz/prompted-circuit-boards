@@ -1,0 +1,40 @@
+* UTIL-01 channel 1: does it do what SPEC.md says it does?
+*
+* The claim under test, from SPEC.md: "With R_a = R_f the non-inverting gain
+* is 2, so Vout = (2k - 1) * Vin, k = pot fraction. Fully anticlockwise -1x,
+* centre 0, fully clockwise +1x."
+*
+* Input patched (the jack's normalling switch open), output unloaded, both
+* supplies nominal.
+*
+* Tolerance: 25 mV. The op-amp's 3 mV input offset appears at the output
+* multiplied by the noise gain of 2, so 6 mV is expected and unavoidable;
+* the rest is headroom for the finite open-loop gain. A tighter bound would
+* be asserting the model rather than the circuit.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+Vsig IN1 0 DC 5
+
+.control
+alterparam norm_J1 = 1G
+set fails = 0
+foreach kk 0 0.25 0.5 0.75 1
+  alterparam k_RV1 = $kk
+  reset
+  op
+  let want = (2 * $kk - 1) * 5
+  let got = v(OUT1)
+  let err = abs(got - want)
+  if err < 0.025
+    echo "PASS  transfer k=$kk"
+  else
+    echo "FAIL  transfer k=$kk"
+    print want got err
+  end
+end
+.endc
+.end

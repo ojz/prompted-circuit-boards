@@ -1,0 +1,82 @@
+* Device models for the simulations in modules/<name>/sim/.
+*
+* These are OURS, built from datasheet numbers, not vendor files. That is a
+* deliberate choice and it cuts both ways.
+*
+* For: every parameter below can be traced to a published figure, which is
+* what M4 asks for, and there is no question about redistributing someone
+* else's model in this repository.
+*
+* Against: a hand-built macromodel is only as good as the behaviours it was
+* built to capture. These capture small-signal gain, bandwidth, slew and
+* output swing. They do NOT capture distortion, noise, temperature drift,
+* input-stage phase inversion on overload, supply-current behaviour, or
+* anything about latch-up or protection. A result that depends on one of
+* those is not evidence; say so rather than quoting it.
+*
+* Sources, recorded as M4 requires:
+*   TL072  - TI TL07xx datasheet SLOS080, "TL072, TL072A, TL072B" electrical
+*            characteristics at Vcc = +/-15 V, Ta = 25 C. Typical column.
+*   B5819W - generic 40 V 1 A surface-mount Schottky; parameters fitted to
+*            the commonly published forward-voltage curve, NOT taken from a
+*            manufacturer model. Adequate for a series supply diode's drop;
+*            not for reverse recovery or leakage over temperature.
+
+* --------------------------------------------------------------------------
+* TL072 dual JFET-input op-amp, one unit.
+*
+* Pin order (inp inn vcc vee out) is this file's own convention and is what
+* Emit/Spice.hs emits.
+*
+* Datasheet figures used, all typical at +/-15 V:
+*   large-signal voltage gain      200 V/mV        -> Aol  = 2e5
+*   unity-gain bandwidth           3 MHz           -> GBW  = 3e6
+*   slew rate                      13 V/us         -> SR   = 13e6 V/s
+*   input bias current             30 pA           -> Ib
+*   input offset voltage           3 mV            -> Vos
+*   output swing                   +/-13.5 V at
+*                                  Vcc +/-15, RL 10k -> 1.5 V of headroom
+*
+* Construction: a transconductance stage into a single dominant pole, with
+* the stage's current clipped so that the pole capacitor's dV/dt is the
+* datasheet slew rate, then a rail-clamped output with a series resistance.
+*
+*   C1 = 30 pF chosen, then
+*   gm   = 2*pi*GBW*C1 = 565.5 uA/V
+*   R1   = Aol/gm      = 353.7 MOhm
+*   Islew = C1*SR      = 390 uA
+.subckt TL072 inp inn vcc vee out
+* Input stage: JFET gates, so essentially open, with the bias current and
+* offset that the datasheet quotes.
+Rin    inp inn 1T
+Ibp    0 inp 30p
+Ibn    0 inn 30p
+Vos    inn inx DC 3m
+* Transconductance with a hard current limit: this is what makes the model
+* slew rather than merely roll off.
+Bgm    0 n1 I = max(min(565.5u*V(inp,inx), 390u), -390u)
+R1     n1 0 353.7meg
+C1     n1 0 30p
+* Output: clamped 1.5 V short of each rail, behind the open-loop output
+* resistance. The clamp is why an overdriven channel stops at the rail here
+* instead of running away, but it is a clamp and not a real output stage.
+Bout   n2 0 V = max(min(V(n1), V(vcc) - 1.5), V(vee) + 1.5)
+Rout   n2 out 100
+* Quiescent supply current, 1.4 mA per amplifier (datasheet typical). Without
+* it the model draws nothing from the rails and the series Schottkys show no
+* drop, which reads as a perfectly stiff supply and is not what gets built.
+*
+* Note what this still does not do: output load current is supplied by the
+* ideal source above, not drawn from vcc/vee, so a rail figure from this
+* model accounts for quiescent draw only. Anything that turns on output
+* current into a load needs a better model than this one.
+Iq     vcc vee 1.4m
+.ends TL072
+
+* --------------------------------------------------------------------------
+* B5819W 40 V 1 A Schottky, as used in series with each supply rail.
+*
+* Fitted so the forward drop lands near 0.22 V at 50 mA and 0.35 V at 1 A,
+* which is where the published curves sit. Reverse leakage is the weakest
+* part of this model and is not used by anything here.
+.model B5819W D(IS=2e-5 N=1.05 RS=0.05 CJO=100p M=0.33 VJ=0.4 BV=40 IBV=1e-4)

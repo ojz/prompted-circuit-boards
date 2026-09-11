@@ -1,0 +1,102 @@
+* UTIL-01 channel 1 at the corners: 1% resistors and a +/-10% supply.
+*
+* Two questions, and only one of them is interesting.
+*
+* The gain at full clockwise is not interesting: Vout = Vin*(1+g)*k - Vin*g
+* with g = Rf/Ra, so at k = 1 it is Vin exactly, whatever g is. The matching
+* cancels.
+*
+* The null at centre detent is the interesting one. At k = 0.5 the same
+* expression gives Vin*(1-g)/2, which is zero only when Rf and Ra are equal.
+* With 1% parts g can be 1.0202 and the null sits 1% of the input away from
+* zero. A knob that will not null is the classic complaint about an
+* attenuverter, so it is worth knowing how far off it can be before anyone
+* solders one.
+*
+* Budget: the null stays within 1.5% of the input signal at the worst 1%
+* corner. That is what 1% parts can deliver; asking for better means buying
+* better resistors or adding a trim, and this records which.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+.param rp1=1m
+Vsig CABLE1 0 DC 5
+Rp1  CABLE1 IN1 {rp1}
+
+.control
+alterparam norm_J1 = 1G
+
+echo "--- null at centre detent, 5 V in, 1% resistors ---"
+alterparam k_RV1 = 0.5
+
+* Nominal.
+reset
+op
+print v(OUT1)
+
+* Worst case each way: feedback high against input low, and the reverse.
+* Values cross `reset` as shell variables; ngspice vectors do not.
+reset
+alter RR1 = 99k
+alter RR2 = 101k
+op
+let t1 = v(OUT1)
+set null_hi = $&t1
+reset
+alter RR1 = 101k
+alter RR2 = 99k
+op
+let t2 = v(OUT1)
+set null_lo = $&t2
+echo "null with Rf high: $null_hi V, with Rf low: $null_lo V"
+
+let worst = max(abs($null_hi), abs($null_lo))
+let worst_pct = 100 * worst / 5
+print worst worst_pct
+if worst_pct < 1.5
+  echo "PASS  centre null stays within 1.5% of the input at 1% tolerance"
+else
+  echo "FAIL  centre null drifts too far at 1% tolerance"
+end
+
+echo "--- full clockwise is insensitive to matching ---"
+alterparam k_RV1 = 1
+reset
+alter RR1 = 99k
+alter RR2 = 101k
+op
+let gain_hi = v(OUT1)
+if abs(gain_hi - 5) < 0.05
+  echo "PASS  unity gain holds at the worst matching corner"
+else
+  echo "FAIL  unity gain moved at the worst matching corner"
+  print gain_hi
+end
+
+echo "--- supply at +/-10% ---"
+alterparam k_RV1 = 1
+foreach vs 10.8 12 13.2
+  reset
+  alter Vpos = $vs
+  alter Vneg = -$vs
+  op
+  echo "supply +/-$vs V:"
+  print v(OUT1) v(OFFSET) v(P12V)
+end
+* Headroom is what a low supply threatens; the signal itself should not move.
+reset
+alter Vpos = 10.8
+alter Vneg = -10.8
+op
+let low_out = v(OUT1)
+if abs(low_out - 5) < 0.05
+  echo "PASS  a 5 V signal survives a 10% low supply"
+else
+  echo "FAIL  a 5 V signal does not survive a 10% low supply"
+  print low_out
+end
+.endc
+.end

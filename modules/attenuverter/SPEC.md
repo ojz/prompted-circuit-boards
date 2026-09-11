@@ -2,7 +2,7 @@
 
 Two channels of the classic single-op-amp attenuverter. Each channel has an
 input jack, a centre-detent-free 100k pot and an output jack. With nothing
-patched the input is normalled to about +4.8 V, so the channel becomes a
+patched the input is normalled to about +4.7 V, so the channel becomes a
 bipolar offset source.
 
 Design source: `Attenuverter.hs` (module) and `AttenuverterPanel.hs` (panel)
@@ -25,12 +25,51 @@ Per channel (TL072, one op-amp per channel):
 - `R_o` 1k in series with the output jack.
 - Input impedance ≈ 50k (pot ∥ `R_a`).
 
-Offset reference: +12 V → 1.5k / 1k divider → 4.8 V, 100 nF to GND, on the
-jacks' switch (TN) pins. Source impedance 600 Ω against a 50k load gives a
-1 % error, acceptable for an offset knob.
+Offset reference: +12 V → 1.5k / 1k divider, 100 nF to GND, on the jacks'
+switch (TN) pins. The open-circuit arithmetic gives 4.8 V, and that is what
+this line used to claim; simulation says **4.67 V with both channels idle**
+(`sim/interaction.cir`). The difference is two things the arithmetic left
+out: the series Schottky drops the rail to about 11.84 V, and the two
+channels' pots and input resistors load the divider. Nothing depends on the
+exact value -- it is an offset knob -- but the number in a spec should be the
+number the circuit produces.
+
+Patching a cable into one channel lifts that channel's loading off the
+divider and moves the reference. Measured: **+41.8 mV**, which appears at the
+other channel's output at full gain. Under the 50 mV budget in
+`sim/interaction.cir`, and the only cross-channel interaction this circuit
+has.
 
 Power: 2×5 shrouded IDC, series B5819W Schottky on each rail, 10 µF + 100 nF
 per rail. Header pins 1–2 = −12 V, 3–8 = GND, 9–10 = +12 V.
+
+## Simulated behaviour
+
+`toolkit/sim.sh attenuverter` runs the decks in `sim/`. The netlist is
+generated from `Attenuverter.hs`, the same source the board is generated
+from, so it cannot describe a different circuit than the one being built.
+The device models are hand-built from datasheet figures and their limits are
+stated at the top of `modules/_models/devices.lib`.
+
+| Question | Answer | Deck |
+|---|---|---|
+| Does `Vout = (2k − 1)·Vin` hold? | Yes, within 6 mV — the op-amp's 3 mV input offset at a noise gain of 2 | `transfer` |
+| Does ±10 V full scale fit? | Yes, but only just: clipping starts at +10.34 V and −10.37 V | `headroom` |
+| What is the offset reference really? | 4.67 V, not the 4.8 V the open-circuit arithmetic gives | `interaction` |
+| Do the channels interact? | Yes, 41.8 mV: patching one moves the other's idle output | `interaction` |
+| What does a load cost? | 0.99% into 100k, 1.96% into 50k, 9.1% into 10k — the 1k output resistor dividing | `loading` |
+| Will the knob null at centre? | Within −44 to +55 mV on a 5 V input with 1% resistors, so about 1% | `corners` |
+| Does matching affect the gain? | Not at full clockwise: `Vin·(1+g)·k − Vin·g` is exactly `Vin` at k=1 for any g | `corners` |
+| Does a 10% low supply matter? | Not to the signal; it moves the offset reference to 4.22 V | `corners` |
+| Does it keep up at 20 kHz full scale? | Amplitude error 0.05%. The 137 mV of instantaneous error is 0.8° of phase lag, not amplitude | `transient` |
+
+**This is simulation, not measurement.** No board has been built or probed.
+The netlist carries no parasitics, no component tolerances unless a deck
+sweeps them, and the op-amp model accounts for quiescent supply current only
+— it does not draw load current from the rails, so nothing here is evidence
+about power consumption under load. Overload behaviour is a clamp in the
+model, not an output stage, so where clipping *starts* is meaningful and
+what happens beyond it is not.
 
 ## Panel (30.0 × 128.5 mm, Doepfer 6HP)
 

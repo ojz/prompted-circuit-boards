@@ -1,0 +1,64 @@
+* UTIL-01 channel 1: what does a load do to the output?
+*
+* There is a 1k resistor in series with the output jack (R3), there to
+* protect the op-amp from a patch cable shorted to ground. It also forms a
+* divider with whatever the module is plugged into.
+*
+* Eurorack inputs are usually 100k or so; this module's own input is about
+* 50k, which is the realistic worst case when one of these feeds another.
+* 10k and 1k are here to show the shape, not because anything sane presents
+* them.
+*
+* Budget: under 2.5% loss into a 50k load. That is the chaining case, and a
+* 2% divider loss on a utility's output is ordinary; the number to argue
+* with is whether 1k of protection is worth 2% of amplitude.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+.param rp1=1m
+Vsig CABLE1 0 DC 5
+Rp1  CABLE1 IN1 {rp1}
+* The thing being driven, swapped by the control section.
+.param rload=1T
+Rload OUT1 0 {rload}
+
+.control
+alterparam norm_J1 = 1G
+alterparam k_RV1 = 1
+
+* Unloaded reference.
+alterparam rload = 1T
+reset
+op
+let t = v(OUT1)
+set open_v = $&t
+echo "--- output loading, unity gain, 5 V in ---"
+echo "unloaded: $open_v V"
+
+foreach rl 100k 50k 10k 1k
+  alterparam rload = $rl
+  reset
+  op
+  let loaded = v(OUT1)
+  let loss_pct = 100 * ($open_v - loaded) / $open_v
+  echo "load $rl:"
+  print loaded loss_pct
+end
+
+* The one that has to pass: another module of this kind on the end.
+alterparam rload = 50k
+reset
+op
+let l50 = v(OUT1)
+let err = 100 * abs($open_v - l50) / $open_v
+if err < 2.5
+  echo "PASS  under 2.5% loss into a 50k load"
+else
+  echo "FAIL  too much loss into a 50k load"
+  print err
+end
+.endc
+.end

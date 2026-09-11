@@ -34,6 +34,7 @@ library
         Emit.Schematic
         Emit.Pcb
         Emit.Project
+        Emit.Spice
         Route.Geometry
         Route.Analog
         Route.Coupling
@@ -60,6 +61,7 @@ test-suite pcbgen-test
     main-is:          Main.hs
     other-modules:    Harness
                       AnalogTests
+                      SpiceTests
                       ValidateTests
                       RouteTests
                       BenchTests

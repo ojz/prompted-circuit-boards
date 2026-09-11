@@ -1,0 +1,55 @@
+* UTIL-01 channel 1: does a full-scale Eurorack signal fit?
+*
+* Eurorack signals run to about +/-10 V, and at full clockwise this module
+* has a gain of +1, so the output has to reach +/-10 V to pass one through
+* unharmed. The rails are +/-12 V before a series Schottky takes about
+* 0.15 V off each, and the op-amp stops about 1.5 V short of its rails, so
+* the arithmetic says roughly +/-10.3 V and the margin is thin enough to be
+* worth checking rather than asserting.
+*
+* What this deck does NOT establish. The model clamps its output at the rail
+* limit, which is a clamp and not an output stage: it says where clipping
+* starts, and nothing at all about what a real TL072 does when overdriven.
+* JFET-input parts can invert phase on input overload, and nothing here
+* would show that. "Safe under overload" is not a claim this file supports.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+.param rp1=1m
+Vsig CABLE1 0 DC 0
+Rp1  CABLE1 IN1 {rp1}
+
+.control
+alterparam norm_J1 = 1G
+alterparam k_RV1 = 1
+reset
+
+* Full scale, both polarities: the output should still be following.
+dc Vsig -10 10 20
+let e_neg = abs(v(OUT1)[0] + 10)
+let e_pos = abs(v(OUT1)[1] - 10)
+if (e_neg < 0.025) & (e_pos < 0.025)
+  echo "PASS  a +/-10 V signal passes at unity gain"
+else
+  echo "FAIL  a +/-10 V signal does not pass cleanly"
+  print e_neg e_pos
+end
+
+* Where does it actually stop following? Sweep past the rails and find the
+* largest output either way.
+dc Vsig -15 15 0.1
+let top = maximum(v(OUT1))
+let bot = minimum(v(OUT1))
+echo "--- clipping ---"
+print top bot
+
+if (top > 10.0) & (bot < -10.0)
+  echo "PASS  clipping starts outside the +/-10 V signal range"
+else
+  echo "FAIL  clipping starts inside the +/-10 V signal range"
+end
+.endc
+.end

@@ -7,6 +7,152 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-11, session 8: the first electrical evidence
+
+The roadmap's timebox on routing research had run out and module work had
+stalled: two modules, none new, four sessions of toolkit. M4's circuit
+evidence is the next gate and the ngspice work made one of its bullets cheap,
+so this session took it. The attenuverter now has simulated evidence where it
+previously had arithmetic in a spec file and nothing else.
+
+### The netlist is generated, the experiment is not
+
+`Emit/Spice.hs` writes a SPICE netlist from the same `Module` the board comes
+from. That is the whole point: a hand-written deck can quietly describe a
+different circuit than the one being fabricated, and then every result is
+about a circuit nobody is building. Topology comes from `modNets`, values
+from `partValue`, and the generator refuses rather than guesses -- on a part
+it cannot model, on a value it cannot read, and on two nets that would become
+the same SPICE node.
+
+What is hand-written is the experiment: decks in `modules/<name>/sim/` that
+`.include` the netlist and echo PASS or FAIL. `toolkit/sim.sh <name>`
+regenerates the netlist, runs every deck and fails closed; tightening a
+tolerance until a deck fails was checked to produce exit 1.
+
+Device models are in `modules/_models/devices.lib`, hand-built from datasheet
+figures rather than taken from vendor files. That was a choice: every
+parameter can be traced to a published number, which is what M4 asks for, and
+there is no redistribution question. The cost is that the models capture only
+what they were built to capture, and that list is written at the top of the
+file.
+
+### What the simulation says about the attenuverter
+
+Six decks, twelve assertions, all passing:
+
+| Question | Answer |
+|---|---|
+| Does `Vout = (2k-1)*Vin` hold? | within 6 mV across the rotation |
+| Does +/-10 V full scale fit? | yes, just: clipping at +10.34 and -10.37 V |
+| What is the offset reference? | **4.67 V, not the 4.8 V in the spec** |
+| Do the channels interact? | **yes, 41.8 mV when one is patched** |
+| What does a load cost? | 0.99% into 100k, 1.96% into 50k, 9.1% into 10k |
+| Will the knob null at centre? | -44 to +55 mV on 5 V in, with 1% resistors |
+| Does matching affect the gain? | not at k=1, where it cancels exactly |
+| Does a 10% low supply matter? | not to the signal; the reference drops to 4.22 V |
+| Does it keep up at 20 kHz? | amplitude error 0.05% |
+
+The 6 mV is not slop. It is the op-amp's 3 mV input offset at a noise gain of
+2, which is exactly what the circuit should do, and seeing the expected number
+come out is the reason to trust the rest.
+
+**The offset reference is wrong in SPEC.md.** The spec said 4.8 V, from
+12 V through a 1.5k/1k divider. The circuit produces 4.67 V, because the
+series Schottky drops the rail to 11.84 V and the two channels' pots and
+input resistors load the divider. Nothing depends on the exact value -- it is
+an offset knob -- but a spec should carry the number the circuit produces.
+Corrected, with the reason.
+
+**Patching one channel moves the other by 41.8 mV.** SPEC.md already flagged
+the shared supply-derived offset as a risk; this measures it. Inserting a
+plug lifts that channel's loading off the divider, the reference rises, and
+the other channel's idle output follows at full gain. Under the 50 mV budget
+written into the deck, but not by much, and it is the only cross-channel
+interaction this circuit has.
+
+**Headroom is 0.35 V.** Full-scale Eurorack is +/-10 V and clipping starts at
+about +/-10.35 V. It passes, with less margin than one might assume.
+
+### Five bugs, all found by disbelieving a result
+
+Two in the generator, both producing netlists that read perfectly well:
+
+- `+12V` and `-12V` both scrubbed to `_12V`, so **the supply rails were one
+  node** and the op-amp had V+ and V- shorted together. Found by reading the
+  emitted file. Signs now survive scrubbing, and `nodeCollisions` refuses any
+  design where two nets would still land on one node.
+- Diodes came out reversed. KiCad numbers a diode's **cathode 1 and anode 2**
+  -- checked in `Device.kicad_sym` rather than assumed -- and SPICE wants the
+  anode first. Both protection diodes were backwards and the netlist
+  simulated happily.
+
+Two in the decks, both of which produced a confident FAIL that was not real:
+
+- `reset` starts a new ngspice plot, so vectors captured before it are gone.
+  The "idle" baseline was reading as zero and the interaction test failed by
+  4.7 V. Values now go into shell variables, which survive.
+- The patch-cable source was wired to the jack tip unconditionally, so with
+  the normalling switch closed it drove the shared reference to 5 V through a
+  milliohm. A plug does two things at once and the deck has to do both: open
+  the switch *and* connect the source.
+
+The second pair is the more interesting one. A failing test that agrees with
+a suspicion is the easiest thing in the world to believe.
+
+A fifth bug, and the most instructive, was in what a test measured rather
+than in how it ran. The transient deck first compared the output against the
+input instant by instant and failed at 137 mV. That number is real and it is
+almost entirely **phase lag**: 3 MHz of gain-bandwidth in a noise-gain-of-2
+loop puts the closed-loop pole near 1.5 MHz, which is 0.8 degrees at 20 kHz,
+and 0.8 degrees on a 10 V sine is 130 mV of instantaneous difference while
+the amplitude is untouched. Asserting on it would have been demanding that a
+utility module be phase-linear to a fraction of a degree. The deck now
+measures amplitude, which is what "keeps up with audio" means, and reports
+the phase figure beside it.
+
+### Not run, not done, not proven
+
+- **Nothing has been measured.** No board built, nothing probed. Every number
+  above is a model.
+- The op-amp model draws quiescent supply current but does **not** draw load
+  current from the rails, so nothing here is evidence about power consumption
+  under load -- one of M4's explicit bullets.
+- Output overload is a clamp, not an output stage. Where clipping starts is
+  meaningful; what happens past it, including JFET-input phase inversion, is
+  not modelled at all.
+- The mult has no simulation. It is passive, so there is less to learn, but
+  "less" is not "nothing": its jack normalling and the pours are worth a look.
+- M4's non-simulation bullets are untouched: datasheet provenance with source
+  URLs, the mechanical stack, itemised cost and stock, the assembly views and
+  the first-power-up guide.
+- M3's CI and dependency pinning are still owed.
+
+### Next action
+
+**M4's remaining bullets, which are paperwork rather than engineering.** The
+simulation side is done for the attenuverter: transfer, headroom, loading,
+corners, interaction and transient all have decks and all pass. What is left
+before anything can be ordered is the part that has to be right and does not
+need the cards to have arrived:
+
+- Datasheet provenance for every part, with source URLs and versions. The
+  models in `modules/_models/` cite figures; the parts themselves do not yet
+  have recorded sources.
+- The mechanical stack: XY alignment, jack body and bushing heights,
+  PCB-to-panel spacing, knobs, nuts, rails and their tolerances.
+- Itemised cost and stock against JLCPCB, and the hand-parts list.
+
+The mult deserves a short simulation pass too -- it is passive, so there is
+less to learn, but its jack normalling is worth confirming.
+
+One thing to weigh rather than assume: the 0.35 V of headroom over full
+scale. It passes, and it is thinner than a utility module usually wants. If
+anyone wants margin there it is a circuit change, not a layout one, and it
+should be decided before the board is ordered rather than after.
+
+---
+
 ## 2026-09-11, session 7: the router routes against the circuit
 
 The measurement from session 6 is now an objective the router optimises. On
