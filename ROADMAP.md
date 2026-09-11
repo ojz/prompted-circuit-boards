@@ -14,6 +14,7 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | First priority | A reliable agent-driven design, verification, and export workflow |
 | Long-term modules | Serge DUSG (Dual Universal Slope Generator) and SSG (Smooth & Stepped Generator) behavior and patching possibilities |
 | Fidelity | Musical behavior matters more than historical circuitry; modern components are acceptable |
+| Precision | Precision-first, confirmed 2026-09-11: accuracy, stability and channel independence are default requirements, including pitch CV; invest extra agent effort before fabrication |
 | Human role | Describe features, choose between explained alternatives, approve purchases, install larger parts, and perform guided measurements |
 | Agent role | Own design code, tooling, sourcing research, calculations, checks, documentation, and troubleshooting |
 | Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, and other suitable large parts |
@@ -30,6 +31,29 @@ Python installations, interpret a DRC report unaided, or invent a test plan.
 The agent must explain choices in terms of musical behavior, cost, risk, and
 work required from the user. It must not invent measurements or treat its own
 confidence as evidence that a circuit works.
+
+### Precision-First Design
+
+The user explicitly prefers more design and validation effort over accepting
+avoidable inaccuracy. Do not present precision as an optional upgrade whose
+only cost is more tokens. The agent must derive justified numerical limits,
+express pitch-CV errors in cents as well as volts, and check gain, offset,
+loading, channel interaction, noise, drift and headroom across a stated
+operating envelope. A nominal simulation pass is not a worst-case guarantee.
+
+For the attenuverter, the existing 41.8 mV simulated channel-patching shift
+is an open precision defect, not an accepted compromise. The historical
+50 mV test budget is not a precision acceptance limit. Define the complete
+error budget, improve the design and update the tests before recommending an
+order; do not weaken limits to accommodate the existing circuit. Track
+remaining physical verification explicitly in the prototype test plan.
+
+Precision is relative to intended behavior: controlled distortion or drift
+can be a requested musical feature, but unintended detuning and channel
+interaction are not. Additional analysis is authorized; material cost,
+architecture and scope changes still need explained decisions, and purchases
+still need approval. Use measurable acceptance gates, not an unbounded quest
+for more simulated decimal places.
 
 ## Stack Decision
 
@@ -108,6 +132,22 @@ Milestones are acceptance gates, not weekly deadlines. Split each into work
 items that fit the available session budget. A later stage must not assume
 that an earlier stage's artifacts, equipment, or approvals exist.
 
+### Routing Research Wishlist
+
+- **Joint placement and routing: planned, not implemented.** Previously agreed
+  in the 2026-09-10 research direction and reaffirmed 2026-09-11. Search over
+  eligible component positions/orientations together with copper routes,
+  rather than optimise routing around a single fixed placement.
+- Keep panel-mounted parts and other declared mechanical anchors fixed;
+  declare allowed moves for other parts, assembly side, body clearances and
+  circuit-local constraints. Generation remains deterministic and code-first,
+  with no learned model choosing positions or copper in the generation loop.
+- Prerequisites: explicit movement constraints and a trustworthy benchmark
+  with independent native DRC and equivalent rules for each strategy. Show
+  an improvement in completion or electrical margins on held-out boards
+  against fixed placement within a stated compute budget; shorter copper
+  alone does not establish a better analog design.
+
 ### M1: Make Invalid Designs Fail
 
 Prerequisites: current design model and the review reproductions above.
@@ -159,7 +199,7 @@ Prerequisites: M3 and the existing attenuverter as the end-to-end test vehicle.
 The passive mult can be a mechanical/soldering exercise, but does not prove
 active-circuit design. Do not enlarge the utility's feature set to fill time.
 
-- Define the utility's operating envelope and tolerances. Account for knob-dependent input loading, the shared supply-derived offset, output loading, input headroom, patch faults, startup, and power consumption.
+- Define the utility's operating envelope and a precision error budget. Account for knob-dependent input loading, the shared supply-derived offset, output loading, gain/offset error, noise, temperature drift, input headroom, patch faults, startup, and power consumption. The current channel-patching shift is a defect to resolve, not a precision pass.
 - Obtain exact IC, diode, passive, jack, pot, and header identities and relevant datasheets. Record source URLs, document/model versions, permitted redistribution, and missing evidence. Library agreement is not a datasheet check.
 - Add readable functional schematic views and parameterized tests for the actual circuit. Simulate DC transfer, loading, both channels' interaction, transients, and relevant tolerance/supply corners. State model limitations, especially overload and protection behavior.
 - Review layout by circuit function, local feedback/decoupling, sensitive-node routing, and return paths. Check manufacturing constraints against the selected assembly service; triage heuristic EMC/thermal results instead of interpreting scores as approval.
@@ -301,12 +341,15 @@ M1-M2 are closed, M3 has working local gates but no CI or dependency pinning,
 and M4 has attenuverter simulation evidence but no measured prototype. See
 [HANDOFF.md](HANDOFF.md) for commands, results and model limitations.
 
-Next: build the attenuverter's exact-part and datasheet evidence record,
-checking pin/package mapping, ratings and the supply/load conditions behind
-its headroom claim. The roughly 0.35 V nominal simulated margin is not a
-guaranteed operating envelope. Any circuit change to widen it is the user's
-decision. Follow with the mult's short simulation pass and mechanical-stack
-validation; no panel art or purchases are needed for these checks.
+Next: derive the attenuverter's precision error budget from its intended
+pitch-CV use and exact-part/datasheet evidence. Cover source and output loading,
+reference/channel interaction, gain/offset, drift and headroom, with limits
+expressed in volts and cents where applicable. The 41.8 mV patching shift
+needs correction; the roughly 0.35 V nominal headroom is not a guaranteed
+operating envelope. Present a supported circuit improvement with its cost
+and assembly implications, then implement and validate the chosen design.
+Follow with the mult's short simulation pass and mechanical-stack validation;
+no panel art or purchases are needed for these checks.
 
 CI and reproducible dependencies remain a parallel M3 obligation, requiring
 a runner with KiCad 10 and its libraries. Do not treat local test passes as

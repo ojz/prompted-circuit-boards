@@ -11,6 +11,24 @@ with `cabal run pcbgen -- all` from the repo root, verify with
 `toolkit/check.sh attenuverter [panel]`, fab bundle with
 `toolkit/fab.sh attenuverter`. Do not edit the generated KiCad files.
 
+## Precision Requirement (2026-09-11)
+
+Precision, including pitch-CV accuracy and stability, is a requirement rather
+than an optional upgrade. The circuit and simulation results below describe
+the current implementation, not an accepted precision design.
+
+The roughly 41.8 mV channel-patching shift is an open defect to correct before
+recommending an order. Its historical 50 mV test budget does not establish
+precision suitability. The agent must derive a numerical error budget covering
+gain, offset, input/output loading, channel independence, noise, supply and
+temperature drift, and headroom. Express pitch errors in cents at 1 V/octave
+as well as volts, with explicit operating conditions and model limitations.
+
+Those limits and circuit improvements are not implemented yet. The existing
+decks remain characterization/regression evidence; they must be extended with
+the new acceptance limits and meaningful corners, not loosened to pass. Real
+accuracy must ultimately be checked with a board-specific measurement plan.
+
 ## Circuit
 
 Per channel (TL072, one op-amp per channel):
@@ -31,14 +49,15 @@ this line used to claim; simulation says **4.67 V with both channels idle**
 (`sim/interaction.cir`). The difference is two things the arithmetic left
 out: the series Schottky drops the rail to about 11.84 V, and the two
 channels' pots and input resistors load the divider. Nothing depends on the
-exact value -- it is an offset knob -- but the number in a spec should be the
-number the circuit produces.
+exact nominal value for basic knob operation, but reference stability matters
+for pitch use; the current supply-derived divider is not a precision reference.
 
 Patching a cable into one channel lifts that channel's loading off the
 divider and moves the reference. Simulated: **+41.8 mV**, which appears at the
-other channel's output at full gain. Under the 50 mV budget in
-`sim/interaction.cir`; this is a DC shift through the shared reference, not a
-complete bound on all possible cross-channel effects.
+other channel's output at full gain. It passes the historical 50 mV budget in
+`sim/interaction.cir`, but does not meet the precision-first requirement above.
+This is a DC shift through the shared reference, not a complete bound on all
+possible cross-channel effects.
 
 In practical terms, with channel 2's input empty and its knob fully clockwise,
 its output changes from about +4.67 V to +4.71 V when a cable is inserted into
@@ -139,6 +158,7 @@ vertically, 108 mm tall so it clears every rail type.
 
 ## Status
 
+- Precision acceptance pending: correct channel interaction and establish the full error budget before recommending an order; existing simulation passes are not precision approval.
 - Module and panel generated; ERC and DRC clean with every severity enabled.
 - Autorouted: 16 nets, 6 vias, 1.13 detour ratio, 11 negotiation iterations.
 - JLCPCB bundle via `toolkit/fab.sh attenuverter` (SMD assembly, back side).

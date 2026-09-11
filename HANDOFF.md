@@ -7,6 +7,44 @@ session first. Each entry records what was actually run, what passed, what was
 
 ---
 
+## 2026-09-11: precision-first requirements (GitHub Copilot)
+
+### Decisions recorded
+
+- The user wants precision-first design throughout the project, including
+  pitch CV. Additional agent effort is preferred over avoidable inaccuracy;
+  do not repeatedly ask whether precision is worth more tokens. Material
+  hardware cost, architecture/scope decisions and purchases remain separate.
+- The attenuverter's roughly 41.8 mV simulated channel-patching shift is now
+  explicitly an open precision defect. Passing the old 50 mV assertion is
+  characterization of the current circuit, not satisfaction of the new goal.
+  No new numerical error budget has yet been established.
+- Joint placement/routing was already in session 3's agreed direction. It is
+  now an explicit planned item in `ROADMAP.md`, with fixed mechanical anchors,
+  declared movable parts, deterministic search and independent comparison
+  against fixed placement. It is not implemented or required before every
+  otherwise acceptable prototype.
+
+### Verification and limits
+
+Documentation-only update to `AGENTS.md`, `ROADMAP.md` and the attenuverter
+specification, plus this handoff. Documentation diagnostics and
+`git diff --check` are the checks for this update. No circuit, layout, router,
+device model or simulation assertion was changed; electrical tests and native
+ERC/DRC were not rerun. No new measured or simulated performance is claimed.
+
+### Next action
+
+Derive a defensible precision error budget using the existing circuit and
+manufacturer evidence, including gain/offset, source/output loading, channel
+interaction, drift, noise and headroom over stated operating conditions.
+Express pitch consequences in cents. Use that budget to propose circuit
+improvements and acceptance tests, with cost and assembly implications. The
+inputs needed are design and part evidence, not payment cards; physical
+confirmation remains a later hardware gate.
+
+---
+
 ## 2026-09-11, session 9: work-laptop validation (GitHub Copilot)
 
 Pulled Fable's work with `git pull --ff-only`: 12 commits from `1ede48e` to
