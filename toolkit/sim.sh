@@ -68,11 +68,23 @@ for deck in "$simdir"/*.cir; do
   echo
   echo "-- $(basename "$deck")"
   out="$("$ngspice" -b "$deck" 2>&1)"
+  simulator_status=$?
+  if [ "$simulator_status" -ne 0 ]; then
+    echo "   ngspice exited with status $simulator_status:"
+    printf '%s\n' "$out" | tail -n 15 | sed 's/^/     /'
+    fails=$((fails + 1))
+    continue
+  fi
   # ngspice reports a bad deck on stderr and still exits 0 often enough that
   # its exit code is not worth trusting on its own.
   if printf '%s\n' "$out" | grep -qiE "^ *error|fatal|singular matrix|no such vector"; then
     echo "   ngspice reported a problem:"
     printf '%s\n' "$out" | grep -iE "^ *error|fatal|singular matrix|no such vector" | sed 's/^/     /'
+    fails=$((fails + 1))
+    continue
+  fi
+  if ! printf '%s\n' "$out" | grep -qE '^(PASS|FAIL)([[:space:]]|$)'; then
+    echo "   no PASS/FAIL assertions reported"
     fails=$((fails + 1))
     continue
   fi
@@ -82,6 +94,10 @@ for deck in "$simdir"/*.cir; do
 done
 
 echo
+if [ "$decks" -eq 0 ]; then
+  echo "== $name: no simulation decks found" >&2
+  exit 1
+fi
 if [ "$fails" -eq 0 ]; then
   echo "== $name: $decks decks, 0 failed"
   echo "   Simulated, not measured. No board has been built or probed."

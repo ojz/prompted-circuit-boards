@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fault-injection tests for toolkit/check.sh and toolkit/fab.sh. Run from the
+# Fault-injection tests for check.sh, fab.sh and sim.sh. Run from the
 # repository root; takes a few minutes (two real check.sh runs).
 #
 #   toolkit/test-scripts.sh
@@ -187,6 +187,39 @@ if "$HERE/fab.sh" "_tests/scripts-scratch/drcfail/$FIXTURE" > "$LOG" 2>&1; then
 else
   pass "c: fab.sh refuses after the failed check"
 fi
+
+echo "== s: sim.sh rejects failed or empty simulations"
+SIM_ROOT="$SCRATCH/sim"
+mkdir -p "$SIM_ROOT/toolkit" "$SIM_ROOT/bin" "$SIM_ROOT/modules/fixture/sim"
+SIM_ROOT="$(cd "$SIM_ROOT" && pwd)"
+cp "$HERE/sim.sh" "$SIM_ROOT/toolkit/sim.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$SIM_ROOT/bin/cabal"
+cat > "$SIM_ROOT/bin/ngspice" <<'STUB'
+#!/usr/bin/env bash
+case "$SIM_STUB_MODE" in
+  pass) echo 'PASS stub assertion' ;;
+  fail) echo 'FAIL stub assertion' ;;
+  error) echo 'Error: stub simulator error' >&2 ;;
+  empty) : ;;
+  exitfail) echo 'PASS stub assertion'; exit 9 ;;
+esac
+STUB
+chmod +x "$SIM_ROOT/bin/cabal" "$SIM_ROOT/bin/ngspice"
+printf '%s\n' '* synthetic netlist' > "$SIM_ROOT/modules/fixture/sim/fixture.cir"
+sim_expect() {
+  local description="$1" mode="$2" expected="$3" diagnostic="$4" status=0
+  env PATH="$SIM_ROOT/bin:$PATH" NGSPICE="$SIM_ROOT/bin/ngspice" \
+    SIM_STUB_MODE="$mode" bash "$SIM_ROOT/toolkit/sim.sh" fixture > "$LOG" 2>&1 || status=$?
+  expect "$description exits $expected" test "$status" = "$expected"
+  expect "$description names the result" log_has "$diagnostic"
+}
+sim_expect "s: no experiment decks" pass 1 "no simulation decks found"
+printf '%s\n' '* synthetic experiment' > "$SIM_ROOT/modules/fixture/sim/test.cir"
+sim_expect "s: simulator fails despite printing PASS" exitfail 1 "ngspice exited with status 9"
+sim_expect "s: simulator reports no assertions" empty 1 "no PASS/FAIL assertions reported"
+sim_expect "s: simulator reports an error despite exiting 0" error 1 "ngspice reported a problem"
+sim_expect "s: failed assertion" fail 1 "1 decks, 1 failed"
+sim_expect "s: successful assertion" pass 0 "1 decks, 0 failed"
 
 echo
 echo "== test-scripts.sh: $PASS passed, $FAIL failed"
