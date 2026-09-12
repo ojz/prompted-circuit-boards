@@ -1,14 +1,17 @@
 ---
 status: "maintained"
-owner: "user direction, maintained by collaborating agents"
+owner: "the agent is responsible for keeping this roadmap current; the user sets direction and decides"
 read_when: "selecting work, defining acceptance limits, or evaluating a scope/cost tradeoff"
-update_when: "a direction, gate or priority changes; keep detailed run evidence in HANDOFF.md"
+update_when: "a direction, gate, round or priority changes, or a round completes; the agent updates it in the same checkpoint, not later"
 retire_when: "the project direction is replaced; merge lasting decisions and remove obsolete plans rather than archiving copies"
 ---
 
-# Roadmap: From A Musical Idea To A Tested Module
+# Roadmap: From A Musical Idea To A Playable Row
 
-Updated: 2026-09-11. Status: M1-M2 complete; M3 lacks CI; M4 has the attenuverter error budget and an open parts decision; no measured prototype.
+Updated: 2026-09-12. Status: M1-M2 complete; M3 lacks CI; M4 is the method
+rehearsal on the attenuverter (option B in flight); no board has been built or
+measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
+with a five-board system designed around the five-board fabrication minimum.
 
 ## Goal And Constraints
 
@@ -20,18 +23,19 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | Decision | Direction |
 |---|---|
 | First priority | A reliable agent-driven design, verification, and export workflow |
-| Long-term modules | Serge DUSG (Dual Universal Slope Generator) and SSG (Smooth & Stepped Generator) behavior and patching possibilities |
+| The instrument | A five-board system that is roughly one 84 HP row: IO + Mixer (power and world interface), Slope + VCA, Resonant Filter + VCA, Stepped/Smooth Generator + Noise, Boolean + Clock. Serge-style: the slope and the filter are the oscillators |
 | Fidelity | Musical behavior matters more than historical circuitry; modern components are acceptable |
 | Circuit approach | Reuse established circuit topologies and documented reference designs; improve precision and validation rather than inventing circuitry for novelty |
 | Precision | Precision-first, confirmed 2026-09-11: accuracy, stability and channel independence are default requirements, including pitch CV; invest extra agent effort before fabrication |
-| Human role | Describe features, choose between explained alternatives, approve purchases, install larger parts, and perform guided measurements |
-| Agent role | Own design code, tooling, sourcing research, calculations, checks, documentation, and troubleshooting |
-| Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, and other suitable large parts |
+| Human role | Describe features, choose between explained alternatives, approve purchases, install larger parts, and perform guided measurements and calibration |
+| Agent role | Own design code, tooling, sourcing research, calculations, checks, documentation, measurement scripts, and troubleshooting |
+| Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, trimmers and other suitable large parts |
 | Work cadence | Approximately one session per week, using a variable remaining token budget; progress must survive gaps and model changes |
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
-| Home lab | Start from an empty bench; EUR 500-1000 initial budget, purchased in stages from Belgium/EU-compatible sources |
-| Front panels | Deferred 2026-09-10; the modules work without them and the art is a separate project |
-| Eurorack case | Deferred and budgeted separately; first boards use a safe, current-limited test setup |
+| Home lab | Start from an empty bench; EUR 500-1000 was the initial envelope, and the researched list ([HOMELAB.md](HOMELAB.md)) exceeds it: about EUR 1,680 for assembly plus measurement. Purchased in stages from bol.com with the user's debit card; the envelope decision is the user's. Fabrication orders still wait on the user |
+| System power | The IO board supplies the system from USB-C Power Delivery; a current-limited bench supply is still required to test that board itself and for every first power-up |
+| Front panels | Deferred 2026-09-10; boards can be bench-tested lying flat, and the art is a separate project |
+| Eurorack case | Deferred and budgeted separately; needed when the row is assembled as an instrument |
 | Release intent | Personal instrument; a public repository is acceptable, but commercial readiness is not a current goal |
 | Stack policy | Code-first and headless; retain working pieces and replace weak ones on evidence |
 
@@ -63,6 +67,13 @@ interaction are not. Additional analysis is authorized; material cost,
 architecture and scope changes still need explained decisions, and purchases
 still need approval. Use measurable acceptance gates, not an unbounded quest
 for more simulated decimal places.
+
+**Pitch tracking is now a system requirement**, because the slope and the
+filter are the oscillators. Proposed limit, to be confirmed by the user:
+within ±2 cents over 5 octaves and ±5 cents over 8, from 15 to 35 °C. It is
+met by one exponential-converter block (matched transistor pair, temperature
+compensating resistor, scale and high-frequency trimmers) designed once and
+calibrated per board on the bench.
 
 ### Cost Is Not An Optimisation Target
 
@@ -98,9 +109,8 @@ not do what it was meant to. JLCPCB treats any board with a dimension of
 30 mm or less as a small board and applies handling charges; a 4 HP PCB is
 18.0 mm wide and a 6 HP PCB is 28.0 mm, so both attract them, and **8 HP
 (38.3 mm PCB) is the first width that clears the threshold**. The 4 HP floor
-stands as stated; whether it becomes 8 HP is the user's call, and the charge
-involved is small and not yet confirmed against an invoice
-([JLCPCB.md](JLCPCB.md)).
+stands as stated; in practice every board in the planned system is 12 HP or
+wider, so the question is moot until a small module is proposed.
 
 **Height: the PCB drops from 108 mm to 100 mm** (`eurorackPcbHeight`), or the
 100 x 100 tier is missed regardless of width. This is feasible for the
@@ -110,35 +120,38 @@ breaking placement. Apply it inside the option B rework that re-lays the board
 anyway, and require it of every new module.
 
 **No doubling up.** Every order is five boards, so a dual VCA yields ten VCAs.
-Instead, one board combines *different* functions: a VCA with a precision
-attenuverter, half a DUSG with a VCA on its output, and so on -- small analog
-computers. Five identical filters is acceptable because five filters are
-useful; ten attenuverters are not.
+Instead, one board combines *different* functions: a slope generator with a
+VCA, a filter with a drive VCA, a random generator with its own noise source,
+a power supply with a world interface and a mixer -- small analog computers.
+Five identical filters is acceptable because five filters are useful; ten
+attenuverters are not.
 
-**Chainability is a requirement, not a feature.** CV inputs get buffered
-thru/mult jacks so that one control voltage feeds several modules without an
-external mult, and sequencing modules are designed from the start to link to
-each other. Record the linking scheme in the first sequencer's SPEC before its
-board exists.
+**Chaining is done with dedicated jacks, not CV thrus.** Clock out, reset out,
+end-of-rise and end-of-fall triggers, and a divider's /16 output let board n
+drive board n+1. Buffered CV thru/mult jacks were considered and dropped for
+now (2026-09-11) to keep the panels manageable; revisit if patching proves it
+necessary. A sequencer designed so five boards chain into one is parked, not
+rejected.
 
-**The filter is a slight adaptation of Mutable Instruments Ripples**, with
-chaining built in and possibly an added output. Two consequences follow before
-any drawing is copied. Ripples' hardware is licensed CC-BY-SA 3.0: any module
-derived from it, and its documentation, carries the same license and credits
-the original, and the Mutable Instruments name, a registered trademark, does
-not appear on the module. And Ripples provides 2-pole BP, 2-pole LP and 4-pole
-LP outputs and no high-pass; an HP output is therefore an addition. From a
-cascaded OTA low-pass ladder it would be subtractive (input minus LP), which
-is not a state-variable high-pass and has its own phase behaviour, so it is
-claimed only after a deck shows its response.
+**The filter is a drive stage into a resonant state-variable filter**, with the
+Sherman Filterbank's input overdrive and first filter as the *behavioural*
+reference. No Sherman schematic is published or licensed, so nothing is
+copied; the SVF-plus-drive topology is generic and gives LP, BP, HP and notch
+simultaneously. What can be shown by a deck is the drive stage's transfer
+curve, the filter's response and resonance range, the oscillation frequency
+against V/Oct, and the feedback path's stability; that it *sounds like* a
+Sherman cannot be, and is not claimed. The earlier Ripples direction is
+withdrawn.
 
 ### Proven Circuit Reuse
 
-Start from established attenuverter, buffer, reference, protection, integrator
-and sample/hold approaches where they meet the required behavior. Reuse is
-not evidence by itself: verify the exact implementation, parts, operating
-conditions, stability and error budget. Track manufacturer documents and
-source/licensing restrictions before reusing published drawings or models.
+Start from established attenuverter, buffer, reference, protection, integrator,
+exponential-converter and sample/hold approaches where they meet the required
+behavior. Reuse is not evidence by itself: verify the exact implementation,
+parts, operating conditions, stability and error budget. Track manufacturer
+documents and source/licensing restrictions before reusing published drawings
+or models; a commercial product with no published schematic is a behavioural
+reference only.
 
 Only propose a new circuit topology when a concrete requirement cannot be
 met adequately by a proven approach. This is distinct from topological
@@ -157,9 +170,10 @@ itself, fix the missing electrical and manufacturing guarantees.
 | KiCad 10 libraries and CLI | Keep as the CAD target and independent native checker; no GUI dependency | Supported versions and library inputs are recorded; clean-checkout generation and checks reproduce |
 | Custom grid router | Keep on probation for simple routing, not as an analog design authority | No silent incomplete routing, accidental SMD via-in-pad, or disconnected pre-route assumptions; critical analog constraints are respected |
 | KiKit | Keep for fabrication and assembly exports behind an enforced release gate | Generated layers, drills, BOM, placement coordinates, sides, and part rotations survive end-to-end checks |
-| SPICE | Add a pinned, headless ngspice workflow unless a tested compatibility need favors another simulator | Executable, model provenance, complete test circuits, assertions, and useful failure reports work on the supported workstation |
+| SPICE | Pinned, headless ngspice with hand-built, datasheet-sourced device models | Executable, model provenance, complete test circuits, assertions, and useful failure reports work on both workstations |
 | Datasheets and sourcing | Add structured part records and a local evidence cache; use distributor helpers as replaceable adapters | Exact part identity, package, pin mapping, ratings, tolerances, and assembly availability can be checked without relying on a chat assertion |
 | Automated checks | Add real regression tests and CI; retain native ERC/DRC as separate checks | Fault-injection tests fail for the right reason; positive fixture projects still pass |
+| Measurement scripts | Add laptop-driven instrument control for calibration and verification, alongside the guided procedures | A measurement script reports what it read, with instrument identity and settings; it never fills in an unmeasured value |
 | Human review and bench | Required, with agent-authored illustrated procedures | Actual observations and measurements meet stated limits; unreadable or ambiguous results remain unresolved |
 
 Do not reintroduce GUI/MCP automation just to avoid fixing local generator
@@ -193,25 +207,206 @@ simulator false-pass cases live in [../toolkit/test-scripts.sh](../toolkit/test-
 M0 Direction recorded [DONE]
   -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
-  -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11, CI open]
-  -> R0 Routing benchmark [DONE 2026-09-10] -> routing research, timeboxed
-  -> M4 Circuit evidence and complete prototype package [PART DONE; attenuverter simulation]
-  -> human approval -> order -> delivery -> M5 guided build and measurements
-  -> M6 one DUSG core, then the complete module
-  -> M7 one SSG core, then the complete module
+  -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
+  -> R0 Routing benchmark [DONE 2026-09-10]
+  -> M4 Method rehearsal on the attenuverter: option B end to end [IN FLIGHT]
+  -> P1 Shared blocks: exponential converter, gain element, module skeleton
+  -> P2 Five rounds, one board each, in dependency order:
+       R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
+       every round: models -> error budget -> decks -> board -> checks -> approval -> order
+                    -> build -> first power-up -> calibrate -> MEASURE against predictions (M5 gate)
+  -> P4 One row: case, panels, the calibration and first-power-up guide
+  -> P5 Compounding: block library, first one-shot candidate, then the digital control plane
 
-L1 Staged home-lab plan can progress alongside M1-M4.
-L1 equipment, training, and safe test setup must be ready before M5 power-up.
+L1 Home lab (HOMELAB.md) must exist before R1's boards arrive; purchasable now.
+CI (M3) proceeds in parallel and is owed before the first order.
 ```
 
-Milestones are acceptance gates, not weekly deadlines. Split each into work
-items that fit the available session budget. A later stage must not assume
-that an earlier stage's artifacts, equipment, or approvals exist.
+Milestones and rounds are acceptance gates, not weekly deadlines. Split each
+into work items that fit the available session budget. A later stage must not
+assume that an earlier stage's artifacts, equipment, or approvals exist. Rounds
+overlap in practice: the next board is designed while the previous one is at
+the fab. At roughly one session a week, with two to three sessions per board
+plus fabrication lead time, P2 is on the order of six to nine months. That is
+a shape, not a promise.
+
+### M1: Make Invalid Designs Fail [DONE]
+
+Gate met 2026-09-09: the four wiring faults are rejected with useful
+diagnostics, intentional NC cases succeed, and all native-check fixtures pass.
+Retained as regression tests; see Current Baseline.
+
+### M2: Make Routing And Assembly Intent Explicit [DONE]
+
+Gate met 2026-09-09: positive and negative routing/assembly fixtures pass;
+current boards pass native DRC/parity; no SMD pad drills remain. Assembly
+intent is per part (`Factory`, `Hand`, `DNP`, `Mechanical`).
+
+### M3: One Reproducible Pipeline [PART DONE]
+
+`toolkit/pipeline.sh` is the entry point; `check.ok` and the hash-gated
+`fab.sh` make it fail closed; `toolkit/test-scripts.sh` proves the refusals
+fire; `cabal.project.freeze` pins the Haskell dependencies (both workstations
+on GHC 9.6.7 since 2026-09-11).
+
+Open: **CI on a runner with KiCad 10 and its libraries.** This is owed before
+the first order, because an order is the first time a stale local pass would
+cost money. Local test passes do not close this gate.
+
+### M4: Method Rehearsal On The Attenuverter [IN FLIGHT]
+
+The attenuverter is no longer a module the system would order five of; it is
+the **end-to-end rehearsal of the method** every later board repeats, and its
+circuit becomes a library block (it reappears as every CV attenuverter on the
+five boards). Option B is decided
+([decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md)).
+
+- Build OPA2197 and REF5050 models from datasheet figures, with input
+  capacitance and common-mode limits; implement option B; move the PCB to
+  100 mm; regenerate; extend the decks to assert the error budget's limits
+  ([modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md));
+  pass the pipeline; record the limits in SPEC.md; retire the decision file.
+- Factor the reusable parts into the generator: power entry and protection,
+  precision buffer, LED driver, a module skeleton. The second module is where
+  the pattern is paid for.
+- Datasheet provenance with source URLs and versions for every part; the
+  mechanical stack; itemised cost and stock against JLCPCB; assembly views;
+  the first-power-up guide. Paperwork that has to be right.
+
+Gate: every consequential electrical, mechanical, sourcing, and assembly
+assumption has evidence or an explicit bounded experiment; the human receives
+a plain-language preview and an all-in quote. A reviewed prototype candidate
+is allowed to be unbuilt; it must not be labeled bench-tested.
+
+### P1: The Two Blocks The System Stands On
+
+Prerequisites: M4's method and skeleton.
+
+1. **The exponential converter.** Matched transistor pair, temperature
+   compensating resistor, scale and high-frequency trimmers; coarse and fine
+   tune inputs. Deliverables: the device model for the matched pair with
+   thermal coupling, a temperature-sweep deck reporting tracking in cents, the
+   proposed limit confirmed or changed by the user, and the bench calibration
+   procedure the user will perform five times per round. Used by R2 and R3.
+2. **The gain element.** Choose the OTA or VCA part once (the slope's VCA, the
+   filter's drive VCA and the SVF's two integrators all use it), model it from
+   its datasheet, and record its limits. Choose it before R2 is drawn.
+
+Gate: both blocks have models, decks with stated limits, and a written
+calibration or characterisation step; neither has yet been on a board.
+
+### P2: Five Rounds
+
+Each round is the same sequence and the same gate. **The gate is a
+measurement**, not a passing deck: the board is built, powered through a
+current-limited supply, calibrated, and measured against the numbers its decks
+predicted. Discrepancies are explained and the cheapest informative next
+measurement is chosen; a respin gets its own reason, cost and approval.
+
+| Round | Board | What it proves | Why this position |
+|---|---|---|---|
+| R1 | **IO + Mixer** — USB-C PD power supply, ±12 V / +5 V distribution, line-level inputs summed to a mix, independent line-level outputs | The supply is quiet enough for precision boards; the modelled crosstalk chain against a **two-trace coupon** placed on this board's spare area | The user owns no case or supply, so nothing else can be powered or heard. Fully testable alone with a charger, a laptop and a DAW |
+| R2 | **Slope + VCA** — half a DUSG cycling as a tracking triangle VCO, EOR/EOF triggers, VCA normalled to the slope | The exponential-converter block on the simpler circuit; the shared gain element; the first voice | Audible through R1. Proves P1 on the circuit that is easier to reason about |
+| R3 | **Resonant Filter + VCA** — drive stage into a 2-pole SVF, LP/BP/HP/notch, feedback path, tracking at self-oscillation | The same expo block reused, not re-proven; drive and feedback behaviour; the second oscillator | The voice gets its character |
+| R4 | **SSG + Noise** — smooth/stepped generator, S&H and T&H, analog white noise, comparator | Hold-stage droop and feedthrough; noise level range and spectrum; comparator behaviour | Modulation and randomness; depends on nothing new but the analog switch |
+| R5 | **Boolean + Clock** — shared-threshold logic, edge triggers, /2 to /16 divider with reset | Logic thresholds and timing; a divider chain five boards deep | Utilities last; nothing depends on them |
+
+The detailed panel lists for these boards are being edited by the user and
+move into `docs/modules/<name>/SPEC.md` when a round is promoted; a round is
+not started until its SPEC exists and its open questions (tracking limit,
+world-side jack size, IO mix semantics, hold stages, filter pole count) are
+answered.
+
+Per-round gate: the board's stated behaviours pass both their simulation
+assertions and their physical measurements within the chosen cost and space;
+calibration is documented and repeatable; evidence is recorded against the
+board revision and installed parts. Budget and approve each round separately.
+
+### L1: Build The Home Lab In Stages
+
+Prerequisites: the agreed budget and an empty bench. Purchasable now with the
+user's debit card; **must exist before R1's boards arrive.** The shopping list
+with staged purchases, prices and reasons is [HOMELAB.md](HOMELAB.md), owned by
+the agent and confirmed by the user as items are bought. **Its Stage A plus
+Stage B comes to about EUR 1,680 (2026-09-12 prices), above the EUR 500-1000
+envelope.** The envelope is the user's to raise or keep; either way the
+purchase order is Stage A (what the first boards need, about EUR 920), then
+the audio interface (which already runs the tracking, response, noise and
+crosstalk measurements from Python), then the scope last. The stages below
+use HOMELAB.md's letters.
+
+| Stage | Equipment and guidance | Acceptance |
+|---|---|---|
+| A (part 1): assembly and basic measurements | Temperature-controlled soldering station, tips/stand, solder/flux, cleaning, cutters/tweezers, magnification, heat-resistant surface, fume control, eye protection, ESD basics, a fused-input multimeter with leads | Guided practice and continuity/resistance checks completed before working on the first module |
+| A (part 2): safe first power | Current-limited bench supply capable of bipolar ±12 V (series-capable channels), a USB-C PD charger and PD tester for R1, identified cables, connectors and protection | Exact wiring, polarity, grounding, current-limit settings and shutdown criteria documented and checked without a board attached |
+| B: dynamic measurements and scripting | Oscilloscope and probes suited to the planned signals, preferably remote-controllable from the laptop; a USB audio interface as spectrum analyser and stimulus; attenuation for Eurorack levels | Guided probe compensation and a known-signal exercise; a first measurement script reads an instrument and reports what it read |
+| C: later expansion | Eurorack case/power, additional instruments, rework tools | Buy only when a named task requires them; case/power have a separate budget |
+
+Prefer instruments the laptop can drive, so that calibration becomes a script
+the user and the agent run together rather than a list of readings the user
+transcribes. The script reports; it never invents.
+
+No DIY mains wiring, PSU internals, mains probing, or defeated protective earth.
+Use commercially enclosed mains-powered equipment and follow its documentation.
+Ordinary oscilloscope probe grounds are common and usually earth-referenced;
+the guide must identify the correct circuit reference and must not assume a
+channel or supply can float. In-circuit tests use a low-voltage, current-limited
+setup; unexplained current, heating, polarity, or ground ambiguity stops testing.
+
+### M5: Guided Physical Proof (the gate every round passes through)
+
+Prerequisites: an approved round package, delivered hardware, and the L1
+equipment and training for each step. Until delivery, status is "waiting for
+hardware," not "testing in progress."
+
+- The agent provides numbered steps with annotated diagrams, instrument
+  settings, expected ranges and stop conditions, and where possible a
+  measurement script. The user reports observations; neither party fills in an
+  unmeasured result.
+- Inspect and assemble, perform unpowered checks, then follow the reviewed
+  current-limited first-power sequence. Check rails and current before signal
+  tests. Calibrate with the written procedure.
+- Measure the round's stated limits: rails and offsets, tracking in cents,
+  responses, interaction, loading, overload behaviour, mechanical fit. Identify
+  the board revision, installed parts, instruments and conditions.
+
+Gate: a physical board passes its stated tests and the user can complete the
+procedure without writing code or inventing electrical tests. Only then are its
+blocks promoted to bench-tested. A hobby prototype pass is not certification.
+
+### P4: One Row
+
+After R5: five boards, about 70 HP, powered by their own IO board. Calibrate
+all five; write the calibration and first-power-up guide as the durable
+deliverable; then the deferred items in order — case, then panels. The parked
+sequencer is reconsidered here, by which time the control plane may be its
+better home.
+
+### P5: Compounding
+
+The measure of this phase is whether **the sixth board costs almost nothing**.
+Assets by then: a block library (power entry, exponential converter, gain
+cell, precision buffer, output stage, PD supply), a device-model library, deck
+and error-budget templates, calibration procedures and scripts.
+
+- **First one-shot candidate:** a new combined board built from existing
+  blocks with no new device model — specification in, verified project out.
+- **Digital control plane:** years away by the user's statement; the analog
+  boards carry nothing for it now.
+
+### Toolkit Obligations Along The Way
+
+- **Ground-plane integrity** as a routing objective and check. The missing
+  objective identified in [JLCPCB.md](JLCPCB.md); it becomes concrete on R1,
+  where switching converters sit beside precision rails.
+- **CI** (M3), before the first order.
+- **Board variants** (same SMD, different hand-population) only if a round
+  needs them; not speculatively.
 
 ### Routing Research Wishlist
 
-- **Joint placement and routing: planned, not implemented.** Previously agreed
-  in the 2026-09-10 research direction and reaffirmed 2026-09-11. Search over
+- **Joint placement and routing: planned, not implemented.** Agreed in the
+  2026-09-10 research direction and reaffirmed 2026-09-11. Search over
   eligible component positions/orientations together with copper routes,
   rather than optimise routing around a single fixed placement.
 - Keep panel-mounted parts and other declared mechanical anchors fixed;
@@ -229,181 +424,49 @@ Known limits to address before stronger routing claims:
 - The benchmark's selected connectivity/via checks are not a full independent
   native DRC for every strategy. External routing uses a limited configuration;
   the attenuverter's unbonded ground-pour assumptions confound that comparison.
+  Freerouting's rows are not deterministic run to run; only grid-astar rows are
+  the diff.
 - The reported minimum spanning tree is a reference length, not a proven lower
   bound for branched copper. Do not infer a missing connection from a detour
-  below 1 alone. The report now explains that limit; independent native checking
-  and scoring improvements remain planned.
+  below 1 alone.
 - The coupling model ignores the opposite layer and full ground-return behavior,
   has a cutoff, and approximates nearby geometry. Predicted zero is not physical
-  zero. More model digits and an optimiser that exploits those omissions do not
-  establish higher precision.
+  zero. R1's coupon is the first test of the whole chain against a measurement.
 - Grid pitch, via cost and multi-start count are heuristics tested on a small
-  fixture set. Broader held-out boards, equal constraints and compute budgets,
-  and eventually measured coupons are needed for credible general claims.
+  fixture set; via cost in particular is a congestion heuristic, not a price.
 
 The recorded scores belong in [BENCH.md](BENCH.md); the current algorithm and
 model details are in [../toolkit/src/Route/Router.hs](../toolkit/src/Route/Router.hs)
 and [../toolkit/src/Route/Coupling.hs](../toolkit/src/Route/Coupling.hs). Do not
 retune them merely because this wishlist exists.
 
-### M1: Make Invalid Designs Fail
+### Parked And Dissolved Ideas
 
-Prerequisites: current design model and the review reproductions above.
-
-- Add a real Cabal test suite and tracked negative fixtures. Convert diagnostic probes into assertions; reproducing a bug is not a passing release test.
-- Validate unique references/net names, existing references and pin numbers, conflicting assignments, symbol-to-pad mappings, and supported features. Reject invalid numerical dimensions and routing settings.
-- Distinguish unassigned pins from explicitly intentional no-connects. Treat power flags as declarations supported by an intended source path, not blanket ERC suppression.
-- Migrate existing modules without silently changing their intended connections. Include multi-unit symbols and front/back transforms in coverage.
-
-Gate: the four wiring faults are rejected with useful diagnostics, intentional
-NC cases succeed, and all existing native-check fixtures still pass. These
-tests establish compiler behavior, not manufacturer-level circuit correctness.
-
-### M2: Make Routing And Assembly Intent Explicit
-
-Prerequisites: M1 tests and validated existing designs.
-
-- Block ordinary via drills in SMD solder lands; test drill/pad geometry independently of the router's success flag. Repair the attenuverter layout.
-- Fix disconnected pre-routed islands and respect supplied manual trace widths. Treat incomplete/conflicted routes as failures, not stderr-only warnings.
-- Model factory-installed, hand-installed, DNP, and mechanical items separately. Require supplier identity for every factory-installed part; never infer hand assembly from missing data.
-- Check BOM/placement reference parity, assembly sides, explicit exclusions, rotations, and footprint mappings. Generate a complete manual-parts/hardware list as well as the factory BOM.
-
-Gate: positive and negative routing/assembly fixtures pass their assertions;
-current boards pass native DRC/parity; no unresolved SMD pad drills remain.
-If the router cannot meet this gate economically, run the bounded replacement
-evaluation described above before building more routing features.
-
-### M3: One Reproducible Pipeline
-
-Prerequisites: M1-M2 passing tests. `toolkit/pipeline.sh` now provides the
-generation/check/export entry point; `toolkit/sim.sh` runs circuit simulations
-separately. `cabal.project.freeze` pins the Haskell dependencies; CI remains open.
-
-- Provide a single documented entry point for tool preflight, validation, generation, checks, and prototype export. Keep inexpensive test-only use available.
-- Stage fresh outputs: validate -> schematic -> ERC -> layout -> DRC with refill/parity -> assembly/manufacturing checks -> exports -> manifest. Publish a successful package only after all required steps succeed.
-- Bind results to source/library/model inputs, tool versions, and hashes of the actual checked schematic, filled PCB, and exported files. Record dirty-tree provenance explicitly; a commit ID alone is insufficient.
-- Test failure, interruption, stale input, missing tool, and missing-part behavior. A failed run must not leave an old package appearing to be its successful output. Separate optional renders from mandatory checks in the status report.
-- Pin or reproducibly retrieve supported dependencies and used libraries. Add CI for regression tests and native fixture checks. Fix setup mismatches before treating them as design defects.
-- Install and smoke-test headless SPICE. Remove reliance on globally installed agent skills for essential gates; document and version required adapters and their failure behavior.
-
-Gate: an agent in a fresh checkout can reproduce the fixture checks and
-diagnostic export without hidden manual repair. An interrupted or faulty run
-cannot yield a package labeled as passing. Documentation distinguishes
-"generated," "checks passed," and "reviewed prototype candidate."
-
-### M4: Evidence And A Complete Prototype Package
-
-Prerequisites: M3 and the existing attenuverter as the end-to-end test vehicle.
-The passive mult can be a mechanical/soldering exercise, but does not prove
-active-circuit design. Do not enlarge the utility's feature set to fill time.
-
-- Define the utility's operating envelope and a precision error budget. Account for knob-dependent input loading, the shared supply-derived offset, output loading, gain/offset error, noise, temperature drift, input headroom, patch faults, startup, and power consumption. The current channel-patching shift is a defect to resolve, not a precision pass.
-- Obtain exact IC, diode, passive, jack, pot, and header identities and relevant datasheets. Record source URLs, document/model versions, permitted redistribution, and missing evidence. Library agreement is not a datasheet check.
-- Add readable functional schematic views and parameterized tests for the actual circuit. Simulate DC transfer, loading, both channels' interaction, transients, and relevant tolerance/supply corners. State model limitations, especially overload and protection behavior.
-- Review layout by circuit function, local feedback/decoupling, sensitive-node routing, and return paths. Check manufacturing constraints against the selected assembly service; triage heuristic EMC/thermal results instead of interpreting scores as approval.
-- Check the complete mechanical stack: XY alignment, body/bushing heights, PCB-to-panel spacing, thickness, knobs, nuts, rails, and tolerances. Do not buy a final case merely to discover these constraints.
-- Deliver manufacturing files, order settings, current itemized cost/stock, supplier-placement review, full hand-parts/accessories list, annotated assembly views, and a board-revision-specific first-power-up/test guide.
-
-Gate: every consequential electrical, mechanical, sourcing, and assembly
-assumption has evidence or an explicit prototype experiment with bounded
-risk. The human receives a plain-language preview and an all-in quote within
-the approved budget. No purchase is automatic. A reviewed prototype candidate
-is allowed to be unbuilt; it must not be labeled bench-tested or production-ready.
-
-### L1: Build The Home Lab In Stages
-
-Prerequisites for planning: the agreed budget and an empty bench. This work can
-start before M4; purchases remain optional until an equipment plan is approved.
-
-Produce a Belgium/EU shopping and setup guide with exact models, current
-VAT-inclusive delivered prices, compatibility, essential accessories, reasons
-for each item, and one suitable alternative. Separate required-now items from
-later upgrades and consumables. The EUR 500-1000 is a planning envelope, not a
-price quotation; show the complete total before recommending a purchase.
-
-| Stage | Equipment and guidance | Acceptance |
-|---|---|---|
-| Assembly and basic measurements | Temperature-controlled soldering station, suitable tips/stand, practice material, solder/flux, cleaning, cutters/tweezers, magnification, heat-resistant work surface, appropriate fume control, eye protection, and a suitable fused-input DMM with leads | Guided practice and continuity/resistance checks completed before working on the first module |
-| Safe first power | Commercial current-limited supply solution suitable for the required bipolar rails, or explicitly series-capable isolated channels; identified test cables, connectors, and protection | Exact wiring, polarity, grounding, current-limit settings, and shutdown criteria documented and checked without a board attached |
-| Dynamic measurements | Oscilloscope and probes suitable for the planned signals; a compatible signal/CV stimulus source or integrated generator if economical | Guided probe compensation and known-signal exercise; the user can capture and return meaningful readings/traces |
-| Later expansion | Eurorack case/power, additional measurement equipment, and specialized rework tools | Buy only when a named task requires them; case/power have a separate budget |
-
-No DIY mains wiring, PSU internals, mains probing, or defeated protective earth.
-Use commercially enclosed mains-powered equipment and follow its documentation.
-Ordinary oscilloscope probe grounds are common and usually earth-referenced;
-the guide must identify the correct circuit reference and must not assume a
-channel or supply can float. In-circuit tests use a low-voltage, current-limited
-setup; unexplained current, heating, polarity, or ground ambiguity stops testing.
-
-### M5: Guided Physical Proof
-
-Prerequisites: approved M4 package, purchased/delivered hardware, and the L1
-equipment and training needed for each step. Until delivery, status is
-"waiting for hardware," not "testing in progress."
-
-- The agent provides numbered steps with annotated photos/diagrams, instrument settings, expected ranges, and stop conditions. The user reports observations; neither party fills in an unmeasured result.
-- Inspect and assemble, perform unpowered checks, then follow the reviewed current-limited first-power sequence. Check rails/current before signal tests.
-- Measure gain/null, offset interaction, loading, bandwidth/transients, safe overload behavior, and mechanical fit against M4 limits. Identify the board revision, installed parts, instruments, and test conditions.
-- Explain any discrepancy and choose the cheapest informative next measurement. A respin receives a separate reason, cost estimate, and approval.
-
-Gate: a physical active utility passes its stated tests and the user can
-complete the procedure without writing code or inventing electrical tests.
-Record measurement evidence and lessons; only then promote blocks as
-bench-tested. A hobby prototype pass is not certification or approval for sale.
-
-### M6: DUSG Behavior, Then Hardware
-
-Prerequisites: M5 for ordering complex hardware. Reference research and
-specification drafts may begin earlier, but do not bypass the pipeline gates.
-
-The agent selects a credible reference and presents musical tradeoffs, while
-checking permissions before copying or publishing derivative material. Define
-rise/fall ranges, CV response, trigger/retrigger behavior, cycling, end outputs,
-signal levels, and any audio-rate or pitch-tracking requirement. The agent
-proposes technical limits from desired patches; the user chooses outcomes.
-
-Prototype one slope core with appropriate device models, complete transient
-feedback behavior, corner tests, and accessible measurements. Reuse tested
-power/interface blocks only within their established limits. Extend to the
-dual module and final panel after the core passes bench tests, then test
-channel interaction and the promised patches.
-
-Gate: the stated DUSG behaviors pass both relevant simulation assertions and
-physical tests within the chosen cost/space limits. Budget and approve each
-hardware round separately.
-
-### M7: SSG Behavior, Then Hardware
-
-Prerequisites: the reusable workflow and tested support blocks. DUSG-first is
-the proposed default, not a claim that the SSG electrically depends on a DUSG;
-the user can reprioritize before core work begins.
-
-Select the reference behavior and define smooth/stepped interaction, sampling,
-hold droop, acquisition/settling, feedthrough, comparator behavior, loading,
-and musical patch examples. Allocate an error budget across switches, buffers,
-capacitors, protection, and PCB surface leakage; do not assume a generic SPICE
-model captures all of them. Prototype and measure the hold/sampling core before
-the complete layout, then validate the full module and its interactions.
-
-Gate: the selected SSG behaviors and numerical limits are supported by measured
-hardware, with calibration and a repeatable build/test package.
-
-### Unscheduled Module Ideas
-
-These preserve the still-relevant ideas from the retired module list; they
-are not designs, approvals or prerequisites for the current precision work.
-
-- POW-01: low-voltage power management/distribution and regulation, if a
-  concrete module or test setup needs it. No DIY mains work.
-- OUT-01: stereo output stage with level control and appropriate amplification.
-- Optional attenuverter interface ideas: status LED or push button. Do not add
-  them to the existing board merely to fill time.
-- Parked: an SMT remake of Gijs Gieskes' 3TrinsRGB+1c video synthesizer, possibly
-  standalone/Eurorack-compatible with enclosure, monitor and speaker. Confirm
-  permissions and scope before using or publishing derivative material.
+- **4-step chainable sequencer:** parked 2026-09-11. Five boards chaining into
+  20 steps is the purest example of the five-board rule as a feature; it brings
+  the first digital-logic modelling step and depends on the pot-linearity
+  question. Reconsider at P4.
+- **OUT-01 (output stage) and POW-01 (power):** dissolved into R1, the IO board.
+- Parked: an SMT remake of Gijs Gieskes' 3TrinsRGB+1c video synthesizer.
+  Confirm permissions and scope before using or publishing derivative material.
 
 Remove an idea when explicitly rejected or superseded; when promoted, give it
 an owned module specification and acceptance gate rather than a parallel list.
+
+## What Can Stop It
+
+- **Money:** fabrication orders wait on the user; the lab has its own budget
+  and can start now.
+- **Decisions outstanding:** the tracking limit, the IO board's world-side jack
+  size, its mix semantics, one or two hold stages on the SSG, the filter's pole
+  count, and the option B implementation in flight.
+- **The three hard problems:** pitch tracking over temperature (the hardest
+  analog work in the plan), switching-supply noise beside precision audio on
+  R1, and a modelled chain that has never met an oscilloscope — R1 is the
+  moment that stops being true.
+- **Ritual cost:** trimmers mean every board of every round is calibrated by
+  the user, guided. The measurement scripts exist to make that a shared job
+  rather than transcription.
 
 ## Weekly Session Contract
 
@@ -420,6 +483,8 @@ force-pushes, or committing unrelated work or secrets.
 3. Implement in small steps and run the narrow relevant checks. Escalate only on evidence; do not use remaining tokens as a reason to add unrelated features or endlessly compare tools.
 4. Before stopping, leave a tested checkpoint or explicitly mark partial work as blocked/non-releasable. Preserve existing user changes and record which edits belong to this task.
 5. Update the compact handoff with the exact result, artifact paths/hashes, commands and tool versions, remaining risks and one next action. If user input is genuinely needed, create a researched question using [decisions/README.md](decisions/README.md), integrate edited answers, and retire processed files. Remove superseded status prose instead of appending an unbounded session diary. Say what has not been run.
+6. **Keep this roadmap current in the same checkpoint** that changes a
+   direction, gate, round or priority. A stale roadmap is the agent's fault.
 
 There is no promise of background work between sessions. Every new agent must
 be able to resume from tracked documents, not private memory or ignored scratch
@@ -429,42 +494,39 @@ analysis when the relevant inputs have not changed.
 ## Durable Deliverables
 
 Create these when their milestone supplies real content, not as empty process
-scaffolding. The first M1 work item should start the compact session handoff.
+scaffolding.
 
 | Artifact | Purpose / owner |
 |---|---|
-| This roadmap | Agreed priorities, constraints, milestone status; update at material decisions |
+| This roadmap | Agreed priorities, constraints, rounds and gates; the agent updates it at every material change |
 | [HANDOFF.md](HANDOFF.md) | Agent-maintained compact current/blocked/next state and evidence; Git retains past checkpoints |
+| [HOMELAB.md](HOMELAB.md) | Staged lab shopping list with prices, reasons and laptop connectivity; agent-maintained, user-confirmed |
 | Stack decision and toolchain record | Agent-maintained versions, installation checks, tested library inputs, and reasons for any migration; build on [SETUP.md](SETUP.md) |
 | Per-module specification and tests | `docs/modules/<name>/SPEC.md` owns intent and limits; executable simulations and tests stay with the design/code |
+| Block library | Reusable circuit blocks in the generator with their models, decks and limits; the asset P5 is measured by |
 | `docs/decisions/` inbox | Concrete researched user choices; answers are integrated into their authoritative documents, then inbox files are deleted |
 | Part evidence and manufacturing recipe | Exact identities/ratings, sourcing checks, assembly intent, approved process options, and complete order list |
-| Lab and board-specific assembly/test guides | Instructions sufficient for a beginner to buy, set up, measure, and stop safely |
-| Prototype record | Human observations plus agent analysis, tied to board revision and actual installed parts |
+| Lab, assembly, calibration and test guides, with scripts | Instructions and scripts sufficient for a beginner to buy, set up, measure, calibrate and stop safely |
+| Prototype record | Human observations plus agent analysis and script output, tied to board revision and actual installed parts |
 
-Commit source designs, tests, guides, status, and suitable summaries. Generated
-KiCad projects remain tracked; fabrication output and binaries remain outside
-git as required by the repository. Retain purchased-revision bundles and bench
-evidence in a durable user-controlled archive with hashes/locations recorded
-in tracked state, not only ephemeral CI artifacts. Keep secrets, addresses,
-order credentials, and personal history out of public files. Respect datasheet
-and model redistribution terms.
+Commit source designs, tests, guides, scripts, status, and suitable summaries.
+Generated KiCad projects remain tracked; fabrication output and binaries remain
+outside git as required by the repository. Retain purchased-revision bundles
+and bench evidence in a durable user-controlled archive with hashes/locations
+recorded in tracked state, not only ephemeral CI artifacts. Keep secrets,
+addresses, order credentials, and personal history out of public files. Respect
+datasheet and model redistribution terms.
 
 ## Next Work Item
 
-Validation remains the priority while payment cards and hardware are unavailable.
-M1-M2 are closed, M3 has working local gates but no CI or dependency pinning,
-and M4 has attenuverter simulation evidence but no measured prototype. See
-[HANDOFF.md](HANDOFF.md) for commands, results and model limitations.
+1. **M4 / option B** on the attenuverter, end to end, including the 100 mm
+   height change and the reusable module skeleton. See
+   [HANDOFF.md](HANDOFF.md) for the exact next action.
+2. **L1**: review [HOMELAB.md](HOMELAB.md) with the user and start Stage A
+   purchases; the lab must exist before R1's boards arrive.
+3. **P1**: the exponential-converter block, beginning with the matched-pair
+   model and the temperature-sweep deck; confirm the tracking limit first.
+4. **Answer the open decisions** for R1 (jack size, mix semantics) so its SPEC
+   can be written.
 
-Next: the attenuverter error budget is derived
-([modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md))
-and the parts/topology choice is in the decision inbox. Once answered,
-implement the chosen option: datasheet-based OPA2197 and REF5050 models,
-the design change, decks asserting the budget's limits, regeneration and
-checks. Follow with the mult's short simulation pass and mechanical-stack
-validation; no panel art or purchases are needed for these checks.
-
-CI remains a parallel M3 obligation, requiring a runner with KiCad 10 and its
-libraries; the dependency pin exists. Do not treat local test passes as
-completion of that gate or as approval to order.
+CI remains a parallel M3 obligation owed before the first order.

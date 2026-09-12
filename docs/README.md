@@ -14,8 +14,9 @@ retire_when: "a replacement index is agreed and all incoming links are updated"
 |---|---|
 | [../AGENTS.md](../AGENTS.md) | Standing operating rules, document lifecycle and decision processing. |
 | [HANDOFF.md](HANDOFF.md) | Current checkpoint, verified evidence, limitations and next action. |
-| [ROADMAP.md](ROADMAP.md) | Product direction, precision requirements, acceptance gates and research wishlist. |
+| [ROADMAP.md](ROADMAP.md) | Direction, constraints, and the phased plan: shared blocks, five rounds (one board each), one row, then compounding. Agent-maintained. |
 | [SETUP.md](SETUP.md) | Installation, reproduction commands and known tool pitfalls. |
+| [HOMELAB.md](HOMELAB.md) | Staged home-lab shopping list (bol.com, debit card): what to buy, why, prices seen, and which instruments the laptop can drive. |
 | [JLCPCB.md](JLCPCB.md) | What the fab actually charges for, and which routing objectives that justifies. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, operating requirements, current circuit and model limitations. |

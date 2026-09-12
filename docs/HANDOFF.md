@@ -28,11 +28,25 @@ setup owns tool versions and commands. See [README.md](README.md).
   (27 mV worst-case offset, 2.3 % inversion error, unguaranteed ±10 V swing and
   input range, no feedback compensation). The parts/topology choice is waiting
   in [decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md).
-- Module form factor and composition are settled user decisions (ROADMAP.md,
-  "Module Form Factor And Composition"): 4 to 20 HP, PCB height to drop from
-  108 to 100 mm inside the option B rework, no dual modules, combined distinct
-  functions per board, chainable CV, Ripples-derived filter under CC-BY-SA.
-  Note the 4 HP floor does not clear JLCPCB's 30 mm small-board threshold; 8 HP does.
+- ROADMAP.md was rewritten on 2026-09-12 into a phased plan and is now
+  explicitly agent-maintained: M4 is the method rehearsal on the attenuverter
+  (option B), P1 builds the two shared blocks (exponential converter, gain
+  element), P2 is five rounds of one board each in dependency order (R1 IO +
+  Mixer with USB-C PD power, R2 Slope + VCA, R3 Filter + VCA, R4 SSG + Noise,
+  R5 Boolean + Clock), P4 assembles one row, P5 is the block library and the
+  first one-shot candidate. The filter is a Sherman-style SVF with a drive
+  stage, not Ripples; CV thrus are dropped; the sequencer is parked. Form-factor
+  rules (4-20 HP, 100 mm PCB, no dual modules) stand; every planned board is
+  12 HP or wider. Detailed panel lists are still in the user's scratch file and
+  move into SPECs at promotion.
+- [HOMELAB.md](HOMELAB.md) exists (2026-09-12): a staged bol.com shopping list
+  researched by a sub-agent and then read line by line by the main agent, which
+  added the scope-ground / floating-supply safety paragraph the roadmap
+  requires. Stage A (assemble and power up) about EUR 920, Stage B (measure and
+  script) about EUR 750, together about EUR 1,680 against the EUR 500-1000
+  envelope: **the user decides whether to raise the envelope**; the purchase
+  order is A, then the audio interface, then the scope. Every unverified price
+  is listed in the file's last section; a browser pass would close most of them.
 - No purchases are approved. Panel development remains deferred. Joint
   placement/routing is planned, not implemented, and does not replace circuit
   validation. See [ROADMAP.md](ROADMAP.md) for the gates and wishlist.
