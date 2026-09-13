@@ -32,7 +32,7 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, trimmers and other suitable large parts |
 | Work cadence | Approximately one session per week, using a variable remaining token budget; progress must survive gaps and model changes |
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
-| Home lab | Start from an empty bench; EUR 500-1000 was the initial envelope, and the researched list ([HOMELAB.md](HOMELAB.md)) exceeds it: about EUR 1,680 for assembly plus measurement. Purchased in stages from bol.com with the user's debit card; the envelope decision is the user's. Fabrication orders still wait on the user |
+| Home lab | Start from an empty bench, cheapest tool that does each job: about EUR 300 to assemble and power up, about EUR 500 for everything including an optional scope ([HOMELAB.md](HOMELAB.md)), inside the EUR 500-1000 envelope. Bought in stages from bol.com with the user's debit card. No fume extractor. Fabrication orders still wait on the user |
 | System power | The IO board supplies the system from USB-C Power Delivery; a current-limited bench supply is still required to test that board itself and for every first power-up |
 | Front panels | Deferred 2026-09-10; boards can be bench-tested lying flat, and the art is a separate project |
 | Eurorack case | Deferred and budgeted separately; needed when the row is assembled as an instrument |
@@ -327,19 +327,22 @@ board revision and installed parts. Budget and approve each round separately.
 Prerequisites: the agreed budget and an empty bench. Purchasable now with the
 user's debit card; **must exist before R1's boards arrive.** The shopping list
 with staged purchases, prices and reasons is [HOMELAB.md](HOMELAB.md), owned by
-the agent and confirmed by the user as items are bought. **Its Stage A plus
-Stage B comes to about EUR 1,680 (2026-09-12 prices), above the EUR 500-1000
-envelope.** The envelope is the user's to raise or keep; either way the
-purchase order is Stage A (what the first boards need, about EUR 920), then
-the audio interface (which already runs the tracking, response, noise and
-crosstalk measurements from Python), then the scope last. The stages below
-use HOMELAB.md's letters.
+the agent and confirmed by the user as items are bought. The user rejected the
+first list (EUR 1,680) as far too expensive on 2026-09-13; the current list
+buys the cheapest tool that does each job: **Stage A about EUR 300, Stage B
+about EUR 30-100, everything including an optional handheld scope about
+EUR 500**, inside the EUR 500-1000 envelope. Scriptability is a bonus, not a
+requirement; the scope is deferred until a measurement asks for it; **no fume
+extractor, ever** (open window and a fan). Purchase order is Stage A (what the
+first boards need), then the audio interface (which runs the tracking,
+response, noise and crosstalk measurements from Python), then a scope only if
+needed. The stages below use HOMELAB.md's letters.
 
 | Stage | Equipment and guidance | Acceptance |
 |---|---|---|
-| A (part 1): assembly and basic measurements | Temperature-controlled soldering station, tips/stand, solder/flux, cleaning, cutters/tweezers, magnification, heat-resistant surface, fume control, eye protection, ESD basics, a fused-input multimeter with leads | Guided practice and continuity/resistance checks completed before working on the first module |
+| A (part 1): assembly and basic measurements | Temperature-controlled soldering station, tips/stand, solder/flux, cleaning, cutters/tweezers, heat-resistant surface, ventilation (window and fan), eye protection, ESD basics, a fused-input multimeter with leads | Guided practice and continuity/resistance checks completed before working on the first module |
 | A (part 2): safe first power | Current-limited bench supply capable of bipolar ±12 V (series-capable channels), a USB-C PD charger and PD tester for R1, identified cables, connectors and protection | Exact wiring, polarity, grounding, current-limit settings and shutdown criteria documented and checked without a board attached |
-| B: dynamic measurements and scripting | Oscilloscope and probes suited to the planned signals, preferably remote-controllable from the laptop; a USB audio interface as spectrum analyser and stimulus; attenuation for Eurorack levels | Guided probe compensation and a known-signal exercise; a first measurement script reads an instrument and reports what it read |
+| B: dynamic measurements and scripting | A USB audio interface as spectrum analyser and stimulus, driven from Python; attenuation for Eurorack levels; a cheap scope only when a measurement (R1's switching converter) asks for one | Guided probe compensation and a known-signal exercise; a first measurement script reads an instrument and reports what it read |
 | C: later expansion | Eurorack case/power, additional instruments, rework tools | Buy only when a named task requires them; case/power have a separate budget |
 
 Prefer instruments the laptop can drive, so that calibration becomes a script

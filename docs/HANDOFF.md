@@ -8,7 +8,7 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-11 by Claude Fable 5.1 (home laptop), after pulling the work laptop's five commits. This is current state, not an append-only
+Updated 2026-09-13 by Claude Fable 5.1 (home laptop). This is current state, not an append-only
 diary. The roadmap owns priorities, module specs own circuit requirements and
 setup owns tool versions and commands. See [README.md](README.md).
 
@@ -39,14 +39,18 @@ setup owns tool versions and commands. See [README.md](README.md).
   rules (4-20 HP, 100 mm PCB, no dual modules) stand; every planned board is
   12 HP or wider. Detailed panel lists are still in the user's scratch file and
   move into SPECs at promotion.
-- [HOMELAB.md](HOMELAB.md) exists (2026-09-12): a staged bol.com shopping list
-  researched by a sub-agent and then read line by line by the main agent, which
-  added the scope-ground / floating-supply safety paragraph the roadmap
-  requires. Stage A (assemble and power up) about EUR 920, Stage B (measure and
-  script) about EUR 750, together about EUR 1,680 against the EUR 500-1000
-  envelope: **the user decides whether to raise the envelope**; the purchase
-  order is A, then the audio interface, then the scope. Every unverified price
-  is listed in the file's last section; a browser pass would close most of them.
+- [HOMELAB.md](HOMELAB.md) was rewritten on 2026-09-13 after the user rejected
+  the first version (EUR 1,680) as far too expensive and ruled out a fume
+  extractor for good. The new list is the cheapest tool per job, priced from
+  bol.com search cards that day: Stage A (assemble and power up, two EUR 55
+  current-limited supplies in series, EUR 30 station, EUR 45 meter) about
+  EUR 300; Stage B (Behringer-class interface if none is owned, patch cables,
+  attenuator pad) about EUR 30-100; a scope is deferred, with two FNIRSI
+  options (EUR 64 and EUR 131) recorded for when R1's switching converter
+  needs one. Everything, worst case, about EUR 500. Fine print to confirm
+  before paying (floating supply outputs, meter count) is in the file's last
+  section. The user asked why not a second-hand computer PSU; the answer (no
+  current limit, weak -12 V rail) is recorded in the file.
 - No purchases are approved. Panel development remains deferred. Joint
   placement/routing is planned, not implemented, and does not replace circuit
   validation. See [ROADMAP.md](ROADMAP.md) for the gates and wishlist.
