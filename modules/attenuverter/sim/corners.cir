@@ -1,21 +1,20 @@
-* UTIL-01 channel 1 at the corners: 1% resistors and a +/-10% supply.
-*
-* Two questions, and only one of them is interesting.
+* UTIL-01 channel 1 at the corners: 0.1 % resistors and +/-5 % supplies.
 *
 * The gain at full clockwise is not interesting: Vout = Vin*(1+g)*k - Vin*g
 * with g = Rf/Ra, so at k = 1 it is Vin exactly, whatever g is. The matching
-* cancels.
+* cancels. It is checked anyway, because "exactly" is a claim.
 *
-* The null at centre detent is the interesting one. At k = 0.5 the same
-* expression gives Vin*(1-g)/2, which is zero only when Rf and Ra are equal.
-* With 1% parts g can be 1.0202 and the null sits 1% of the input away from
-* zero. A knob that will not null is the classic complaint about an
-* attenuverter, so it is worth knowing how far off it can be before anyone
-* solders one.
+* Full anticlockwise (k = 0) is where the ratio shows: Vout = -g*Vin, and
+* two 0.1 % resistors can put g anywhere in 1 +/- 0.2 %. ERROR-BUDGET.md
+* allows 0.3 % of inversion error over the envelope (the other 0.1 % is
+* the 25 ppm/C tempco over 15 C, which this deck does not sweep). The null
+* at centre detent is the same term seen from the other side: Vin*(1-g)/2,
+* so 0.1 % of the input, asserted at 0.15 %.
 *
-* Budget: the null stays within 1.5% of the input signal at the worst 1%
-* corner. That is what 1% parts can deliver; asking for better means buying
-* better resistors or adding a trim, and this records which.
+* The supply corners are the envelope's +/-5 %: 11.4 and 12.6 V. The
+* signal must not move (finite PSRR is not in the model, so this checks
+* the topology, not the part), and the reference may move by at most
+* 0.3 mV, which the REF5050's 3 ppm/V line regulation makes trivial.
 
 .include modules/_models/devices.lib
 .include modules/attenuverter/sim/attenuverter.cir
@@ -29,74 +28,98 @@ Rp1  CABLE1 IN1 {rp1}
 .control
 alterparam norm_J1 = 1G
 
-echo "--- null at centre detent, 5 V in, 1% resistors ---"
+echo "--- null at centre detent, 5 V in, 0.1 % resistors ---"
 alterparam k_RV1 = 0.5
-
-* Nominal.
 reset
 op
 print v(OUT1)
-
 * Worst case each way: feedback high against input low, and the reverse.
 * Values cross `reset` as shell variables; ngspice vectors do not.
 reset
-alter RR1 = 99k
-alter RR2 = 101k
+alter RR1 = 99.9k
+alter RR2 = 100.1k
 op
 let t1 = v(OUT1)
 set null_hi = $&t1
 reset
-alter RR1 = 101k
-alter RR2 = 99k
+alter RR1 = 100.1k
+alter RR2 = 99.9k
 op
 let t2 = v(OUT1)
 set null_lo = $&t2
 echo "null with Rf high: $null_hi V, with Rf low: $null_lo V"
-
 let worst = max(abs($null_hi), abs($null_lo))
 let worst_pct = 100 * worst / 5
 print worst worst_pct
-if worst_pct < 1.5
-  echo "PASS  centre null stays within 1.5% of the input at 1% tolerance"
+if worst_pct < 0.15
+  echo "PASS  centre null stays within 0.15 % of the input at 0.1 % tolerance"
 else
-  echo "FAIL  centre null drifts too far at 1% tolerance"
+  echo "FAIL  centre null drifts too far at 0.1 % tolerance"
+end
+
+echo "--- inversion at k = 0, worst matching corner ---"
+alterparam k_RV1 = 0
+reset
+alter RR1 = 99.9k
+alter RR2 = 100.1k
+op
+let inv_err_pct = 100 * abs(v(OUT1) + 5) / 5
+print inv_err_pct
+if inv_err_pct < 0.3
+  echo "PASS  inversion error under 0.3 % at the worst 0.1 % corner"
+else
+  echo "FAIL  inversion error exceeds 0.3 % at the worst 0.1 % corner"
 end
 
 echo "--- full clockwise is insensitive to matching ---"
 alterparam k_RV1 = 1
 reset
-alter RR1 = 99k
-alter RR2 = 101k
+alter RR1 = 99.9k
+alter RR2 = 100.1k
 op
 let gain_hi = v(OUT1)
-if abs(gain_hi - 5) < 0.05
+if abs(gain_hi - 5) < 0.0035
   echo "PASS  unity gain holds at the worst matching corner"
 else
   echo "FAIL  unity gain moved at the worst matching corner"
   print gain_hi
 end
 
-echo "--- supply at +/-10% ---"
+echo "--- supply at +/-5 % ---"
 alterparam k_RV1 = 1
-foreach vs 10.8 12 13.2
+reset
+op
+let t3 = v(OUT1)
+let t4 = v(OFFSET)
+set nom_out = $&t3
+set nom_ref = $&t4
+set out_fail = 0
+set ref_fail = 0
+foreach vs 11.4 12.6
   reset
   alter Vpos = $vs
   alter Vneg = -$vs
   op
+  let d_out = v(OUT1) - $nom_out
+  let d_ref = v(OFFSET) - $nom_ref
   echo "supply +/-$vs V:"
-  print v(OUT1) v(OFFSET) v(P12V)
+  print v(OUT1) v(OFFSET) d_out d_ref
+  if abs(d_out) > 0.001
+    set out_fail = 1
+  end
+  if abs(d_ref) > 0.0003
+    set ref_fail = 1
+  end
 end
-* Headroom is what a low supply threatens; the signal itself should not move.
-reset
-alter Vpos = 10.8
-alter Vneg = -10.8
-op
-let low_out = v(OUT1)
-if abs(low_out - 5) < 0.05
-  echo "PASS  a 5 V signal survives a 10% low supply"
+if $out_fail = 0
+  echo "PASS  a 5 V signal moves less than 1 mV over +/-5 % rails"
 else
-  echo "FAIL  a 5 V signal does not survive a 10% low supply"
-  print low_out
+  echo "FAIL  the signal moves with the rails"
+end
+if $ref_fail = 0
+  echo "PASS  the offset reference moves less than 0.3 mV over +/-5 % rails"
+else
+  echo "FAIL  the offset reference follows the rails"
 end
 .endc
 .end

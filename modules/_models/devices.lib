@@ -21,6 +21,13 @@
 *            the commonly published forward-voltage curve, NOT taken from a
 *            manufacturer model. Adequate for a series supply diode's drop;
 *            not for reverse recovery or leakage over temperature.
+*   OPA2197 - TI SBOS737C (OPA197/2197/4197), March 2018, electrical
+*            characteristics at Vs = +/-4 V to +/-18 V, Ta = 25 C, read from
+*            TI's HTML datasheet viewer on 2026-09-13. Maximum column where
+*            one exists, because this model exists to check an error budget
+*            built from maxima; typical where no maximum is published.
+*   REF5050 - TI SBOS410O (REF50xx), October 2025, standard (AI) grade,
+*            same source and date. Maximum column where one exists.
 
 * --------------------------------------------------------------------------
 * TL072 dual JFET-input op-amp, one unit.
@@ -80,3 +87,108 @@ Iq     vcc vee 1.4m
 * which is where the published curves sit. Reverse leakage is the weakest
 * part of this model and is not used by anything here.
 .model B5819W D(IS=2e-5 N=1.05 RS=0.05 CJO=100p M=0.33 VJ=0.4 BV=40 IBV=1e-4)
+
+* --------------------------------------------------------------------------
+* OPA2197 dual precision op-amp (rail-to-rail in and out), one unit.
+*
+* Same pin order and the same construction as the TL072 above, with three
+* additions the TL072 model lacks and the attenuverter's error budget needs:
+* input capacitance (it is what the feedback capacitor is there to tame, so
+* a stability check without it would be checking nothing), a second
+* open-loop pole (a single-pole model has 90 degrees of phase margin by
+* construction, so a phase-margin assertion against it would be vacuous),
+* and offset drift with temperature through SPICE's TEMPER variable.
+*
+* Datasheet figures used (SBOS737C section 6.7, +/-4 to +/-18 V table):
+*   input offset voltage        +/-25 uV typ, +/-100 uV max   -> Vos = 100 uV
+*   offset drift                +/-0.5 typ, +/-2.5 uV/C max   -> 2.5 uV/C
+*   input bias current          +/-5 pA typ, +/-20 pA max     -> Ib = 20 pA
+*   differential input Z        100 MOhm || 1.6 pF
+*   common-mode input Z         1e13 Ohm || 6.4 pF
+*   open-loop gain              120 dB min, 134 dB typ (2k)   -> Aol = 5e6
+*   unity-gain bandwidth        10 MHz typ                    -> GBW = 10e6
+*   slew rate                   20 V/us typ                   -> SR = 20e6
+*   open-loop output impedance  375 Ohm at 1 MHz              -> Rout = 375
+*   output swing from rail      95 mV typ, 125 mV max, RL 10k -> 125 mV clamp
+*   quiescent current           1.0 mA typ, 1.3 mA max        -> Iq = 1.3 mA
+*
+* Not in the datasheet as a number, and therefore an assumption: the phase
+* margin of the bare amplifier at unity gain. The datasheet says it drives
+* 1 nF directly and its table 3 recovers 45 degrees with 47 Ohm in series with
+* 100 pF, which is consistent with a second pole around twice the GBW; the
+* second pole below is placed at 20 MHz, giving 63 degrees at unity gain.
+* A deck result that turns on this number to within 10 degrees should say
+* so.
+*
+* Construction:
+*   C1 = 30 pF chosen, then
+*   gm    = 2*pi*GBW*C1 = 1.885 mA/V
+*   R1    = Aol/gm      = 2.653 GOhm
+*   Islew = C1*SR       = 600 uA
+*   second pole: R2 = 1k, C2 = 7.958 pF -> 20 MHz
+*
+* Still not modelled: noise, distortion, CMRR and PSRR as finite numbers
+* (the inputs here are ideal to common mode and supply), output current
+* drawn from the rails, the change of offset in the top 1.5 V of the
+* common-mode range, thermal shutdown, and anything about overload beyond
+* a clamp at the rail.
+.subckt OPA2197 inp inn vcc vee out
+Rin    inp inn 100meg
+Cid    inp inn 1.6p
+Cicp   inp 0 6.4p
+Cicn   inn 0 6.4p
+Ibp    0 inp 20p
+Ibn    0 inn 20p
+* Offset at 25 C plus the maximum drift, both with the same sign: the
+* worst case the budget uses. TEMPER is ngspice's circuit temperature in C.
+Bvos   inx inn V = 100u + 2.5u*(TEMPER - 25)
+Bgm    0 n1 I = max(min(1.885m*V(inp,inx), 600u), -600u)
+R1     n1 0 2.653g
+C1     n1 0 30p
+* Second pole.
+Bp2    0 n2 I = V(n1)/1k
+R2     n2 0 1k
+C2     n2 0 7.958p
+* Rail-to-rail output: clamped 125 mV short of each rail, behind the
+* open-loop output resistance. A clamp, not an output stage.
+Bout   n3 0 V = max(min(V(n2), V(vcc) - 0.125), V(vee) + 0.125)
+Rout   n3 out 375
+Iq     vcc vee 1.3m
+.ends OPA2197
+
+* --------------------------------------------------------------------------
+* REF5050 5.000 V series reference, standard (AI) grade.
+*
+* Pin order (vin gnd nr vout) is this file's convention and is what
+* Emit/Spice.hs emits for a Reference_Voltage symbol: KiCad's REF50xx pins
+* 2, 4, 5, 6. The TEMP pin is not modelled.
+*
+* Datasheet figures used (SBOS410O section 6.5, Ta = 25 C, CL = 1 uF):
+*   output voltage              5.000 V, +/-0.1 % initial (not modelled: the
+*                               knob absorbs the absolute value, the budget
+*                               only cares about movement)
+*   temperature coefficient     3 typ, 8 ppm/C max             -> 8 ppm/C
+*   line regulation             1 typ, 3 ppm/V max             -> 3 ppm/V
+*   load regulation             20 typ, 30 ppm/mA max          -> 0.15 Ohm
+*   minimum headroom            Vin >= Vout + 0.2 V unloaded  -> dropout clamp
+*   quiescent current           0.8 typ, 1.0 mA max            -> 1.0 mA
+*   output current              +/-10 mA recommended (not enforced here)
+*   noise reduction pin         internal resistor with an external 1 uF
+*                               gives a 10-20 Hz corner            -> 10 kOhm
+*
+* Construction: an ideal reference whose value moves with supply and
+* temperature at the datasheet maxima, filtered through the NR pin's internal
+* resistor so the external capacitor does what the datasheet says it does,
+* then a rail-limited buffer behind the load-regulation resistance.
+*
+* Not modelled: noise (0.9 uVrms/V, 10 Hz to 1 kHz), the +/-0.1 % initial
+* error, thermal hysteresis, long-term drift, short-circuit current, and
+* start-up behaviour beyond the NR filter's time constant.
+.subckt REF5050 vin gnd nr vout
+Bref   nref gnd V = 5.0*(1 + 3e-6*(V(vin,gnd) - 5.2) + 8e-6*(TEMPER - 25))
+Rnr    nref nr 10k
+* Dropout: the output cannot rise above the supply less 0.2 V.
+Bout   nout gnd V = min(V(nr,gnd), V(vin,gnd) - 0.2)
+Rload  nout vout 0.15
+Iq     vin gnd 1.0m
+.ends REF5050

@@ -21,6 +21,15 @@
 --   * @norm_<ref>@, a switched jack's normalling contact, in ohms: small when
 --     nothing is patched, enormous when something is.
 --
+-- One probe is generated, because a deck cannot add it afterwards: every
+-- op-amp unit's output goes through a 0 V source @V<ref>_o<pin>@ before it
+-- reaches its net. At DC and in the time domain it is a wire. In an AC deck
+-- it is the injection point for a loop-gain measurement (Middlebrook's
+-- voltage injection: @alter v<ref>_o<pin> ac = 1@, then the loop gain is
+-- @-V(<ref>_o<pin>) / V(<net>)@), which is how the phase margin of a stage is
+-- measured on the circuit that is actually being built instead of on a copy
+-- of it written into the deck. It is also a current probe for the output.
+--
 -- Limits worth stating before anyone quotes a number from this. Component
 -- values are nominal, with no tolerance unless a deck sweeps them. Parasitics
 -- are absent: no pad capacitance, no trace resistance, nothing from
@@ -101,7 +110,7 @@ emitSpice m = T.unlines $
 -- | What a symbol means electrically. Driven by the library identity rather
 -- than by the reference letter, because a reference is a label and a symbol
 -- is a commitment about pins.
-data Kind = Res | Cap | Diode | Pot | Jack | OpAmp | Header | NotElectrical
+data Kind = Res | Cap | Diode | Pot | Jack | OpAmp | VRef | Header | NotElectrical
   deriving (Eq, Show)
 
 symbolKind :: Part -> Kind
@@ -113,6 +122,7 @@ symbolKind p = case (libNick sym, libItem sym) of
   ("Diode", _)                  -> Diode
   ("Connector_Audio", _)        -> Jack
   ("Amplifier_Operational", _)  -> OpAmp
+  ("Reference_Voltage", _)      -> VRef
   ("Connector_Generic", _)      -> Header
   ("Mechanical", _)             -> NotElectrical
   _                             -> NotElectrical
@@ -153,6 +163,7 @@ elementFor m p = case symbolKind p of
       Just tn -> pure
         [ "R" <> ref <> "n " <> t <> " " <> tn <> " {norm_" <> ref <> "}" ]
   OpAmp -> opAmpLines m p
+  VRef -> vrefLines m p
   Header -> pure ["* " <> ref <> ": connector, nodes come from the deck"]
   NotElectrical -> pure ["* " <> ref <> ": not an electrical part"]
   where
@@ -175,7 +186,7 @@ opAmpLines m p = do
   vminus <- node "4"
   vplus <- node "8"
   units <- mapM (unit vplus vminus) presentUnits
-  pure units
+  pure (concat units)
   where
     ref = partRef p
     node n = maybe (Left ("pin " <> n <> " is on no net")) Right (lookupNode m p n)
@@ -184,13 +195,32 @@ opAmpLines m p = do
     presentUnits =
       [ (o, i, ni) | (o, i, ni) <- unitPins
       , all (\n -> lookupNode m p (T.pack (show n)) /= Nothing) [o, i, ni] ]
+    -- The unit drives a private node; the 0 V probe source connects it to
+    -- the net (see the module header). Two lines per unit.
     unit vplus vminus (o, i, ni) = do
       out <- node (T.pack (show o))
       inv <- node (T.pack (show i))
       nin <- node (T.pack (show ni))
-      pure (T.unwords
-        [ "X" <> ref <> "_" <> T.pack (show o)
-        , nin, inv, vplus, vminus, out, modelName p ])
+      let probe = ref <> "_o" <> T.pack (show o)
+      pure [ T.unwords [ "X" <> ref <> "_" <> T.pack (show o)
+                       , nin, inv, vplus, vminus, probe, modelName p ]
+           , T.unwords [ "V" <> probe, probe, out, "DC 0 AC 0" ] ]
+
+-- | A series voltage reference in KiCad's REF50xx pin order: Vin (2), GND
+-- (4), Trim/NR (5), Vout (6). The subcircuit in @modules\/_models\/@ takes
+-- those four in that order. The TEMP pin (3) has no electrical role in the
+-- models and is ignored whether or not it is on a net; an unused Trim/NR pin
+-- gets a private node so the subcircuit's filter input is simply left open.
+vrefLines :: Module -> Part -> Either Text [Text]
+vrefLines m p = do
+  vin  <- node "2"
+  gnd  <- node "4"
+  vout <- node "6"
+  let nr = maybe (ref <> "_NR") id (lookupNode m p "5")
+  pure [ T.unwords [ "X" <> ref, vin, gnd, nr, vout, modelName p ] ]
+  where
+    ref = partRef p
+    node n = maybe (Left ("pin " <> n <> " is on no net")) Right (lookupNode m p n)
 
 -- | The node a part's pin sits on, as SPICE should see it.
 lookupNode :: Module -> Part -> Text -> Maybe Text

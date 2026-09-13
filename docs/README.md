@@ -19,9 +19,8 @@ retire_when: "a replacement index is agreed and all incoming links are updated"
 | [HOMELAB.md](HOMELAB.md) | Staged home-lab shopping list (bol.com, debit card): what to buy, why, prices seen, and which instruments the laptop can drive. |
 | [JLCPCB.md](JLCPCB.md) | What the fab actually charges for, and which routing objectives that justifies. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
-| [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, operating requirements, current circuit and model limitations. |
-| [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, current versus proposed parts, proposed limits. |
-| [decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md) | Pending: attenuverter parts swap alone, or with input buffers. |
+| [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, the option B decision record, the precision circuit, simulated results against the adopted limits, parts. |
+| [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, first versus adopted parts, the adopted acceptance limits. |
 | [modules/mult/SPEC.md](modules/mult/SPEC.md) | Passive mult intent, connectivity, geometry and assembly. |
 | [BENCH.md](BENCH.md) | Recorded routing benchmark output, not a fabrication or SOTA approval. |
 | [modules/attenuverter/route-report.md](modules/attenuverter/route-report.md) | Generated attenuverter routing and predicted analog findings. |

@@ -62,8 +62,10 @@ than slopes:
 
 ## Where our boards actually sit
 
-The attenuverter is 28.0 × 108.0 mm, so 3,024 mm² = 0.003024 m². It has
-**38 drilled holes: 33 for components and 5 vias.**
+The attenuverter (option B revision, 2026-09-13) is 28.0 × 100.0 mm, so
+2,800 mm² = 0.0028 m². Its hole count is in
+[modules/attenuverter/route-report.md](modules/attenuverter/route-report.md)
+(vias) plus 33 component holes; the first revision had 38 in total.
 
 | Limit | Allowance | We use | Headroom |
 |---|--:|--:|--:|
@@ -80,12 +82,10 @@ Two thresholds we are genuinely close to, and both are worth knowing:
   hole ≥ 0.3 mm **and** diameter ≥ 0.4 mm. Shrinking the drill by one step to
   buy routing density would move the whole order into a surcharge tier. This
   is a tripwire, not a margin.
-- **The board is 108 mm tall and the cheap tier ends at 100 mm.** We miss it
-  by 8 mm. Components currently span to y = 106.75 mm, so this is not free to
-  fix: the panel-mounted jacks and pots are placed for panel ergonomics, and
-  pulling them into a 100 mm span is a layout and feel decision, not a routing
-  one. But it is the single biggest cost lever on the board and it has nothing
-  to do with copper.
+- **The board is 100 mm tall since 2026-09-13**, so it sits inside the
+  100 × 100 mm tier. The first revision was 108 mm and missed it by 8 mm;
+  `eurorackPcbHeight` now fixes 100 mm for every module (the panel controls
+  did not have to move: the attenuverter's SMD strips were re-laid instead).
 
 The board is also 28 mm wide, under the 30 mm small-board threshold, so it
 attracts the small-board handling charge and $0.02/piece for burr removal.

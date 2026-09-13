@@ -1,0 +1,63 @@
+* UTIL-01: what does the room do to the offset and the reference?
+*
+* The envelope in ERROR-BUDGET.md is 10 to 40 C. Two of the module's parts
+* carry temperature figures the budget uses: the OPA2197's offset drift
+* (2.5 uV/C maximum) and the REF5050's tempco (8 ppm/C maximum). Both are
+* in the models through SPICE's TEMPER variable, at the datasheet maxima and
+* with the worst sign, so this deck is the budget's temperature rows
+* evaluated on the generated circuit rather than on paper.
+*
+* Limits, from the acceptance table: output offset at any k stays under
+* 1.0 mV over the envelope, and the offset reference moves less than 1.0 mV
+* over it. Predicted: 0.41 mV of offset at 40 C (three amplifiers' worth of
+* 137.5 uV, two of them at the noise gain of 2, less the one that is
+* multiplied by 2k-1 = 0 at centre) and 0.6 mV of reference movement.
+*
+* Not in the models, and therefore not in this result: the resistors' 25
+* ppm/C (0.075 % of inversion error over 15 C, budgeted separately), the
+* pot's tempco (unpublished), and the Schottky's -2 mV/C forward drop, which
+* no longer matters because the reference does not derive from the rail.
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+Vsig IN1 0 DC 5
+
+.control
+alterparam norm_J1 = 1G
+alterparam k_RV1 = 0.5
+set fails = 0
+
+reset
+option temp = 25
+op
+let t1 = v(OFFSET)
+set ref25 = $&t1
+let t2 = v(OUT1)
+set off25 = $&t2
+echo "--- 25 C: reference $ref25 V, output offset at k=0.5 $off25 V ---"
+
+foreach tc 10 40
+  reset
+  option temp = $tc
+  op
+  let ref_shift = v(OFFSET) - $ref25
+  let offset = v(OUT1)
+  echo "at $tc C:"
+  print v(OFFSET) ref_shift offset
+  if abs(ref_shift) > 0.001
+    set fails = 1
+  end
+  if abs(offset) > 0.001
+    set fails = 1
+  end
+end
+if $fails = 0
+  echo "PASS  reference within 1 mV and output offset within 1 mV from 10 to 40 C"
+else
+  echo "FAIL  reference or offset drifts too far from 10 to 40 C"
+end
+.endc
+.end

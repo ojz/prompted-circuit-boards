@@ -1,14 +1,23 @@
 * UTIL-01 channel 1 in time: does it keep up with audio?
 *
-* The demanding case for a unity-gain buffer of this kind is a full-scale
-* signal at the top of the band: +/-10 V at 20 kHz needs
-* 2*pi*20k*10 = 1.26 V/us of slew. The TL072 datasheet says 13 V/us, so
-* there should be about ten times the margin, and this checks that the
-* margin is really there rather than assumed.
+* The demanding case for a unity-gain stage of this kind is a full-scale
+* signal at the top of the band: +/-10 V at 20 kHz needs 2*pi*20k*10 =
+* 1.26 V/us of slew. The OPA2197 datasheet says 20 V/us, so there should be
+* about sixteen times the margin, and this checks that the margin is really
+* there rather than assumed, through two cascaded stages.
+*
+* Two knob positions. At k = 1 the feedback network cancels out of the
+* transfer exactly, so the only frequency dependence is the amplifiers'
+* and their input capacitance (see the stability deck).
+* At k = 0 the output is -Zf/Ra, and Zf is R_f with the 10 pF compensation
+* capacitor across it: with R_f = 10k that is a 1.6 MHz corner, far above
+* the band. Both positions are asserted at 0.5 %; the stability deck holds
+* the tighter small-signal flatness limit.
 *
 * No step response here on purpose. Slew rate is a parameter of the model --
-* it was built to produce the datasheet's 13 V/us -- so measuring it back
-* would confirm the model and say nothing about the circuit.
+* it was built to produce the datasheet's 20 V/us -- so measuring it back
+* would confirm the model and say nothing about the circuit. The stability
+* deck does the small-signal work.
 
 .include modules/_models/devices.lib
 .include modules/attenuverter/sim/attenuverter.cir
@@ -20,43 +29,37 @@ Vneg N12_RAW 0 DC -12
 Vsig CABLE1 0 DC 0 SIN(0 10 20k)
 Rp1  CABLE1 IN1 {rp1}
 * A realistic module on the end of the cable.
-Rload OUT1 0 50k
+Rload OUT1 0 100k
 
 .control
 alterparam norm_J1 = 1G
-alterparam k_RV1 = 1
-reset
-
-* The fourth argument starts recording at 60 us, past the first cycle, so
-* the comparison below is not measuring the turn-on transient.
-tran 200n 200u 60u
-* Compare against what the output divider alone would give, not against the
-* raw input. R3's 1k into a 50k load costs 2% at DC whatever the frequency
-* does, and folding that into the budget would leave a test that passes on
-* 200 mV of arithmetic and 40 mV of amplifier. This way the number is the
-* amplifier's.
-let ideal = v(CABLE1) * 50/51
-let peak_out = maximum(abs(v(OUT1)))
-let peak_ideal = maximum(abs(ideal))
-let amp_err_pct = 100 * (peak_ideal - peak_out) / peak_ideal
-* Instantaneous difference, for contrast: at 20 kHz this is dominated by
-* phase lag, not by amplitude. The op-amp's 3 MHz gain-bandwidth in a
-* noise-gain-of-2 loop puts the closed-loop pole near 1.5 MHz, which is
-* about 0.8 degrees of lag at 20 kHz, and 0.8 degrees on a 10 V sine is
-* 130 mV of instantaneous error while the amplitude is essentially perfect.
-* Asserting on that number would be asserting that a utility module is
-* phase-linear to a fraction of a degree, which nobody needs and which is
-* not what "keeps up with audio" means.
-let worst = maximum(abs(v(OUT1) - ideal))
-echo "--- 20 kHz full scale, unity gain, 50k load ---"
-print peak_out peak_ideal amp_err_pct
-echo "    instantaneous error (mostly phase lag, not amplitude):"
-print worst
-
-if amp_err_pct < 1.0
-  echo "PASS  amplitude holds at 20 kHz full scale"
-else
-  echo "FAIL  amplitude drops at 20 kHz full scale"
+foreach kk 1 0
+  alterparam k_RV1 = $kk
+  reset
+  * The fourth argument starts recording at 60 us, past the first cycle, so
+  * the comparison below is not measuring the turn-on transient.
+  tran 100n 200u 60u
+  * Compare against what the output divider alone would give, not against
+  * the raw input. R3's 1k into 100k costs 1 % at DC whatever the frequency
+  * does, and folding that into the budget would leave a test that passes on
+  * 100 mV of arithmetic. This way the number is the amplifier's.
+  let ideal = v(CABLE1) * 100/101
+  let peak_out = maximum(abs(v(OUT1)))
+  let peak_ideal = maximum(abs(ideal))
+  let amp_err_pct = 100 * (peak_ideal - peak_out) / peak_ideal
+  * Instantaneous difference, for contrast: at 20 kHz this is phase lag,
+  * not amplitude, and nobody needs a utility module to be phase-linear to
+  * a fraction of a degree.
+  let worst = maximum(abs(abs(v(OUT1)) - abs(ideal)))
+  echo "--- 20 kHz full scale, k=$kk, 100k load ---"
+  print peak_out peak_ideal amp_err_pct
+  echo "    instantaneous error (phase lag, not amplitude):"
+  print worst
+  if abs(amp_err_pct) < 0.5
+    echo "PASS  amplitude holds at 20 kHz full scale, k=$kk"
+  else
+    echo "FAIL  amplitude drops at 20 kHz full scale, k=$kk"
+  end
 end
 .endc
 .end

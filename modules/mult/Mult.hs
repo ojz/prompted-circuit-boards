@@ -3,7 +3,7 @@
 --
 -- Why 6HP and two columns rather than 4HP and one column: with the official
 -- Thonkiconn footprint the minimum vertical pitch is 13.6 mm (tip pad of one
--- jack against sleeve pad of the next), and a rail-safe PCB is at most 108 mm
+-- jack against sleeve pad of the next), and the PCB is 100 mm
 -- tall, centred. Eight jacks in one column need 95 mm of pitch plus the
 -- barrel above the first and the 12.5 mm body below the last: 110.7 mm. It
 -- does not fit. Two columns of six fit with room to spare.
@@ -58,11 +58,11 @@ railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
 
 -- Board ----------------------------------------------------------------------
 
--- | Rail-safe board: 108 mm tall, centred on the 128.5 mm panel, 1 mm inside
+-- | Board: 100 mm tall (JLCPCB's cheap tier), centred on the 128.5 mm panel, 1 mm inside
 -- each side edge.
 boardW, boardH :: Double
 boardW = panelWidth - 2.0                                 -- 28.0
-boardH = eurorackPcbHeight                                -- 108.0
+boardH = eurorackPcbHeight                                -- 100.0
 
 boardOffsetX, boardOffsetY :: Double
 boardOffsetX = 1.0

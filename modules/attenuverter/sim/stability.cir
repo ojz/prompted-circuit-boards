@@ -1,0 +1,144 @@
+* UTIL-01 channel 1: phase margin of both loops, measured on the circuit.
+*
+* The inverting node of the attenuverter stage carries the op-amp's input
+* capacitance (1.6 pF differential, 6.4 pF common-mode, SBOS737C) plus
+* whatever the pads and traces add, against R_a || R_f = 50k. That is a
+* pole in the feedback path around 300 kHz, inside a loop that would
+* otherwise cross over at 5 MHz, and it is why every reference design puts
+* a small capacitor across R_f: 10 pF here (Befaco), 22 pF at Mutable
+* Instruments. ERROR-BUDGET.md asks for 45 degrees of phase margin with an
+* extra 10 pF of stray at the node, and says the claim must come from an
+* AC deck, not from a transient that happened to settle.
+*
+* How the loop gain is measured. The generated netlist puts a 0 V source
+* between every op-amp unit's output and its net (V<ref>_o<pin>, see
+* toolkit/src/Emit/Spice.hs). Giving that source an AC amplitude injects a
+* voltage into the loop at the one point where the impedance looking
+* forward (the op-amp's 375 ohm) is far below the impedance looking back
+* (the 100k feedback network), which is the condition under which the
+* voltage-injection loop gain -V(amp side)/V(net side) equals the true loop
+* gain (Middlebrook). Phase margin is 180 degrees plus the phase of that
+* ratio where its magnitude crosses 0 dB. Nothing in the loop is rewritten
+* into this deck; the topology is the generated one.
+*
+* What the number rests on. The OPA2197 model's second pole (20 MHz) is an
+* assumption recorded in devices.lib, not a datasheet figure; the bare
+* amplifier's unity-gain margin in this model is 63 degrees. The buffer's
+* margin is therefore mostly the model's. The stage's margin is the
+* interesting one, because it is set by the resistors and capacitors around
+* the amplifier, and the deck also shows what happens to it when the
+* compensation capacitor is removed, so that nobody later deletes C9 as a
+* part that "does nothing".
+
+.include modules/_models/devices.lib
+.include modules/attenuverter/sim/attenuverter.cir
+
+Vpos P12_RAW 0 DC 12
+Vneg N12_RAW 0 DC -12
+* Input patched from a 0 ohm source at 0 V: operating point mid-range.
+Vsig IN1 0 DC 0
+* The acceptance condition's stray capacitance at the inverting node.
+Cstray INV1 0 10p
+Rload OUT1 0 100k
+
+.control
+set units = degrees
+alterparam norm_J1 = 1G
+alterparam k_RV1 = 0.5
+set fails = 0
+
+echo "--- attenuverter stage (U1 unit B): 10 pF stray at INV1, C9 = 10 pF ---"
+reset
+alter vsig ac = 0
+alter vu1_o7 ac = 1
+ac dec 100 1k 1g
+let t = -v(u1_o7) / v(oa1)
+let tdb = db(t)
+let tph = cph(t)
+meas ac fc_stage when tdb = 0 cross = 1
+meas ac ph_stage find tph when tdb = 0 cross = 1
+let pm_stage = 180 + ph_stage
+print fc_stage pm_stage
+set pm_stage_v = $&pm_stage
+if pm_stage > 45
+  echo "PASS  attenuverter stage phase margin above 45 degrees with 10 pF stray"
+else
+  echo "FAIL  attenuverter stage phase margin below 45 degrees"
+end
+
+echo "--- the same stage with C9 removed (information only) ---"
+reset
+alter cc9 = 1f
+alter vu1_o7 ac = 1
+ac dec 100 1k 1g
+let t0 = -v(u1_o7) / v(oa1)
+let tdb0 = db(t0)
+let tph0 = cph(t0)
+meas ac fc_bare when tdb0 = 0 cross = 1
+meas ac ph_bare find tph0 when tdb0 = 0 cross = 1
+let pm_bare = 180 + ph_bare
+print fc_bare pm_bare
+let gained = $pm_stage_v - pm_bare
+echo "    C9 buys this many degrees:"
+print gained
+
+echo "--- closed-loop flatness with the same 10 pF stray ---"
+* The same input capacitance that sets the phase margin also bends the
+* audio-band response. At k = 1 the current it draws from the inverting node
+* must come through R_f, so the gain shelves up towards 1 + C_in/C_f above
+* the band; at k = 0 the compensation capacitor rolls the inversion off.
+* Both scale with R_f, which is why R_a = R_f is 10k and not the customary
+* 100k: with 100k the k = 1 gain was up 4.6 % at 20 kHz in this model.
+* Limit: 0.1 % (0.009 dB) at 20 kHz relative to 1 kHz, both knob ends.
+* alterparam takes effect at the next reset, and reset discards every alter,
+* so the parameter goes first and the alters follow the reset.
+alterparam k_RV1 = 1
+reset
+alter cc9 = 10p
+alter vu1_o7 ac = 0
+alter vsig ac = 1
+ac dec 100 100 100k
+let g1 = mag(v(oa1) / v(in1))
+meas ac g1_1k find g1 at = 1k
+meas ac g1_20k find g1 at = 20k
+let flat1_pct = 100 * abs(g1_20k - g1_1k) / g1_1k
+print flat1_pct
+* Into a shell variable now: the next reset starts a new plot and the vector
+* would be gone.
+set f1 = $&flat1_pct
+alterparam k_RV1 = 0
+reset
+alter vsig ac = 1
+ac dec 100 100 100k
+let g0 = mag(v(oa1) / v(in1))
+meas ac g0_1k find g0 at = 1k
+meas ac g0_20k find g0 at = 20k
+let flat0_pct = 100 * abs(g0_20k - g0_1k) / g0_1k
+print flat0_pct
+if ($f1 < 0.1) & (flat0_pct < 0.1)
+  echo "PASS  20 kHz gain within 0.1 % of 1 kHz at both knob ends with 10 pF stray"
+else
+  echo "FAIL  the audio-band response is not flat to 0.1 %"
+end
+
+echo "--- input buffer (U1 unit A): unity gain into R_a and the pot ---"
+reset
+alter cc9 = 10p
+alter vsig ac = 0
+alter vu1_o7 ac = 0
+alter vu1_o1 ac = 1
+ac dec 100 1k 1g
+let tb = -v(u1_o1) / v(buf1)
+let tbdb = db(tb)
+let tbph = cph(tb)
+meas ac fc_buf when tbdb = 0 cross = 1
+meas ac ph_buf find tbph when tbdb = 0 cross = 1
+let pm_buf = 180 + ph_buf
+print fc_buf pm_buf
+if pm_buf > 45
+  echo "PASS  input buffer phase margin above 45 degrees (rests on the model's second pole, see header)"
+else
+  echo "FAIL  input buffer phase margin below 45 degrees"
+end
+.endc
+.end

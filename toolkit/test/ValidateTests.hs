@@ -43,7 +43,7 @@ tests =
       [ ("unassigned-pin", "U1.8", ["U1 pin 8", "V+"]) ]
   , rejected "U1.8 mistyped as U1.88 names the bad pin and the real pins"
       (onNets (editNet "+12V" (addPin ("U1", "88") . dropPin ("U1", "8"))) attenuverter)
-      [ ("unknown-pin", "U1.88", ["U1 pin 88", "Amplifier_Operational:TL072", "pins: 1, 2, 3, 5, 6, 7, 4, 8", "+12V"])
+      [ ("unknown-pin", "U1.88", ["U1 pin 88", "Amplifier_Operational:OPA2197xD", "pins: 1, 2, 3, 5, 6, 7, 4, 8", "+12V"])
       , ("unassigned-pin", "U1.8", ["U1 pin 8"]) ]
   , rejected "U1.8 on both rails is a pin on multiple nets"
       (onNets (editNet "-12V" (addPin ("U1", "8"))) attenuverter)

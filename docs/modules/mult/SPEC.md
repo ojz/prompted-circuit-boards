@@ -31,7 +31,7 @@ The plan was 4HP with eight jacks in one column. Two hard limits rule that out:
   and 0.5 mm hole-to-hole from it, giving a minimum vertical pitch of 13.6 mm.
   At 13.0 mm the pads overlap.
 - **Rail clearance.** The PCB behind the panel must stay clear of the rails:
-  at most 108 mm tall (110 mm on most rails), centred on the 128.5 mm panel.
+  100 mm tall (JLCPCB's cheap tier; every rail type clears it), centred on the 128.5 mm panel.
   Eight jacks at 13.6 mm pitch need 95.2 mm plus the barrel above the first
   jack and the 12.5 mm body below the last: 110.7 mm. It does not fit.
 
@@ -55,7 +55,7 @@ on F.SilkS. Paths and commands here are relative to the repository root.
 
 ## PCB
 
-- Size 28.0 × 108.0 mm, 1.0 mm corner radius, 2 layers, 1.6 mm FR4.
+- Size 28.0 × 100.0 mm, 1.0 mm corner radius, 2 layers, 1.6 mm FR4.
 - Centred behind the panel: PCB origin at panel (1.0, 10.25). Board
   coordinate = panel coordinate − (1.0, 10.25). Jack columns at board x = 6.5
   and 21.5; rows at board y = 19.75 + 13.7 k.

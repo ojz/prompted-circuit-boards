@@ -1,19 +1,23 @@
 * UTIL-01: do the two channels stay out of each other's way?
 *
-* They share one thing, and docs/modules/attenuverter/SPEC.md names it as a risk: a single
-* supply-derived offset reference normalled to both input jacks. Patching a
-* cable into channel 1 lifts that channel's loading off the divider, the
-* reference rises, and channel 2's idle output moves with it -- without
-* anyone touching channel 2.
+* They share two things: the supply rails and the offset reference that is
+* normalled to both input jacks. The first version of this module derived
+* the reference from the rail with a divider that both channels loaded, and
+* patching a cable into channel 1 lifted its 50k off the divider and moved
+* channel 2's idle output by 41.8 mV, half a semitone. The REF5050 that
+* replaced it is specified at 30 ppm/mA of load regulation, and behind the
+* input buffers each channel loads it with about 5 uA, so the arithmetic
+* says 0.75 uV. This deck measures it on the generated circuit.
 *
-* That is the mechanism this deck measures. It is a DC shift in an offset
-* voltage, which on a module used as a bipolar offset source is the output
-* moving on its own.
+* Limit, from ERROR-BUDGET.md's acceptance table: either channel's output
+* moves by no more than 0.1 mV when the other is patched or turned. Channel
+* 2's pot is fully clockwise so any shift passes through at full gain.
 *
-* Budget: 50 mV at channel 2's output, with channel 2's pot fully clockwise
-* so the shift is passed through at full gain. 50 mV on a +/-10 V range is
-* 0.5%, under the 1% the SPEC already accepts for this reference, and it is
-* a number to argue with rather than a law.
+* What the rail path can and cannot show here: the op-amp model draws its
+* quiescent current from the rails but not its load current, so a channel
+* driving a heavy load does not sag the rail in this model. The REF5050's
+* line regulation is modelled, so if the rail did move the reference's
+* response would be counted; the rail movement itself is not predicted.
 
 .include modules/_models/devices.lib
 .include modules/attenuverter/sim/attenuverter.cir
@@ -31,6 +35,7 @@ Rp1  CABLE1 IN1 {rp1}
 .control
 * Channel 2 idle and passing its offset through at full gain.
 alterparam k_RV2 = 1
+alterparam k_RV1 = 1
 
 * Nothing patched anywhere: switch closed, no cable.
 alterparam norm_J1 = 1m
@@ -43,6 +48,8 @@ let t1 = v(OFFSET)
 let t2 = v(OUT2)
 set idle_ref = $&t1
 set idle_out2 = $&t2
+echo "--- shared offset reference ---"
+echo "idle:  reference $idle_ref V, channel 2 out $idle_out2 V"
 
 * A cable goes into channel 1: switch opens, cable connects. Channel 2 has
 * not been touched.
@@ -54,15 +61,38 @@ let busy_ref = v(OFFSET)
 let busy_out2 = v(OUT2)
 let ref_shift = busy_ref - $idle_ref
 let out2_shift = busy_out2 - $idle_out2
-
-echo "--- shared offset reference ---"
-echo "idle:  reference $idle_ref V, channel 2 out $idle_out2 V"
 print busy_ref busy_out2 ref_shift out2_shift
-
-if abs(out2_shift) < 0.050
-  echo "PASS  channel 2 moves less than 50 mV when channel 1 is patched"
+if abs(out2_shift) < 0.0001
+  echo "PASS  channel 2 moves less than 0.1 mV when channel 1 is patched"
 else
   echo "FAIL  channel 2 moves when channel 1 is patched"
+end
+
+* Channel 1's knob is turned end to end while patched.
+alterparam k_RV1 = 0
+reset
+op
+let turned_out2 = v(OUT2)
+let turn_shift = turned_out2 - $idle_out2
+print turn_shift
+if abs(turn_shift) < 0.0001
+  echo "PASS  channel 2 moves less than 0.1 mV when channel 1's knob is turned"
+else
+  echo "FAIL  channel 2 moves when channel 1's knob is turned"
+end
+
+* Channel 1 is driven to -10 V at full inversion, so its output sits at
+* +10 V: the largest signal the module handles.
+alter Vsig = -10
+reset
+op
+let driven_out2 = v(OUT2)
+let drive_shift = driven_out2 - $idle_out2
+print drive_shift
+if abs(drive_shift) < 0.0001
+  echo "PASS  channel 2 moves less than 0.1 mV when channel 1 swings full scale (quiescent-current model, see header)"
+else
+  echo "FAIL  channel 2 moves when channel 1 swings full scale"
 end
 .endc
 .end

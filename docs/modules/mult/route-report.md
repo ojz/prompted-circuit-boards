@@ -10,9 +10,9 @@ retire_when: "the corresponding design is removed; Git retains superseded result
 
 | Net | Layers | Segments | Vias | Length mm | Ideal mm | Detour |
 |---|---|--:|--:|--:|--:|--:|
-| MULT_A | B | 31 | 0 | 79.35 | 75.35 | 1.05 |
-| MULT_B | B | 32 | 0 | 80.27 | 75.35 | 1.07 |
-| **total** |  | 63 | 0 | 159.62 | 150.70 | 1.06 |
+| MULT_A | B | 31 | 0 | 79.33 | 75.35 | 1.05 |
+| MULT_B | B | 32 | 0 | 80.26 | 75.35 | 1.07 |
+| **total** |  | 63 | 0 | 159.59 | 150.70 | 1.06 |
 
 Iterations: 1. Contested cells left: 0.
 Via/pad violations: 0.

@@ -4,13 +4,17 @@
 * is 2, so Vout = (2k - 1) * Vin, k = pot fraction. Fully anticlockwise -1x,
 * centre 0, fully clockwise +1x."
 *
-* Input patched (the jack's normalling switch open), output unloaded, both
-* supplies nominal.
+* Input patched from a 0 ohm source (the jack's normalling switch open),
+* output unloaded, both supplies nominal.
 *
-* Tolerance: 25 mV. The op-amp's 3 mV input offset appears at the output
-* multiplied by the noise gain of 2, so 6 mV is expected and unavoidable;
-* the rest is headroom for the finite open-loop gain. A tighter bound would
-* be asserting the model rather than the circuit.
+* Limits, from ERROR-BUDGET.md's acceptance table: output offset at any k
+* no more than 1.0 mV, and the unity-gain error at k = 1 no more than
+* 0.05 %. At k = 0.5 the ideal output is zero and the resistor ratio is
+* nominal, so whatever comes out is offset alone; that is where the 1 mV
+* is asserted directly. Elsewhere the bound is the two limits added:
+* 1 mV + 0.05 % of the 5 V signal = 3.5 mV. The model's own offset is the
+* datasheet maximum (100 uV per amplifier), so this is worst case for
+* offset, though nominal for the resistors, which the corners deck covers.
 
 .include modules/_models/devices.lib
 .include modules/attenuverter/sim/attenuverter.cir
@@ -21,7 +25,6 @@ Vsig IN1 0 DC 5
 
 .control
 alterparam norm_J1 = 1G
-set fails = 0
 foreach kk 0 0.25 0.5 0.75 1
   alterparam k_RV1 = $kk
   reset
@@ -29,12 +32,36 @@ foreach kk 0 0.25 0.5 0.75 1
   let want = (2 * $kk - 1) * 5
   let got = v(OUT1)
   let err = abs(got - want)
-  if err < 0.025
+  if err < 0.0035
     echo "PASS  transfer k=$kk"
   else
     echo "FAIL  transfer k=$kk"
     print want got err
   end
+end
+
+echo "--- offset alone: k = 0.5, 5 V in, ideal output 0 ---"
+alterparam k_RV1 = 0.5
+reset
+op
+let offset = v(OUT1)
+print offset
+if abs(offset) < 0.001
+  echo "PASS  output offset under 1 mV"
+else
+  echo "FAIL  output offset exceeds 1 mV"
+end
+
+echo "--- unity gain at k = 1 ---"
+alterparam k_RV1 = 1
+reset
+op
+let gain_err_pct = 100 * abs(v(OUT1) - 5) / 5
+print gain_err_pct
+if gain_err_pct < 0.05
+  echo "PASS  unity gain error under 0.05 %"
+else
+  echo "FAIL  unity gain error exceeds 0.05 %"
 end
 .endc
 .end

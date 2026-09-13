@@ -1,5 +1,5 @@
 ---
-status: "derived 2026-09-11; limits proposed, awaiting the decision in `docs/decisions/`"
+status: "derived 2026-09-11; limits adopted with option B on 2026-09-13 and asserted by the decks in modules/attenuverter/sim/"
 owner: "module-design agent"
 read_when: "choosing parts or circuit changes for this module, writing its simulation assertions, or planning its bench measurements"
 update_when: "a part, the topology, the operating envelope or a datasheet figure changes; when measurements replace predictions"
@@ -10,12 +10,18 @@ retire_when: "the module is removed, or the adopted limits and their evidence ha
 
 This document derives, from manufacturer figures, how far the attenuverter's
 output can deviate from the ideal `Vout = (2k − 1)·Vin` and from a stable
-offset, in volts and in cents at 1 V/octave. It covers the circuit as designed
-(TL072C, 1% thick-film resistors, resistive offset divider) and the proposed
-replacements. Every number below is arithmetic on a quoted datasheet figure;
-none is a measurement. The generated SPICE evidence in
-[SPEC.md](SPEC.md) is nominal and cannot show most of these terms because the
-hand-built models omit them ([devices.lib](../../../modules/_models/devices.lib)).
+offset, in volts and in cents at 1 V/octave. It covers the first circuit
+(TL072C, 1% thick-film resistors, resistive offset divider) and the
+replacement adopted on 2026-09-13 as option B: an OPA2197 per channel (unity
+gain buffer plus attenuverter stage), 0.1 % thin-film 10 kΩ gain resistors,
+10 pF C0G compensation, a 1 MΩ input resistor and a REF5050 offset reference.
+"Current" in the tables below is the first circuit; "proposed" is what was
+built. Every number below is arithmetic on a quoted datasheet figure; none is
+a measurement. The decks in `modules/attenuverter/sim/` evaluate the same
+terms on the generated netlist with the models in
+[devices.lib](../../../modules/_models/devices.lib), which carry the maxima
+used here for offset, drift, input capacitance and the reference's
+regulation; their results are in [SPEC.md](SPEC.md).
 
 **Unit.** At 1 V/octave one semitone is 83.33 mV and one cent is 0.8333 mV.
 "c/oct" below means cents of pitch error per octave of input, the unit for a
@@ -51,7 +57,7 @@ quantity 10, in USD. Prices move; re-check before ordering.
 | OPA1678IDR (Mutable Instruments' choice, LCSC C192421, $0.77) | TI SBOS846 | V_OS ±0.5 mV typ / ±2 mV max; I_B ±10 pA; V_CM (V−) + 0.5 V to (V+) − 2 V; SR 9 V/µs |
 | REF5050AIDR (candidate, LCSC C27804, $0.97, 21 000 in stock) | TI SBOS410G, standard grade | 5.000 V ±0.1 %; drift 8 ppm/°C max; line regulation 3 ppm/V typ; load regulation 18 typ / 30 max ppm/mA; ±10 mA output; V_IN 5.2–18 V; specified with C_L = 1 µF |
 | LM4040B50 (alternative, LCSC C460606/C69315, $0.73–1.08) | TI SNOS644, B grade | 5.000 V ±0.2 %; 100 ppm/°C max; shunt; ±0.85 % total over 65 °C per the datasheet's own sum |
-| RT0805BRD07100KL (candidate 100 k, Yageo, LCSC C122537, $0.037, 290 000 in stock) | Yageo RT series via LCSC | thin film, ±0.1 %, ±25 ppm/°C |
+| RT0805BRD0710KL (adopted 10 k, Yageo, LCSC C110775, $0.045 at 20, 136 000 in stock on 2026-09-13) and RT0805BRD07100KL (100 k, C122537, considered and rejected for flatness, see Stability) | Yageo RT series via LCSC | thin film, ±0.1 %, ±25 ppm/°C |
 | Mutable Instruments Shades v4.0 BOM | `pichenettes/eurorack`, `shades/hardware_design/Shades.xlsx` (CC-BY-SA hardware) | four OPA1678 duals for three channels, LM4040B10 reference, 21 × 100 k thin-film ≤ 0.1 % resistors, 22 pF C0G compensation caps, 1.0 k output resistors |
 | Befaco Dual Attenuverter v2 assembly guide | befaco.org, October 2022 | three TL072, ordinary 1 % resistors, four 10 pF caps (one per feedback network), 100 k pots |
 
@@ -78,7 +84,7 @@ loading row and adds its own offset row.
 |---|---|---|---|---|
 | Op-amp input offset | V_OS × noise gain 2 (the same for every k) | 6 mV = 7 c | 20 mV at 25 °C, 26 mV over 0–70 °C = 24–31 c | 0.20 mV = 0.24 c |
 | Offset drift | dV_OS/dT × 2 × 15 °C | 0.5 mV = 0.6 c | not specified | 0.14 mV = 0.16 c |
-| Bias current | I_B × R_f at the inverting node; I_B × wiper impedance (≤ 25 kΩ) × 2 at the other | < 0.01 mV | 0.7 + 0.35 mV = 1.3 c | 0.006 mV |
+| Bias current | I_B × R_f at the inverting node; I_B × wiper impedance (≤ 25 kΩ) × 2 at the other | < 0.01 mV | 0.7 + 0.35 mV = 1.3 c | 0.001 mV (R_f = 10 kΩ) |
 | Buffer offset (option B only) | buffer V_OS × (2k − 1), at most ×1 | — | — | 0.10 mV = 0.12 c |
 | **Total offset** | | **≈ 6.5 mV = 8 c** | **≈ 27 mV = 33 c** | **≈ 0.35 mV (A) / 0.45 mV (B) ≈ 0.5 c** |
 
@@ -129,21 +135,37 @@ The `headroom` deck's "±10 V fits" result is a property of the model, whose
 clamp sits 1.5 V from the rail and which has no common-mode limit. The
 datasheet does not support the claim for the real part.
 
-### Stability
+### Stability and audio-band flatness
 
-The circuit has no feedback capacitor. The inverting node's stray and input
-capacitance (of order 10 pF) against R_a ∥ R_f = 50 kΩ puts a pole at about
-320 kHz inside a loop that crosses over near 1.5 MHz (TL072) or 5 MHz
-(OPA2197). Both reference designs compensate: Befaco with 10 pF, Mutable
-Instruments with 22 pF across the feedback resistor. A 10 pF C0G across
-R_f = 100 kΩ gives a 159 kHz corner and −0.07 dB at 20 kHz. This must be
-confirmed by an AC deck once the model carries input capacitance; the current
-model has none, so the current `transient` pass is not evidence of stability.
+The first circuit had no feedback capacitor. The inverting node's stray and
+input capacitance against R_a ∥ R_f puts a pole in the feedback path inside
+the loop; both reference designs compensate it, Befaco with 10 pF and Mutable
+Instruments with 22 pF across the feedback resistor. The adopted circuit has
+10 pF C0G across R_f, and the `stability` deck measures the loop gain on the
+generated netlist through the 0 V probe the netlist generator places in every
+op-amp output (Middlebrook voltage injection), with the OPA2197 model's 1.6 pF
+differential and 6.4 pF common-mode input capacitance and a further 10 pF of
+stray added at the node. With the capacitor the stage has 72° of phase
+margin; with it removed, 27°. The buffer's margin is the model's own
+(67°), and rests on an assumed second pole recorded in `devices.lib`.
+
+The same capacitance bends the audio band, and this is why the gain
+resistors are 10 kΩ rather than the customary 100 kΩ. At k = 1 the inverting
+node sits at Vin and the current through C_in must come from the output via
+R_f, so `Vout = Vin·(1 + jωC_in·Z_f)`: a shelf rising towards `1 + C_in/C_f`
+above the band. With R_f = 100 kΩ and 16 pF at the node that is +1.3 % at
+20 kHz in the model and +4.6 % with the 10 pF stray; with R_f = 10 kΩ it is
+0.013 % and 0.05 %. The inversion (k = 0) rolls off at 1/(2π R_f C_f), which
+moves from 159 kHz to 1.6 MHz. Nothing outside the board sees R_a or R_f once
+the buffer is in front, so the value is free to choose, and the buffer and
+the stage each drive at most 1 mA more into the 10 kΩ, inside the OPA2197's
+10 kΩ swing specification.
 
 ### Noise
 
 18 nV/√Hz × 2 × √20 kHz = 5 µV rms (TL072C); 1.6 µV rms (OPA2197). Not a
-constraint at Eurorack levels. Option B's 1 MΩ input resistor adds 18 µV rms.
+constraint at Eurorack levels. The 1 MΩ input resistor adds 18 µV rms in a
+patched channel; unpatched, the REF5050's 0.9 µV rms/V is 4.5 µV rms.
 
 ### Outside the budget, deliberately
 
@@ -159,13 +181,13 @@ constraint at Eurorack levels. Option B's 1 MΩ input resistor adds 18 µV rms.
 - **Input protection** against over-voltage or reversed power is not part of
   this budget and is not designed in; it is a separate M4 item.
 
-## Proposed acceptance limits
+## Acceptance limits
 
-To be adopted in [SPEC.md](SPEC.md) and asserted by the decks once the
-decision file is answered. Each is met with margin by the proposed parts and
-failed by the current ones.
+Adopted 2026-09-13 with option B and asserted by the decks named in
+[SPEC.md](SPEC.md), whose table carries the simulated values. Each is met with
+margin by the adopted parts and failed by the first circuit.
 
-| Quantity | Limit | Proposed margin |
+| Quantity | Limit | Predicted margin |
 |---|---|---|
 | Output offset, any k, over the envelope | ≤ 1.0 mV (1.2 c) | 0.35–0.45 mV |
 | Unity gain error at k = 1, output open, 0 Ω source | ≤ 0.05 % (0.6 c/oct) | ≈ 0.01 % |
@@ -174,14 +196,18 @@ failed by the current ones.
 | Offset reference change over ±5 % rails | ≤ 0.3 mV | 0.01–0.27 mV |
 | Offset reference change over 10–40 °C | ≤ 1.0 mV (1.2 c) | 0.6 mV |
 | ±10 V in, ±10 V out at k = ±1, rails at 11.4 V, load 100 kΩ | met by guaranteed figures | 0.9 V of swing, full common-mode range |
-| Phase margin of each stage with 10 pF stray | ≥ 45° | to be shown by the AC deck |
-| Input impedance | ≥ 44 kΩ (A) or ≥ 900 kΩ (B), stated in the spec | |
+| Phase margin of each stage with 10 pF stray | ≥ 45° | 72° stage, 67° buffer (model) |
+| Gain at 20 kHz relative to 1 kHz, k = 0 and k = 1, 10 pF stray | ≤ 0.1 % (0.009 dB) | 0.05 % at k = 1 |
+| Amplitude at 20 kHz full scale, k = 0 and k = 1, 100 kΩ load | ≤ 0.5 % | slew margin 16× |
+| Source loading, 1 kΩ source | ≤ 0.15 % | 0.10 % |
+| Input impedance | ≥ 900 kΩ, stated in the spec | 1 MΩ nominal |
 
 ## What this does not establish
 
 The figures are manufacturer maxima combined arithmetically, not measured
-distributions, and the interaction and loading rows still depend on the
-existing SPICE decks whose models omit input capacitance, common-mode
-limits and real output stages. Board leakage, jack contact resistance and
+distributions. The decks now carry input capacitance, offset drift and the
+reference's line, load and temperature terms at their maxima, but the models
+still have no finite CMRR or PSRR, no noise, no output stage beyond a clamp,
+and draw no load current from the rails. Board leakage, jack contact resistance and
 pot end resistance are not in any datasheet used here. Physical confirmation
 is the M5 gate; until then these are predictions with stated sources.

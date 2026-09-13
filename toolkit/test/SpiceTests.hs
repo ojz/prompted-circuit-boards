@@ -78,10 +78,17 @@ attenuverterHasNoUnmodelledParts =
          [ (null problems
            , "unmodelled: " ++ show [ (spRef p, spMessage p) | p <- problems ])
            -- The op-amp's two units, both supplies distinct.
-         , ("XU1_1 WIPER1 INV1 P12V N12V OA1 TL072" `isInfixOf` out
+         , ("XU1_1 IN1 BUF1 P12V N12V U1_o1 OPA2197" `isInfixOf` out
            , "unit A should be wired non-inverting, inverting, V+, V-, out:\n" ++ out)
-         , ("XU1_7 WIPER2 INV2 P12V N12V OA2 TL072" `isInfixOf` out
+         , ("XU1_7 WIPER1 INV1 P12V N12V U1_o7 OPA2197" `isInfixOf` out
            , "unit B should use pins 5, 6, 7:\n" ++ out)
+           -- Each unit drives a private probe node that a 0 V source joins
+           -- to the net: the loop-gain injection point (see Emit.Spice).
+         , ("VU1_o1 U1_o1 BUF1 DC 0 AC 0" `isInfixOf` out
+           , "unit A's output should reach its net through the 0 V probe:\n" ++ out)
+           -- The voltage reference in Vin, GND, Trim/NR, Vout order.
+         , ("XU3 P12V 0 NR OFFSET REF5050" `isInfixOf` out
+           , "the reference should be emitted Vin, GND, NR, Vout:\n" ++ out)
            -- Series protection diodes, pointing into the rails they feed.
          , ("DD2 P12_RAW P12V B5819W" `isInfixOf` out
            , "the +12 V Schottky should conduct from the raw rail:\n" ++ out)

@@ -280,12 +280,14 @@ eurorackPanelWidth hp = case hp of
 eurorackPanelHeight :: Double
 eurorackPanelHeight = 128.5
 
--- | Tallest PCB that clears the mounting rails on every 3U case. Doepfer
--- lists 110 mm as the usable height behind the panel; 108 mm also clears
--- the deeper rail profiles, so it is the repo default. Centred on the panel.
+-- | PCB height behind a 3U panel. Doepfer lists 110 mm as usable and 108 mm
+-- clears the deeper rail profiles, but JLCPCB's cheapest tier ends at
+-- 100 x 100 mm (docs/JLCPCB.md), and a 100 mm board still leaves 14.25 mm
+-- to each rail. Fixed at 100 mm on 2026-09-11 (docs/ROADMAP.md, form factor)
+-- and applied to every module on 2026-09-13. Centred on the panel.
 eurorackPcbHeight :: Double
-eurorackPcbHeight = 108.0
+eurorackPcbHeight = 100.0
 
 -- | Where the PCB's top edge sits below the panel's top edge when centred.
 eurorackPcbTop :: Double
-eurorackPcbTop = (eurorackPanelHeight - eurorackPcbHeight) / 2   -- 10.25
+eurorackPcbTop = (eurorackPanelHeight - eurorackPcbHeight) / 2   -- 14.25

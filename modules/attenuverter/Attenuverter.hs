@@ -1,17 +1,31 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | UTIL-01 ATTENUVERTER: dual attenuverter with +5 V offset normalling, 6HP.
--- See docs/modules/attenuverter/SPEC.md.
+-- | UTIL-01 ATTENUVERTER: dual precision attenuverter with +5 V offset
+-- normalling, 6HP. See docs/modules/attenuverter/SPEC.md.
 --
--- Each channel is the classic single op-amp attenuverter: the input feeds an
--- inverting stage of gain -1 (R_a = R_f = 100k) and, through the pot as a
--- divider, the non-inverting input of the same op-amp. With the pot fraction
--- k the output is (2k - 1) * Vin: -1x fully anticlockwise, silence in the
--- middle, +1x fully clockwise. With nothing patched the jack's switch pin
--- normals the input to about +4.7 V (4.8 V by open-circuit arithmetic, 4.67 V
--- simulated under load), so the channel doubles as a bipolar offset source.
--- docs/modules/attenuverter/ERROR-BUDGET.md derives why this divider and the
--- TL072C do not meet the precision requirement; the replacement is pending a
--- decision in docs/decisions/.
+-- Each channel is two op-amp units of one OPA2197. The first is a unity-gain
+-- buffer on the input jack, so the attenuverter stage behind it sees a 0 ohm
+-- source and the module presents 1 M to the cable instead of 50 k. The
+-- second is the classic single op-amp attenuverter: the buffered input feeds
+-- an inverting stage of gain -1 (R_a = R_f = 10k, 0.1 %) and, through the
+-- pot as a divider, the non-inverting input of the same unit. With the pot
+-- fraction k the output is (2k - 1) * Vin: -1x fully anticlockwise, silence
+-- in the middle, +1x fully clockwise. A 10 pF C0G across R_f compensates the
+-- inverting node's capacitance, as both reference designs do.
+--
+-- Why 10k and not the customary 100k: the op-amp's input capacitance (8 pF
+-- on the datasheet, more with pads) draws its current through R_f, so at
+-- full clockwise the gain shelves up towards 1 + C_in/C_f above the audio
+-- band. The stability deck measured that shelf at +4.6 % at 20 kHz with
+-- 100k and 10 pF of stray; with 10k it is 0.05 %, the inversion's roll-off
+-- moves from 159 kHz to 1.6 MHz, and the phase margin is unchanged. The
+-- buffer makes the value free to choose: nothing outside the board sees it.
+--
+-- With nothing patched the jack's switch pin normals the input to a REF5050
+-- 5.000 V reference, so the channel doubles as a bipolar offset source that
+-- does not move when the rail, the other channel or the room temperature
+-- does. docs/modules/attenuverter/ERROR-BUDGET.md derives every one of these
+-- choices from the datasheets; the decision that fixed them (option B) is
+-- recorded in SPEC.md.
 --
 -- All SMD parts and the power header are on the back of the board (one
 -- JLCPCB assembly side); jacks and pots are through-hole on the front.
@@ -59,11 +73,11 @@ railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
 
 boardW, boardH :: Double
 boardW = panelWidth - 2.0                                 -- 28.0
-boardH = eurorackPcbHeight                                -- 108.0
+boardH = eurorackPcbHeight                                -- 100.0
 
 boardOffsetX, boardOffsetY :: Double
 boardOffsetX = 1.0
-boardOffsetY = eurorackPcbTop                             -- 10.25
+boardOffsetY = eurorackPcbTop                             -- 14.25
 
 toBoard :: (Double, Double) -> (Double, Double)
 toBoard (x, y) = (x - boardOffsetX, y - boardOffsetY)
@@ -79,12 +93,13 @@ originFor side rot (lx, ly) (bx, by) =
 
 -- Library ids ----------------------------------------------------------------
 
-jackSym, jackFp, potSym, potFp, opampSym, soic8, rSym, r0805, cSym, c0805, dSym, sod123, hdrSym, hdrFp :: LibId
+jackSym, jackFp, potSym, potFp, opampSym, vrefSym, soic8, rSym, r0805, cSym, c0805, dSym, sod123, hdrSym, hdrFp :: LibId
 jackSym  = LibId "Connector_Audio" "AudioJack2_SwitchT"
 jackFp   = LibId "Connector_Audio" "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 potSym   = LibId "Device" "R_Potentiometer"
 potFp    = LibId "Potentiometer_THT" "Potentiometer_Alpha_RD901F-40-00D_Single_Vertical"
-opampSym = LibId "Amplifier_Operational" "TL072"
+opampSym = LibId "Amplifier_Operational" "OPA2197xD"
+vrefSym  = LibId "Reference_Voltage" "REF5050AD"
 soic8    = LibId "Package_SO" "SOIC-8_3.9x4.9mm_P1.27mm"
 rSym     = LibId "Device" "R"
 r0805    = LibId "Resistor_SMD" "R_0805_2012Metric"
@@ -95,13 +110,15 @@ sod123   = LibId "Diode_SMD" "D_SOD-123"
 hdrSym   = LibId "Connector_Generic" "Conn_02x05_Odd_Even"
 hdrFp    = LibId "Connector_IDC" "IDC-Header_2x05_P2.54mm_Vertical"
 
--- | JLCPCB parts, verified against jlcpcb.com/partdetail on 2026-09-08.
+-- | JLCPCB parts. Passives, diodes and the original codes were verified on
+-- jlcpcb.com on 2026-09-08; the precision parts and the new passives against
+-- LCSC's product data on 2026-09-13 (SPEC.md has the table).
 lcsc :: Text -> [(Text, Text)]
 lcsc c = [("LCSC Part #", c)]
 
 -- Parts ----------------------------------------------------------------------
 
--- Schematic rows (A4 landscape): channel 1, channel 2, power.
+-- Schematic rows (A4 landscape): channel 1, channel 2, power and reference.
 rowY1, rowY2, rowY3 :: Double
 rowY1 = 45.72
 rowY2 = 96.52
@@ -113,21 +130,22 @@ rowY3 = 147.32
 jack :: Text -> Text -> Int -> Bool -> Part
 jack ref val ch isOut =
   (part ref val jackSym jackFp (toBoard (jackPanelAt ch isOut))
-        (if isOut then 195.58 else 38.1, if ch == 1 then rowY1 else rowY2))
+        (if isOut then 203.20 else 38.1, if ch == 1 then rowY1 else rowY2))
     { partNoConnect = [ "TN" | isOut ] }
 
 -- | Alpha 9 mm pot, rotated 90 so its pins point down and its lugs sit left
 -- and right of the shaft. Footprint origin is pin 1; the shaft is at
--- (7.5, 2.5) in footprint coordinates.
+-- (7.5, 2.5) in footprint coordinates. Pins land 7.5 mm below the shaft
+-- (y = 29.5 and 71.5 on the panel), lugs 4.8 mm either side of it.
 pot :: Text -> Int -> Part
 pot ref ch =
-  (part ref "B100K" potSym potFp (originFor Front 90 (7.5, 2.5) (toBoard (potPanelAt ch))) (69.85, if ch == 1 then rowY1 else rowY2))
+  (part ref "B100K" potSym potFp (originFor Front 90 (7.5, 2.5) (toBoard (potPanelAt ch))) (96.52, if ch == 1 then rowY1 else rowY2))
     { partRot = 90 }
 
 -- | Factory-assembled SMD part on the back, at a panel position. JLCPCB
 -- places from the BOM and position file, so passives and diodes carry no
--- silkscreen reference; IC and header keep theirs for orientation checks
--- (the diode footprint has its own cathode bar).
+-- silkscreen reference; ICs and the header keep theirs for orientation
+-- checks (the diode footprint has its own cathode bar).
 smd :: Text -> Text -> LibId -> LibId -> Text -> (Double, Double) -> (Double, Double) -> Part
 smd ref val sy fp code panelPos schPos =
   (part ref val sy fp (toBoard panelPos) schPos)
@@ -135,6 +153,51 @@ smd ref val sy fp code panelPos schPos =
 
 withRef :: Part -> Part
 withRef p = p { partRefOnSilk = True }
+
+-- | One channel's SMD parts. The back of the board has two strips free of
+-- through-hole pads that are 11.5 mm tall and the full 28 mm wide: between
+-- the first jack row's tip pads and the second pot's lugs (panel y 50.5 to
+-- 62, channel 1), and between the second jack row's tip pads and the power
+-- header (y 93 to 104.5, channel 2). Each strip holds three rows of 0805s at
+-- 4 mm pitch with a SOIC-8 in the middle row; the decoupling capacitors sit
+-- in the row nearest the supply pin they serve (mirrored on the back: pin 4
+-- V- is at the top-left of the package, pin 8 V+ at the bottom-right).
+--
+-- Reference designators per channel: ch 1 uses U1, R1 R2 R3 R9 C3 C4 C9;
+-- ch 2 uses U2, R4 R5 R6 R10 C11 C12 C10. Passed in explicitly so the
+-- netlist below reads the same as the schematic.
+channel :: Int -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Double -> Double -> [Part]
+channel ch u rA rF rO rIn cF cVp cVn uY rowY =
+  let top = uY - 4.0
+      bot = uY + 4.0
+      -- Channel 1 shares its strip with the reference, so its op-amp sits
+      -- left and its decoupling goes in slots 0 (V-) and 2 (V+); channel 2
+      -- sits centred, next to the bulk capacitors and Schottkys in its own
+      -- row, with decoupling in slots 2 (V-) and 4 (V+).
+      (uX, vnSlot, vpSlot, uSlot) = if ch == 1 then (7.5, 0, 2, 1) else (14.0, 2, 4, 3)
+      slot i = 3.5 + 3.5 * fromIntegral (i :: Int)
+      topSlots = filter (/= vnSlot) [0 .. 3]
+      -- The op-amp's reference designator is printed below its package on
+      -- the back, over the bottom-row slot under it (uSlot), so that slot
+      -- stays empty.
+      botSlots = filter (\i -> i /= vpSlot && i /= uSlot) [0 .. 3]
+      at i y = (slot i, y)
+      sch x = (x, rowY)
+  in
+  [ withRef (smd u "OPA2197" opampSym soic8 "C139363" (uX, uY) (sch 73.66))
+      -- Unit A (buffer) in the channel row, unit B (attenuverter) to its
+      -- right, the power unit in the third row.
+      { partUnitOffsets = [(83.82, 0), (if ch == 1 then -12.70 else 7.62, rowY3 - rowY)] }
+  , smd cVn "100n" cSym c0805 "C49678"  (at vnSlot top) (if ch == 1 then (175.26, rowY3) else (205.74, rowY3))
+  , smd rIn "1M"   rSym r0805 "C17514"  (at (topSlots !! 0) top) (55.88, rowY + 10.16)
+  , smd rA  "10k"  rSym r0805 "C110775" (at (topSlots !! 1) top) (sch 114.30)
+  , smd rF  "10k"  rSym r0805 "C110775" (at (topSlots !! 2) top) (sch 134.62)
+  , smd rO  "1k"   rSym r0805 "C17513"  (at (botSlots !! 0) bot) (sch 180.34)
+    -- In the schematic the capacitor sits well above R_f: at 12.7 mm their
+    -- pin stubs met and KiCad merged INV and OA into one net.
+  , smd cF  "10p"  cSym c0805 "C344177" (at (botSlots !! 1) bot) (134.62, rowY - 22.86)
+  , smd cVp "100n" cSym c0805 "C49678"  (at vpSlot bot) (if ch == 1 then (160.02, rowY3) else (190.50, rowY3))
+  ]
 
 parts :: [Part]
 parts =
@@ -144,65 +207,66 @@ parts =
   , jack "J4" "OUT 2" 2 True
   , pot "RV1" 1
   , pot "RV2" 2
-    -- Op-amp centred in the SMD strip below the second jack row; units 2 and
-    -- 3 of the symbol land in schematic rows 2 and 3.
-  , withRef (smd "U1" "TL072" opampSym soic8 "C6961" (14.0, 98.5) (165.1, rowY1))
-      { partUnitOffsets = [(0, rowY2 - rowY1), (0, rowY3 - rowY1)] }
-    -- Channel 1 passives in the left column, channel 2 in the right one,
-    -- 3.5 mm pitch (0805 courtyard is 1.9 mm tall).
-  , smd "R1" "100k" rSym r0805 "C17407" (4.5, 94.5)  (95.25, rowY1)
-  , smd "R2" "100k" rSym r0805 "C17407" (4.5, 98.0)  (113.03, rowY1)
-  , smd "R3" "1k"   rSym r0805 "C17513" (4.5, 101.5) (130.81, rowY1)
-  , smd "R4" "100k" rSym r0805 "C17407" (23.5, 94.5) (95.25, rowY2)
-  , smd "R5" "100k" rSym r0805 "C17407" (23.5, 98.0) (113.03, rowY2)
-  , smd "R6" "1k"   rSym r0805 "C17513" (23.5, 101.5) (130.81, rowY2)
-    -- Offset reference: 12 V * 1k / 2.5k = 4.8 V open-circuit, 4.67 V once the
-    -- Schottky drop and both channels' loading are counted; filtered, on the
-    -- back between the jack columns.
-  , smd "R7" "1.5k" rSym r0805 "C4310"  (15.0, 44.5) (218.44, rowY3)
-  , smd "R8" "1k"   rSym r0805 "C17513" (15.0, 48.0) (236.22, rowY3)
-  , smd "C5" "100n" cSym c0805 "C49678" (15.0, 51.5) (200.66, rowY3)
-    -- Rail decoupling beside the op-amp's supply pins (mirrored on the back:
-    -- pin 4 V- top-left, pin 8 V+ bottom-right), bulk caps and Schottkys in
-    -- the row above the header.
-  , smd "C4" "100n" cSym c0805 "C49678" (8.3, 94.5)   (182.88, rowY3)
-  , smd "C3" "100n" cSym c0805 "C49678" (19.7, 101.5) (147.32, rowY3)
-  , smd "D1" "B5819W" dSym sod123 "C8598" (4.5, 105.0)  (66.04, rowY3)
-  , smd "C1" "10u"  cSym c0805 "C15850" (9.5, 105.0)  (111.76, rowY3)
-  , smd "C2" "10u"  cSym c0805 "C15850" (18.5, 105.0) (129.54, rowY3)
-  , smd "D2" "B5819W" dSym sod123 "C8598" (23.5, 105.0) (91.44, rowY3)
+  ]
+  ++ channel 1 "U1" "R1" "R2" "R3" "R9"  "C9"  "C3"  "C4"  56.0 rowY1
+  ++ channel 2 "U2" "R4" "R5" "R6" "R10" "C10" "C11" "C12" 98.5 rowY2
+  ++
+    -- Offset reference in the right half of channel 1's strip: REF5050 with
+    -- its 1 uF input bypass, 1 uF output capacitor (the datasheet's stability
+    -- condition) and 1 uF on the noise-reduction pin, all in the top row.
+  [ withRef (smd "U3" "REF5050" vrefSym soic8 "C27804" (20.5, 56.0) (238.76, rowY3))
+      { partNoConnect = ["3"] }                            -- TEMP: not used
+  , smd "C6" "1u" cSym c0805 "C28323" (17.5, 52.0) (223.52, rowY3 + 15.24)
+  , smd "C7" "1u" cSym c0805 "C28323" (21.0, 52.0) (256.54, rowY3 + 15.24)
+  , smd "C8" "1u" cSym c0805 "C28323" (24.5, 52.0) (238.76, rowY3 + 22.86)
+    -- Bulk caps and Schottkys either side of U2 in its middle row (a
+    -- SOD-123 courtyard is 4.7 mm wide, so the diodes take the outer spots).
+  , smd "D1" "B5819W" dSym sod123 "C8598" (4.3, 98.5)  (99.06, rowY3)
+  , smd "C1" "10u"  cSym c0805 "C15850" (8.5, 98.5)  (129.54, rowY3)
+  , smd "C2" "10u"  cSym c0805 "C15850" (20.0, 98.5) (144.78, rowY3)
+  , smd "D2" "B5819W" dSym sod123 "C8598" (24.5, 98.5) (114.30, rowY3)
     -- 2x5 shrouded IDC header along the bottom edge, on the back, pins 1-2
     -- (-12 V) at the right. Footprint origin is pin 1; the pad field is
-    -- centred at (1.27, 5.08). Through-hole, soldered by hand.
-  , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (toBoard (14.5, 111.5))) (38.1, rowY3))
+    -- centred at (1.27, 5.08) and the shroud reaches 4.45 mm either side of
+    -- it, so a centre at panel y 109.5 keeps it 0.3 mm inside the board's
+    -- bottom edge at 114.25. Through-hole, soldered by hand.
+  , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (toBoard (14.5, 109.5))) (38.1, rowY3))
       { partSide = Back, partRot = 90, partAssembly = Hand }
   ]
 
 -- Nets -----------------------------------------------------------------------
 
+-- | One channel's signal nets. Unit A of the OPA2197 (pins 1, 2, 3) is the
+-- buffer, unit B (pins 5, 6, 7) the attenuverter stage. Pot end 3 carries the
+-- buffered input so that clockwise means positive gain.
+channelNets :: Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> [Net]
+channelNets n u jIn jOut rv rA rF rO rIn cF =
+  [ Net ("IN" <> n)    Signal [(jIn, "T"), (rIn, "1"), (u, "3")]
+  , Net ("BUF" <> n)   Signal [(u, "1"), (u, "2"), (rA, "1"), (rv, "3")]
+  , Net ("INV" <> n)   Signal [(rA, "2"), (rF, "1"), (cF, "1"), (u, "6")]
+  , Net ("WIPER" <> n) Signal [(rv, "2"), (u, "5")]
+  , Net ("OA" <> n)    Signal [(u, "7"), (rF, "2"), (cF, "2"), (rO, "1")]
+  , Net ("OUT" <> n)   Signal [(rO, "2"), (jOut, "T")]
+  ]
+
 nets :: [Net]
 nets =
   [ Net "GND"  Power  ([ (j, "S") | j <- ["J1", "J2", "J3", "J4"] ] ++ [("RV1", "1"), ("RV2", "1")]
-                       ++ [ (c, "2") | c <- ["C1", "C2", "C3", "C4", "C5"] ] ++ [("R8", "2")]
+                       ++ [ (c, "2") | c <- ["C1", "C2", "C3", "C4", "C6", "C7", "C8", "C11", "C12"] ]
+                       ++ [("R9", "2"), ("R10", "2"), ("U3", "4")]
                        ++ [ ("J5", T.pack (show p)) | p <- [3 .. 8 :: Int] ])
-  , Net "+12V" Power  [("D2", "1"), ("C1", "1"), ("C3", "1"), ("R7", "1"), ("U1", "8")]
-  , Net "-12V" Power  [("D1", "2"), ("C2", "1"), ("C4", "1"), ("U1", "4")]
+  , Net "+12V" Power  [("D2", "1"), ("C1", "1"), ("C3", "1"), ("C11", "1"), ("C6", "1"), ("U1", "8"), ("U2", "8"), ("U3", "2")]
+  , Net "-12V" Power  [("D1", "2"), ("C2", "1"), ("C4", "1"), ("C12", "1"), ("U1", "4"), ("U2", "4")]
   , Net "P12_RAW" Signal [("J5", "9"), ("J5", "10"), ("D2", "2")]
   , Net "N12_RAW" Signal [("J5", "1"), ("J5", "2"), ("D1", "1")]
-  , Net "OFFSET"  Signal [("J1", "TN"), ("J3", "TN"), ("R7", "2"), ("R8", "1"), ("C5", "1")]
-    -- Pot end 3 carries the input so that clockwise means positive gain.
-  , Net "IN1"     Signal [("J1", "T"), ("R1", "1"), ("RV1", "3")]
-  , Net "INV1"    Signal [("R1", "2"), ("R2", "1"), ("U1", "2")]
-  , Net "WIPER1"  Signal [("RV1", "2"), ("U1", "3")]
-  , Net "OA1"     Signal [("U1", "1"), ("R2", "2"), ("R3", "1")]
-  , Net "OUT1"    Signal [("R3", "2"), ("J2", "T")]
-  , Net "IN2"     Signal [("J3", "T"), ("R4", "1"), ("RV2", "3")]
-  , Net "INV2"    Signal [("R4", "2"), ("R5", "1"), ("U1", "6")]
-  , Net "WIPER2"  Signal [("RV2", "2"), ("U1", "5")]
-  , Net "OA2"     Signal [("U1", "7"), ("R5", "2"), ("R6", "1")]
-  , Net "OUT2"    Signal [("R6", "2"), ("J4", "T")]
+    -- The reference output is normalled to both input jacks' switch pins.
+  , Net "OFFSET"  Signal [("J1", "TN"), ("J3", "TN"), ("U3", "6"), ("C7", "1")]
+  , Net "NR"      Signal [("U3", "5"), ("C8", "1")]
   ]
+  ++ channelNets "1" "U1" "J1" "J2" "RV1" "R1" "R2" "R3" "R9"  "C9"
+  ++ channelNets "2" "U2" "J3" "J4" "RV2" "R4" "R5" "R6" "R10" "C10"
   -- J2.TN and J4.TN are intentionally unconnected: see 'jack' (partNoConnect).
+  -- U3.3 (TEMP) is intentionally unconnected: see 'parts'.
 
 -- | Everything is routed as copper, GND included: the ground pours on both
 -- layers are a bonus on top, not the only connection, so a trace cutting a
@@ -232,8 +296,9 @@ board = Board
   , bdTexts =
       [ BoardText "ATTENUVERTER" "B.SilkS" (boardW / 2, 3.0) 0 1.5
       , BoardText "UTIL-01"      "B.SilkS" (boardW / 2, 5.3) 0 1.0
-        -- Red-stripe marker under the header's pin-1 end.
-      , BoardText "-12V" "B.SilkS" (toBoard (24.0, 117.0)) 0 0.8
+        -- Red-stripe marker beside the header's pin-1 end, below J5's own
+        -- reference text.
+      , BoardText "-12V" "B.SilkS" (toBoard (26.5, 112.8)) 0 0.8
       ]
   , bdCustomRules = ""
   , bdAnalog = attenuverterIntent
@@ -243,9 +308,11 @@ board = Board
 --
 -- The spec that matters for a dual utility module is channel-to-channel
 -- crosstalk, and on this circuit there is exactly one mechanism for it: each
--- channel's op-amp output swings the full rail at audio rate a few
--- millimetres from the other channel's pot wiper, which is the only
--- high-impedance node in the signal path.
+-- channel's low-impedance nodes (its buffer output and its stage output)
+-- swing the full rail at audio rate on the same board as the other
+-- channel's pot wiper, which is the only high-impedance node in the signal
+-- path. The input jack node is 1 M to ground but sees the cable's 1 k source
+-- when patched and the reference when not, so it is not a victim.
 --
 -- Numbers, none of them guessed:
 --
@@ -259,10 +326,9 @@ board = Board
 --   aggressor holds its voltage regardless of the coupling current, which is
 --   true of an op-amp output and not of a wiper.
 --
--- * The victim node carries the TL072's input capacitance and its pads,
---   about 5 pF; 'anNodePf' is that. It sits in the divider's denominator, so
---   this is the one number here that makes the prediction less alarming, and
---   it is deliberately on the low side.
+-- * The victim node carries the OPA2197's common-mode input capacitance
+--   (6.4 pF, SBOS737C) and its pads; 'anNodePf' is 6, deliberately on the low
+--   side so the prediction errs towards alarming.
 --
 -- * -80 dB of crosstalk on a 22 V swing is 2.2 mV, which is the limit taken
 --   here. That is a normal figure to quote for a utility module and it is the
@@ -278,6 +344,8 @@ attenuverterIntent = Analog
   { anRoles =
       [ ("WIPER1", Quiet 25e3)
       , ("WIPER2", Quiet 25e3)
+      , ("BUF1", Noisy 22 16e-6)
+      , ("BUF2", Noisy 22 16e-6)
       , ("OA1", Noisy 22 16e-6)
       , ("OA2", Noisy 22 16e-6)
       , ("OUT1", Noisy 22 16e-6)
@@ -297,10 +365,10 @@ attenuverterIntent = Analog
     -- would have the router spend copper prising each op-amp away from its
     -- own feedback network.
   , anSameCircuit =
-      [ ["IN1", "INV1", "WIPER1", "OA1", "OUT1"]
-      , ["IN2", "INV2", "WIPER2", "OA2", "OUT2"]
+      [ ["IN1", "BUF1", "INV1", "WIPER1", "OA1", "OUT1"]
+      , ["IN2", "BUF2", "INV2", "WIPER2", "OA2", "OUT2"]
       ]
-  , anNodePf = 5
+  , anNodePf = 6
   }
 
 attenuverter :: Module
@@ -313,10 +381,11 @@ attenuverter = Module
   , modNets = nets
   , modBoard = board
   , modNotes =
-      [ "UTIL-01 ATTENUVERTER - dual attenuverter with offset normalling, 6HP"
-      , "Vout = (2k - 1) * Vin per channel; k = pot fraction (CW = +1x, CCW = -1x)."
-      , "Unpatched inputs are normalled to OFFSET (~ +4.7 V simulated): bipolar offset source."
+      [ "UTIL-01 ATTENUVERTER - dual precision attenuverter with offset normalling, 6HP"
+      , "Per channel: OPA2197 unity-gain input buffer (1M input) into a single op-amp attenuverter, 0.1% 100k, 10p C0G across R_f."
+      , "Vout = (2k - 1) * Vin; k = pot fraction (CW = +1x, CCW = -1x)."
+      , "Unpatched inputs are normalled to OFFSET, a REF5050 5.000 V reference: bipolar offset source."
       , "SMD and power header on the back (JLCPCB assembly side); jacks and pots on the front."
-      , "J2.TN and J4.TN intentionally unconnected."
+      , "J2.TN, J4.TN and U3.3 (TEMP) intentionally unconnected."
       ]
   }

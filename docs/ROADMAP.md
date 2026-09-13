@@ -8,9 +8,10 @@ retire_when: "the project direction is replaced; merge lasting decisions and rem
 
 # Roadmap: From A Musical Idea To A Playable Row
 
-Updated: 2026-09-12. Status: M1-M2 complete; M3 lacks CI; M4 is the method
-rehearsal on the attenuverter (option B in flight); no board has been built or
-measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
+Updated: 2026-09-13. Status: M1-M2 complete; M3 lacks CI; M4 is the method
+rehearsal on the attenuverter (option B circuit implemented and simulated
+against its limits on 2026-09-13; skeleton, provenance and paperwork remain);
+no board has been built or measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
 with a five-board system designed around the five-board fabrication minimum.
 
 ## Goal And Constraints
@@ -54,12 +55,12 @@ express pitch-CV errors in cents as well as volts, and check gain, offset,
 loading, channel interaction, noise, drift and headroom across a stated
 operating envelope. A nominal simulation pass is not a worst-case guarantee.
 
-For the attenuverter, the existing 41.8 mV simulated channel-patching shift
-is an open precision defect, not an accepted compromise. The historical
-50 mV test budget is not a precision acceptance limit. Define the complete
-error budget, improve the design and update the tests before recommending an
-order; do not weaken limits to accommodate the existing circuit. Track
-remaining physical verification explicitly in the prototype test plan.
+For the attenuverter, the first circuit's 41.8 mV simulated channel-patching
+shift was treated as a defect, not an accepted compromise: the error budget
+was derived, the design changed (option B) and the decks now assert 0.1 mV,
+with 1.3 µV simulated. Limits are never weakened to accommodate an existing
+circuit. Physical verification of these predictions is tracked explicitly as
+the M5 gate.
 
 Precision is relative to intended behavior: controlled distortion or drift
 can be a requested musical feature, but unintended detuning and channel
@@ -112,12 +113,11 @@ not do what it was meant to. JLCPCB treats any board with a dimension of
 stands as stated; in practice every board in the planned system is 12 HP or
 wider, so the question is moot until a small module is proposed.
 
-**Height: the PCB drops from 108 mm to 100 mm** (`eurorackPcbHeight`), or the
-100 x 100 tier is missed regardless of width. This is feasible for the
-attenuverter, whose six panel items at 13.7 mm pitch span 68.5 mm, but its
-parts currently reach y = 106.75, so the constant cannot change alone without
-breaking placement. Apply it inside the option B rework that re-lays the board
-anyway, and require it of every new module.
+**Height: the PCB is 100 mm** (`eurorackPcbHeight`, changed from 108 mm on
+2026-09-13 with the option B rework), or the 100 x 100 tier is missed
+regardless of width. The panel controls did not move; the attenuverter's SMD
+strips were re-laid into the pad-free zones between them, and the mult
+regenerated unchanged in placement. Required of every module.
 
 **No doubling up.** Every order is five boards, so a dual VCA yields ten VCAs.
 Instead, one board combines *different* functions: a slope generator with a
@@ -209,7 +209,7 @@ M0 Direction recorded [DONE]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
   -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
   -> R0 Routing benchmark [DONE 2026-09-10]
-  -> M4 Method rehearsal on the attenuverter: option B end to end [IN FLIGHT]
+  -> M4 Method rehearsal on the attenuverter: option B circuit [DONE 2026-09-13], skeleton and paperwork [IN FLIGHT]
   -> P1 Shared blocks: exponential converter, gain element, module skeleton
   -> P2 Five rounds, one board each, in dependency order:
        R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
@@ -258,14 +258,18 @@ cost money. Local test passes do not close this gate.
 The attenuverter is no longer a module the system would order five of; it is
 the **end-to-end rehearsal of the method** every later board repeats, and its
 circuit becomes a library block (it reappears as every CV attenuverter on the
-five boards). Option B is decided
-([decisions/2026-09-11-attenuverter-precision-parts.md](decisions/2026-09-11-attenuverter-precision-parts.md)).
+five boards). Option B was decided on 2026-09-11 and implemented on
+2026-09-13; the decision and its reasoning are recorded in
+[modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md).
 
-- Build OPA2197 and REF5050 models from datasheet figures, with input
-  capacitance and common-mode limits; implement option B; move the PCB to
-  100 mm; regenerate; extend the decks to assert the error budget's limits
-  ([modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md));
-  pass the pipeline; record the limits in SPEC.md; retire the decision file.
+- [DONE 2026-09-13] OPA2197 and REF5050 models from datasheet maxima, with
+  input capacitance, a second pole and temperature terms; option B with
+  10 kΩ gain resistors (chosen on deck evidence, not the assumed 100 kΩ);
+  PCB at 100 mm; eight decks asserting every limit in
+  [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md),
+  including a loop-gain phase-margin measurement through a probe the
+  netlist generator now emits in every op-amp output; pipeline passed;
+  decision file retired.
 - Factor the reusable parts into the generator: power entry and protection,
   precision buffer, LED driver, a module skeleton. The second module is where
   the pattern is paid for.
@@ -462,7 +466,8 @@ an owned module specification and acceptance gate rather than a parallel list.
   and can start now.
 - **Decisions outstanding:** the tracking limit, the IO board's world-side jack
   size, its mix semantics, one or two hold stages on the SSG, the filter's pole
-  count, and the option B implementation in flight.
+  count. Option B is implemented; the attenuverter's remaining M4 items are
+  paperwork and the skeleton, not circuit decisions.
 - **The three hard problems:** pitch tracking over temperature (the hardest
   analog work in the plan), switching-supply noise beside precision audio on
   R1, and a modelled chain that has never met an oscilloscope — R1 is the
@@ -522,8 +527,9 @@ datasheet and model redistribution terms.
 
 ## Next Work Item
 
-1. **M4 / option B** on the attenuverter, end to end, including the 100 mm
-   height change and the reusable module skeleton. See
+1. **M4, the rest**: factor the reusable parts of the attenuverter into the
+   generator (power entry, precision buffer, module skeleton), then the
+   provenance, mechanical-stack, cost and first-power-up paperwork. See
    [HANDOFF.md](HANDOFF.md) for the exact next action.
 2. **L1**: review [HOMELAB.md](HOMELAB.md) with the user and start Stage A
    purchases; the lab must exist before R1's boards arrive.
