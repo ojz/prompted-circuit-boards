@@ -10,8 +10,23 @@ import qualified Data.Text as T
 
 import           Block.Eurorack
 import           Block.Power
+import           Block.Precision
 import           Design
 import           Harness
+
+-- | A channel placed anywhere; the block's identity is what is under test.
+ch :: BufferedAttenuverter
+ch = BufferedAttenuverter
+  { baSuffix = "7", baInJack = "J1", baOutJack = "J2", baPot = "RV1"
+  , baOpAmp = Placed "U1" (6.5, 41.75) 0 (73.66, 45.72), baOpAmpUnitOffsets = [(83.82, 0), (-12.7, 101.6)]
+  , baRin = Placed "R9" (6.0, 37.75) 0 (55.88, 55.88)
+  , baRa = Placed "R1" (9.5, 37.75) 0 (114.3, 45.72)
+  , baRf = Placed "R2" (13.0, 37.75) 0 (134.62, 45.72)
+  , baCf = Placed "C9" (9.5, 45.75) 0 (134.62, 22.86)
+  , baRo = Placed "R3" (6.0, 45.75) 0 (180.34, 45.72)
+  , baCVp = Placed "C3" (13.0, 45.75) 0 (160.02, 147.32)
+  , baCVn = Placed "C4" (2.5, 37.75) 0 (175.26, 147.32)
+  , baSide = Back }
 
 -- | A power entry placed anywhere, for the tests: what matters is the
 -- identity of the parts and nets, not where they are.
@@ -69,6 +84,39 @@ tests =
            [ (map netName merged == ["GND", "X", "X", "Y"], "order " ++ show (map netName merged))
            , (concat [ netPins m | m <- merged, netName m == "GND" ] == [("A", "1"), ("B", "1"), ("C", "2")], "GND pins " ++ show [ netPins m | m <- merged, netName m == "GND" ])
            , (length [ () | m <- merged, netName m == "X" ] == 2, "a Signal X and a Power X must both survive for validation to reject") ]
+
+    -- Precision channel.
+  , test "the channel block is the option B circuit: 10k 0.1% gain pair, 10p C0G, 1M input, 1k output, OPA2197" $
+      let ps = bufferedAttenuverterParts ch
+          val r = head ([ partValue p | p <- ps, partRef p == r ] ++ ["missing"])
+          code r = head ([ c | p <- ps, partRef p == r, ("LCSC Part #", c) <- partFields p ] ++ ["missing"])
+      in expectAll
+           [ (sort (map partRef ps) == ["C3", "C4", "C9", "R1", "R2", "R3", "R9", "U1"], "refs " ++ show (map partRef ps))
+           , (val "U1" == "OPA2197" && code "U1" == "C139363", "op-amp " ++ show (val "U1", code "U1"))
+           , (val "R1" == "10k" && val "R2" == "10k" && code "R1" == "C110775" && code "R2" == "C110775", "gain resistors must be the same 0.1 % part: " ++ show (val "R1", val "R2", code "R1", code "R2"))
+           , (val "C9" == "10p" && code "C9" == "C344177", "compensation " ++ show (val "C9", code "C9"))
+           , (val "R9" == "1M" && val "R3" == "1k", "input and output resistors " ++ show (val "R9", val "R3"))
+           , (val "C3" == "100n" && val "C4" == "100n", "decoupling " ++ show (val "C3", val "C4"))
+           , (all ((== Factory) . partAssembly) ps, "every part of the channel is factory placed")
+           , ([ partRefOnSilk p | p <- ps ] == [True, False, False, False, False, False, False, False], "only the op-amp prints its reference")
+           , ([ partUnitOffsets p | p <- ps, partRef p == "U1" ] == [[(83.82, 0), (-12.7, 101.6)]], "unit offsets come from the placement") ]
+
+  , test "the channel block's nets use every op-amp and passive pin exactly once and name the nets by suffix" $
+      let ns = bufferedAttenuverterNets ch
+          pins = pinsOf ns
+          wanted = sort ([ ("U1", tshow n) | n <- [1 .. 8 :: Int] ]
+                         ++ [ (r, p) | r <- ["R1", "R2", "R3", "R9", "C9", "C3", "C4"], p <- ["1", "2"] ]
+                         ++ [("RV1", "1"), ("RV1", "2"), ("RV1", "3"), ("J1", "T"), ("J2", "T")])
+          net n = concat [ netPins m | m <- ns, netName m == n ]
+      in expectAll
+           [ (sort pins == wanted, "pins " ++ show (sort pins))
+           , (length pins == length (nub pins), "a pin appears twice")
+           , (sort [ netName m | m <- ns, netKind m == Signal ] == ["BUF7", "IN7", "INV7", "OA7", "OUT7", "WIPER7"], "signal nets " ++ show [ netName m | m <- ns ])
+           , (sort (net "INV7") == sort [("R1", "2"), ("R2", "1"), ("C9", "1"), ("U1", "6")], "the inverting node is R_a, R_f, C_f and pin 6: " ++ show (net "INV7"))
+           , (sort (net "BUF7") == sort [("U1", "1"), ("U1", "2"), ("R1", "1"), ("RV1", "3")], "the buffer is unity gain (pins 1 and 2 tied) and drives pot end 3: " ++ show (net "BUF7"))
+           , (net "WIPER7" == [("RV1", "2"), ("U1", "5")] || net "WIPER7" == [("U1", "5"), ("RV1", "2")], "the wiper goes to the non-inverting input alone: " ++ show (net "WIPER7"))
+           , (("U1", "8") `elem` net "+12V" && ("U1", "4") `elem` net "-12V", "supply pins on the rails")
+           , (("RV1", "1") `elem` net "GND" && ("R9", "2") `elem` net "GND", "pot end 1 and R_in to ground") ]
 
     -- Skeleton.
   , test "skeleton 6 is the 6HP module the rules describe" $

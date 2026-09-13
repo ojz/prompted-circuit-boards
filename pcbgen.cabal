@@ -31,6 +31,7 @@ library
         Design
         Block.Eurorack
         Block.Power
+        Block.Precision
         Validate
         Bench
         Emit.Schematic

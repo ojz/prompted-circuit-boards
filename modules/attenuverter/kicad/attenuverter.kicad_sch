@@ -3735,234 +3735,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C")
-		(at 175.26 147.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "0483e414-93a4-593b-aa31-2b2d48731310")
-		(property "Reference" "C4"
-			(at 175.895 144.78 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100n"
-			(at 175.895 149.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 176.2252 151.13 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 175.26 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 175.26 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part #" "C49678"
-			(at 175.26 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "395f1298-a555-5fbc-8567-8b60843006a0")
-		)
-		(pin "2"
-			(uuid "395f1398-a555-51e1-a4e5-c58b7a3fb035")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "C4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 175.26 143.51)
-			(xy 175.26 140.97)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c6c56dfe-8288-5a80-8382-57e64fb08db5")
-	)
-	(symbol
-		(lib_id "power:-12V")
-		(at 175.26 140.97 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(uuid "29ff7222-2c3e-5bc1-befe-728f99fe40dd")
-		(property "Reference" "#PWR_C4_1"
-			(at 175.26 137.16 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "-12V"
-			(at 175.26 144.526 180)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 175.26 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 175.26 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"-12V\""
-			(at 175.26 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4a498fa7-3193-5047-99e3-fa507af1f6ce")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "#PWR_C4_1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 175.26 151.13)
-			(xy 175.26 153.67)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b8e33964-232b-55fd-b1ec-b8444c9d9423")
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 175.26 153.67 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(uuid "29ff7122-2c3e-503c-94d7-9492f560ecc3")
-		(property "Reference" "#PWR_C4_2"
-			(at 175.26 160.02 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 175.26 157.48 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 175.26 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 175.26 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 175.26 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "3a072caa-0634-5b47-8f6b-565247cf9105")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "#PWR_C4_2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 55.88 55.88 0)
 		(unit 1)
@@ -4372,124 +4144,6 @@
 		(uuid "d81324cb-03cc-52f5-86fd-ec4ab58caa2e")
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 180.34 45.72 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "042be714-97aa-585b-ba04-2d81d5625ba5")
-		(property "Reference" "R3"
-			(at 182.372 45.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1k"
-			(at 180.34 45.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 178.562 45.72 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 180.34 45.72 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 180.34 45.72 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part #" "C17513"
-			(at 180.34 45.72 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "2434bf6c-4ed5-53bf-8174-4bffdbcb173f")
-		)
-		(pin "2"
-			(uuid "2434c26c-4ed6-5e86-8116-2031fce1f045")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "R3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 180.34 41.91)
-			(xy 180.34 39.37)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "debe1c6a-603e-5110-bf51-8c82921f5365")
-	)
-	(label "OA1"
-		(at 180.34 39.37 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "eed750ca-a58c-53e7-80fd-4fae95ca2e68")
-	)
-	(wire
-		(pts
-			(xy 180.34 49.53)
-			(xy 180.34 52.07)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "670f37f5-eb01-577b-9407-f77088982fc1")
-	)
-	(label "OUT1"
-		(at 180.34 52.07 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "eed74dca-a58c-5e1e-be32-ff2b13403987")
-	)
-	(symbol
 		(lib_id "Device:C")
 		(at 134.62 22.86 0)
 		(unit 1)
@@ -4606,6 +4260,124 @@
 			(justify right bottom)
 		)
 		(uuid "8cac98f6-0dfe-5e44-a3c0-37ed8e767a8d")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 180.34 45.72 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "042be714-97aa-585b-ba04-2d81d5625ba5")
+		(property "Reference" "R3"
+			(at 182.372 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1k"
+			(at 180.34 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 178.562 45.72 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 180.34 45.72 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 180.34 45.72 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C17513"
+			(at 180.34 45.72 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2434bf6c-4ed5-53bf-8174-4bffdbcb173f")
+		)
+		(pin "2"
+			(uuid "2434c26c-4ed6-5e86-8116-2031fce1f045")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "R3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 180.34 41.91)
+			(xy 180.34 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "debe1c6a-603e-5110-bf51-8c82921f5365")
+	)
+	(label "OA1"
+		(at 180.34 39.37 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "eed750ca-a58c-53e7-80fd-4fae95ca2e68")
+	)
+	(wire
+		(pts
+			(xy 180.34 49.53)
+			(xy 180.34 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "670f37f5-eb01-577b-9407-f77088982fc1")
+	)
+	(label "OUT1"
+		(at 180.34 52.07 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "eed74dca-a58c-5e1e-be32-ff2b13403987")
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -4830,6 +4602,234 @@
 			(project "attenuverter"
 				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
 					(reference "#PWR_C3_2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 175.26 147.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0483e414-93a4-593b-aa31-2b2d48731310")
+		(property "Reference" "C4"
+			(at 175.895 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100n"
+			(at 175.895 149.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 176.2252 151.13 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 175.26 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 175.26 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C49678"
+			(at 175.26 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "395f1298-a555-5fbc-8567-8b60843006a0")
+		)
+		(pin "2"
+			(uuid "395f1398-a555-51e1-a4e5-c58b7a3fb035")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "C4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 175.26 143.51)
+			(xy 175.26 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c6c56dfe-8288-5a80-8382-57e64fb08db5")
+	)
+	(symbol
+		(lib_id "power:-12V")
+		(at 175.26 140.97 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "29ff7222-2c3e-5bc1-befe-728f99fe40dd")
+		(property "Reference" "#PWR_C4_1"
+			(at 175.26 137.16 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "-12V"
+			(at 175.26 144.526 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 175.26 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 175.26 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"-12V\""
+			(at 175.26 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4a498fa7-3193-5047-99e3-fa507af1f6ce")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "#PWR_C4_1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 175.26 151.13)
+			(xy 175.26 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b8e33964-232b-55fd-b1ec-b8444c9d9423")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 175.26 153.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "29ff7122-2c3e-503c-94d7-9492f560ecc3")
+		(property "Reference" "#PWR_C4_2"
+			(at 175.26 160.02 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 175.26 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 175.26 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 175.26 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 175.26 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3a072caa-0634-5b47-8f6b-565247cf9105")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "#PWR_C4_2")
 					(unit 1)
 				)
 			)
@@ -5348,234 +5348,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C")
-		(at 205.74 147.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "511f97f4-69a9-57c9-8adc-d1284819c370")
-		(property "Reference" "C12"
-			(at 206.375 144.78 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100n"
-			(at 206.375 149.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 206.7052 151.13 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 205.74 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 205.74 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part #" "C49678"
-			(at 205.74 147.32 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "547361b3-4387-51b3-a1d6-2c7ac0dae22d")
-		)
-		(pin "2"
-			(uuid "547364b3-4387-54da-9dd9-a8c7a5063000")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "C12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 205.74 143.51)
-			(xy 205.74 140.97)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dc55e722-dc90-52ad-950c-b1f6a74ec107")
-	)
-	(symbol
-		(lib_id "power:-12V")
-		(at 205.74 140.97 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(uuid "c06e4660-9f9d-570d-9966-bbc5eb315b19")
-		(property "Reference" "#PWR_C12_1"
-			(at 205.74 137.16 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "-12V"
-			(at 205.74 144.526 180)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 205.74 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 205.74 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"-12V\""
-			(at 205.74 140.97 180)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "dbcf155b-e76a-5df9-a60b-901261c15f85")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "#PWR_C12_1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 205.74 151.13)
-			(xy 205.74 153.67)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6613a2db-f4da-5204-8a1e-4b4e22c3ec8d")
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 205.74 153.67 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(uuid "c06e4360-9f9d-5414-b4d0-dbfe79d19fb7")
-		(property "Reference" "#PWR_C12_2"
-			(at 205.74 160.02 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 205.74 157.48 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 205.74 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 205.74 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 205.74 153.67 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9954c458-1f94-53d3-946a-8afd57326dc1")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "#PWR_C12_2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 55.88 106.68 0)
 		(unit 1)
@@ -5985,124 +5757,6 @@
 		(uuid "82052fce-2f1f-51a3-bae7-5a54ef8936b0")
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 180.34 96.52 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "042bec14-97aa-59d8-8fdd-414bff335ae0")
-		(property "Reference" "R6"
-			(at 182.372 96.52 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1k"
-			(at 180.34 96.52 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 178.562 96.52 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 180.34 96.52 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 180.34 96.52 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part #" "C17513"
-			(at 180.34 96.52 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4b2f8e60-21de-5274-bc86-bf03ddc6f518")
-		)
-		(pin "2"
-			(uuid "4b2f8f60-21de-5809-a71a-d903e62d8df0")
-		)
-		(instances
-			(project "attenuverter"
-				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
-					(reference "R6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 180.34 92.71)
-			(xy 180.34 90.17)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1d01e2a1-d097-5b48-8636-9d1e443747d3")
-	)
-	(label "OA2"
-		(at 180.34 90.17 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "d623d1ce-4c7b-52fd-9cd3-c14770d75cc2")
-	)
-	(wire
-		(pts
-			(xy 180.34 100.33)
-			(xy 180.34 102.87)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "95bfaf83-107c-5b87-8fd6-32b7e82045a3")
-	)
-	(label "OUT2"
-		(at 180.34 102.87 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "d623d0ce-4c7b-5d40-af97-9337750ba570")
-	)
-	(symbol
 		(lib_id "Device:C")
 		(at 134.62 73.66 0)
 		(unit 1)
@@ -6219,6 +5873,124 @@
 			(justify right bottom)
 		)
 		(uuid "b7887cbe-03ed-5332-ad8f-b7cf9032f20e")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 180.34 96.52 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "042bec14-97aa-59d8-8fdd-414bff335ae0")
+		(property "Reference" "R6"
+			(at 182.372 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1k"
+			(at 180.34 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 178.562 96.52 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 180.34 96.52 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 180.34 96.52 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C17513"
+			(at 180.34 96.52 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4b2f8e60-21de-5274-bc86-bf03ddc6f518")
+		)
+		(pin "2"
+			(uuid "4b2f8f60-21de-5809-a71a-d903e62d8df0")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "R6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 180.34 92.71)
+			(xy 180.34 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1d01e2a1-d097-5b48-8636-9d1e443747d3")
+	)
+	(label "OA2"
+		(at 180.34 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d623d1ce-4c7b-52fd-9cd3-c14770d75cc2")
+	)
+	(wire
+		(pts
+			(xy 180.34 100.33)
+			(xy 180.34 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "95bfaf83-107c-5b87-8fd6-32b7e82045a3")
+	)
+	(label "OUT2"
+		(at 180.34 102.87 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d623d0ce-4c7b-5d40-af97-9337750ba570")
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -6443,6 +6215,234 @@
 			(project "attenuverter"
 				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
 					(reference "#PWR_C11_2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 205.74 147.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "511f97f4-69a9-57c9-8adc-d1284819c370")
+		(property "Reference" "C12"
+			(at 206.375 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100n"
+			(at 206.375 149.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 206.7052 151.13 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 205.74 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 205.74 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C49678"
+			(at 205.74 147.32 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "547361b3-4387-51b3-a1d6-2c7ac0dae22d")
+		)
+		(pin "2"
+			(uuid "547364b3-4387-54da-9dd9-a8c7a5063000")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "C12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 205.74 143.51)
+			(xy 205.74 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dc55e722-dc90-52ad-950c-b1f6a74ec107")
+	)
+	(symbol
+		(lib_id "power:-12V")
+		(at 205.74 140.97 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "c06e4660-9f9d-570d-9966-bbc5eb315b19")
+		(property "Reference" "#PWR_C12_1"
+			(at 205.74 137.16 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "-12V"
+			(at 205.74 144.526 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 205.74 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 205.74 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"-12V\""
+			(at 205.74 140.97 180)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "dbcf155b-e76a-5df9-a60b-901261c15f85")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "#PWR_C12_1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 205.74 151.13)
+			(xy 205.74 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6613a2db-f4da-5204-8a1e-4b4e22c3ec8d")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 205.74 153.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "c06e4360-9f9d-5414-b4d0-dbfe79d19fb7")
+		(property "Reference" "#PWR_C12_2"
+			(at 205.74 160.02 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 205.74 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 205.74 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 205.74 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 205.74 153.67 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "9954c458-1f94-53d3-946a-8afd57326dc1")
+		)
+		(instances
+			(project "attenuverter"
+				(path "/d86f3e39-dd62-5f91-8b3e-6935796eb34f"
+					(reference "#PWR_C12_2")
 					(unit 1)
 				)
 			)
@@ -8717,7 +8717,7 @@
 			)
 		)
 	)
-	(text "UTIL-01 ATTENUVERTER - dual precision attenuverter with offset normalling, 6HP\nPer channel: OPA2197 unity-gain input buffer (1M input) into a single op-amp attenuverter, 0.1% 100k, 10p C0G across R_f.\nVout = (2k - 1) * Vin; k = pot fraction (CW = +1x, CCW = -1x).\nUnpatched inputs are normalled to OFFSET, a REF5050 5.000 V reference: bipolar offset source.\nSMD and power header on the back (JLCPCB assembly side); jacks and pots on the front.\nJ2.TN, J4.TN and U3.3 (TEMP) intentionally unconnected."
+	(text "UTIL-01 ATTENUVERTER - dual precision attenuverter with offset normalling, 6HP\nPer channel: OPA2197 unity-gain input buffer (1M input) into a single op-amp attenuverter, 0.1% 10k, 10p C0G across R_f.\nVout = (2k - 1) * Vin; k = pot fraction (CW = +1x, CCW = -1x).\nUnpatched inputs are normalled to OFFSET, a REF5050 5.000 V reference: bipolar offset source.\nSMD and power header on the back (JLCPCB assembly side); jacks and pots on the front.\nJ2.TN, J4.TN and U3.3 (TEMP) intentionally unconnected."
 		(exclude_from_sim no)
 		(at 25.4 190.5 0)
 		(effects

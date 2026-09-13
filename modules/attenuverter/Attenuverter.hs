@@ -37,9 +37,11 @@ module Attenuverter
   ) where
 
 import           Data.Text      (Text)
+import qualified Data.Text      as T
 
 import           Block.Eurorack
 import           Block.Power
+import           Block.Precision
 import           Design
 
 -- Panel ----------------------------------------------------------------------
@@ -71,12 +73,8 @@ onBoard = toBoard sk
 
 -- Library ids ----------------------------------------------------------------
 
-opampSym, vrefSym, soic8, rSym, r0805, cSym :: LibId
-opampSym = LibId "Amplifier_Operational" "OPA2197xD"
+vrefSym, cSym :: LibId
 vrefSym  = LibId "Reference_Voltage" "REF5050AD"
-soic8    = LibId "Package_SO" "SOIC-8_3.9x4.9mm_P1.27mm"
-rSym     = LibId "Device" "R"
-r0805    = LibId "Resistor_SMD" "R_0805_2012Metric"
 cSym     = capSym
 
 -- | JLCPCB parts. Passives, diodes and the original codes were verified on
@@ -132,11 +130,11 @@ withRef p = p { partRefOnSilk = True }
 -- in the row nearest the supply pin they serve (mirrored on the back: pin 4
 -- V- is at the top-left of the package, pin 8 V+ at the bottom-right).
 --
+-- The circuit itself is 'Block.Precision'; this function only places it.
 -- Reference designators per channel: ch 1 uses U1, R1 R2 R3 R9 C3 C4 C9;
--- ch 2 uses U2, R4 R5 R6 R10 C11 C12 C10. Passed in explicitly so the
--- netlist below reads the same as the schematic.
-channel :: Int -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Double -> Double -> [Part]
-channel ch u rA rF rO rIn cF cVp cVn uY rowY =
+-- ch 2 uses U2, R4 R5 R6 R10 C11 C12 C10.
+channel :: Int -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Double -> Double -> BufferedAttenuverter
+channel ch jIn jOut rv u rIn rA rF cF rO cVp cVn uY rowY =
   let top = uY - 4.0
       bot = uY + 4.0
       -- Channel 1 shares its strip with the reference, so its op-amp sits
@@ -150,23 +148,32 @@ channel ch u rA rF rO rIn cF cVp cVn uY rowY =
       -- the back, over the bottom-row slot under it (uSlot), so that slot
       -- stays empty.
       botSlots = filter (\i -> i /= vpSlot && i /= uSlot) [0 .. 3]
-      at i y = (slot i, y)
+      at ref i y schPos = Placed ref (onBoard (slot i, y)) 0 schPos
       sch x = (x, rowY)
-  in
-  [ withRef (smd u "OPA2197" opampSym soic8 "C139363" (uX, uY) (sch 73.66))
-      -- Unit A (buffer) in the channel row, unit B (attenuverter) to its
-      -- right, the power unit in the third row.
-      { partUnitOffsets = [(83.82, 0), (if ch == 1 then -12.70 else 7.62, rowY3 - rowY)] }
-  , smd cVn "100n" cSym c0805 "C49678"  (at vnSlot top) (if ch == 1 then (175.26, rowY3) else (205.74, rowY3))
-  , smd rIn "1M"   rSym r0805 "C17514"  (at (topSlots !! 0) top) (55.88, rowY + 10.16)
-  , smd rA  "10k"  rSym r0805 "C110775" (at (topSlots !! 1) top) (sch 114.30)
-  , smd rF  "10k"  rSym r0805 "C110775" (at (topSlots !! 2) top) (sch 134.62)
-  , smd rO  "1k"   rSym r0805 "C17513"  (at (botSlots !! 0) bot) (sch 180.34)
-    -- In the schematic the capacitor sits well above R_f: at 12.7 mm their
-    -- pin stubs met and KiCad merged INV and OA into one net.
-  , smd cF  "10p"  cSym c0805 "C344177" (at (botSlots !! 1) bot) (134.62, rowY - 22.86)
-  , smd cVp "100n" cSym c0805 "C49678"  (at vpSlot bot) (if ch == 1 then (160.02, rowY3) else (190.50, rowY3))
-  ]
+  in BufferedAttenuverter
+       { baSuffix  = T.pack (show ch)
+       , baInJack  = jIn
+       , baOutJack = jOut
+       , baPot     = rv
+       , baOpAmp   = Placed u (onBoard (uX, uY)) 0 (sch 73.66)
+         -- Unit A (buffer) in the channel row, unit B (attenuverter) to its
+         -- right, the power unit in the third row.
+       , baOpAmpUnitOffsets = [(83.82, 0), (if ch == 1 then -12.70 else 7.62, rowY3 - rowY)]
+       , baRin = at rIn (topSlots !! 0) top (55.88, rowY + 10.16)
+       , baRa  = at rA  (topSlots !! 1) top (sch 114.30)
+       , baRf  = at rF  (topSlots !! 2) top (sch 134.62)
+         -- In the schematic the capacitor sits well above R_f: at 12.7 mm
+         -- their pin stubs met and KiCad merged INV and OA into one net.
+       , baCf  = at cF  (botSlots !! 1) bot (134.62, rowY - 22.86)
+       , baRo  = at rO  (botSlots !! 0) bot (sch 180.34)
+       , baCVp = at cVp vpSlot bot (if ch == 1 then (160.02, rowY3) else (190.50, rowY3))
+       , baCVn = at cVn vnSlot top (if ch == 1 then (175.26, rowY3) else (205.74, rowY3))
+       , baSide = Back
+       }
+
+channel1, channel2 :: BufferedAttenuverter
+channel1 = channel 1 "J1" "J2" "RV1" "U1" "R9"  "R1" "R2" "C9"  "R3" "C3"  "C4"  56.0 rowY1
+channel2 = channel 2 "J3" "J4" "RV2" "U2" "R10" "R4" "R5" "C10" "R6" "C11" "C12" 98.5 rowY2
 
 parts :: [Part]
 parts =
@@ -177,8 +184,8 @@ parts =
   , pot "RV1" 1
   , pot "RV2" 2
   ]
-  ++ channel 1 "U1" "R1" "R2" "R3" "R9"  "C9"  "C3"  "C4"  56.0 rowY1
-  ++ channel 2 "U2" "R4" "R5" "R6" "R10" "C10" "C11" "C12" 98.5 rowY2
+  ++ bufferedAttenuverterParts channel1
+  ++ bufferedAttenuverterParts channel2
   ++
     -- Offset reference in the right half of channel 1's strip: REF5050 with
     -- its 1 uF input bypass, 1 uF output capacitor (the datasheet's stability
@@ -212,36 +219,22 @@ powerEntry = PowerEntry
 
 -- Nets -----------------------------------------------------------------------
 
--- | One channel's signal nets. Unit A of the OPA2197 (pins 1, 2, 3) is the
--- buffer, unit B (pins 5, 6, 7) the attenuverter stage. Pot end 3 carries the
--- buffered input so that clockwise means positive gain.
-channelNets :: Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> Text -> [Net]
-channelNets n u jIn jOut rv rA rF rO rIn cF =
-  [ Net ("IN" <> n)    Signal [(jIn, "T"), (rIn, "1"), (u, "3")]
-  , Net ("BUF" <> n)   Signal [(u, "1"), (u, "2"), (rA, "1"), (rv, "3")]
-  , Net ("INV" <> n)   Signal [(rA, "2"), (rF, "1"), (cF, "1"), (u, "6")]
-  , Net ("WIPER" <> n) Signal [(rv, "2"), (u, "5")]
-  , Net ("OA" <> n)    Signal [(u, "7"), (rF, "2"), (cF, "2"), (rO, "1")]
-  , Net ("OUT" <> n)   Signal [(rO, "2"), (jOut, "T")]
-  ]
-
 -- | The power block contributes the header, diodes and bulk capacitors to
--- GND, +12V, -12V and defines the raw rails; everything else on the rails
--- is listed here and merged in by name.
+-- GND, +12V and -12V and defines the raw rails; each channel block brings its
+-- own signal nets and its pins on the rails; the reference and the jack
+-- sleeves are listed here. Everything is merged by name.
 nets :: [Net]
 nets = mergeNets $
   powerNets powerEntry ++
-  [ Net "GND"  Power  ([ (j, "S") | j <- ["J1", "J2", "J3", "J4"] ] ++ [("RV1", "1"), ("RV2", "1")]
-                       ++ [ (c, "2") | c <- ["C3", "C4", "C6", "C7", "C8", "C11", "C12"] ]
-                       ++ [("R9", "2"), ("R10", "2"), ("U3", "4")])
-  , Net "+12V" Power  [("C3", "1"), ("C11", "1"), ("C6", "1"), ("U1", "8"), ("U2", "8"), ("U3", "2")]
-  , Net "-12V" Power  [("C4", "1"), ("C12", "1"), ("U1", "4"), ("U2", "4")]
+  [ Net "GND"  Power  ([ (j, "S") | j <- ["J1", "J2", "J3", "J4"] ]
+                       ++ [ (c, "2") | c <- ["C6", "C7", "C8"] ] ++ [("U3", "4")])
+  , Net "+12V" Power  [("C6", "1"), ("U3", "2")]
     -- The reference output is normalled to both input jacks' switch pins.
   , Net "OFFSET"  Signal [("J1", "TN"), ("J3", "TN"), ("U3", "6"), ("C7", "1")]
   , Net "NR"      Signal [("U3", "5"), ("C8", "1")]
   ]
-  ++ channelNets "1" "U1" "J1" "J2" "RV1" "R1" "R2" "R3" "R9"  "C9"
-  ++ channelNets "2" "U2" "J3" "J4" "RV2" "R4" "R5" "R6" "R10" "C10"
+  ++ bufferedAttenuverterNets channel1
+  ++ bufferedAttenuverterNets channel2
   -- J2.TN and J4.TN are intentionally unconnected: see 'jack' (partNoConnect).
   -- U3.3 (TEMP) is intentionally unconnected: see 'parts'.
 
@@ -359,7 +352,7 @@ attenuverter = Module
   , modBoard = board
   , modNotes =
       [ "UTIL-01 ATTENUVERTER - dual precision attenuverter with offset normalling, 6HP"
-      , "Per channel: OPA2197 unity-gain input buffer (1M input) into a single op-amp attenuverter, 0.1% 100k, 10p C0G across R_f."
+      , "Per channel: OPA2197 unity-gain input buffer (1M input) into a single op-amp attenuverter, 0.1% 10k, 10p C0G across R_f."
       , "Vout = (2k - 1) * Vin; k = pot fraction (CW = +1x, CCW = -1x)."
       , "Unpatched inputs are normalled to OFFSET, a REF5050 5.000 V reference: bipolar offset source."
       , "SMD and power header on the back (JLCPCB assembly side); jacks and pots on the front."
