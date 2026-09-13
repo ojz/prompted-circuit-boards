@@ -10,8 +10,9 @@ retire_when: "the project direction is replaced; merge lasting decisions and rem
 
 Updated: 2026-09-13. Status: M1-M2 complete; M3 lacks CI; M4 is the method
 rehearsal on the attenuverter (option B circuit implemented and simulated
-against its limits on 2026-09-13; skeleton, provenance and paperwork remain);
-no board has been built or measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
+against its limits, factored into the first three library blocks, provenance,
+mechanical stack and first-power-up guide written on 2026-09-13; cost/stock
+and input protection remain); no board has been built or measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
 with a five-board system designed around the five-board fabrication minimum.
 
 ## Goal And Constraints
@@ -69,12 +70,14 @@ architecture and scope changes still need explained decisions, and purchases
 still need approval. Use measurable acceptance gates, not an unbounded quest
 for more simulated decimal places.
 
-**Pitch tracking is now a system requirement**, because the slope and the
-filter are the oscillators. Proposed limit, to be confirmed by the user:
-within ±2 cents over 5 octaves and ±5 cents over 8, from 15 to 35 °C. It is
+**Pitch tracking is a system requirement**, because the slope and the
+filter are the oscillators. **Limit, confirmed by the user on 2026-09-13**
+(answered on the session's planning page, not in a decision file): within
+±2 cents over 5 octaves and ±5 cents over 8 octaves, from 15 to 35 °C. It is
 met by one exponential-converter block (matched transistor pair, temperature
 compensating resistor, scale and high-frequency trimmers) designed once and
-calibrated per board on the bench.
+calibrated per board on the bench; the temperature-sweep deck of P1 asserts
+it in cents.
 
 ### Cost Is Not An Optimisation Target
 
@@ -209,8 +212,8 @@ M0 Direction recorded [DONE]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
   -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
   -> R0 Routing benchmark [DONE 2026-09-10]
-  -> M4 Method rehearsal on the attenuverter: option B circuit [DONE 2026-09-13], skeleton and paperwork [IN FLIGHT]
-  -> P1 Shared blocks: exponential converter, gain element, module skeleton
+  -> M4 Method rehearsal on the attenuverter: option B circuit, first three blocks, provenance, mechanical stack, power-up guide [DONE 2026-09-13]; cost/stock and input protection [OPEN]
+  -> P1 Shared blocks: exponential converter, gain element
   -> P2 Five rounds, one board each, in dependency order:
        R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
        every round: models -> error budget -> decks -> board -> checks -> approval -> order
@@ -270,12 +273,24 @@ five boards). Option B was decided on 2026-09-11 and implemented on
   including a loop-gain phase-margin measurement through a probe the
   netlist generator now emits in every op-amp output; pipeline passed;
   decision file retired.
-- Factor the reusable parts into the generator: power entry and protection,
-  precision buffer, LED driver, a module skeleton. The second module is where
-  the pattern is paid for.
-- Datasheet provenance with source URLs and versions for every part; the
-  mechanical stack; itemised cost and stock against JLCPCB; assembly views;
-  the first-power-up guide. Paperwork that has to be right.
+- [DONE 2026-09-13] The block library begins: `Block.Eurorack` (the module
+  skeleton: panel and board geometry, rail holes, the panel project),
+  `Block.Power` (header, series Schottkys, bulk capacitors and their nets)
+  and `Block.Precision` (the buffered attenuverter channel). The
+  attenuverter and the mult are built from them; regeneration proved the
+  skeleton byte-identical and the power and channel blocks identical up to
+  part order, with the router then finding an equivalent solution. **No LED
+  driver block**: the user decided on 2026-09-13 to drop it from the roadmap
+  and decide LED indication per board, since no board has an LED yet and a
+  block without a consumer cannot be proven.
+- [DONE 2026-09-13] Datasheet provenance with URLs and revisions
+  (attenuverter SPEC, with three parts marked unverified for hand checking),
+  the mechanical stack and fit review ([MECHANICAL.md](MECHANICAL.md)), the
+  first-power-up guide
+  ([modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md)).
+- Remaining: itemised cost and stock against JLCPCB (deferred by the user on
+  2026-09-13); input over-voltage protection; the hand verification of the
+  three unverified datasheets before any order.
 
 Gate: every consequential electrical, mechanical, sourcing, and assembly
 assumption has evidence or an explicit bounded experiment; the human receives
@@ -284,7 +299,9 @@ is allowed to be unbuilt; it must not be labeled bench-tested.
 
 ### P1: The Two Blocks The System Stands On
 
-Prerequisites: M4's method and skeleton.
+Prerequisites: M4's method and skeleton, met on 2026-09-13 (`Block.Eurorack`,
+`Block.Power`, `Block.Precision`; models, error budget, decks, provenance,
+mechanical stack, power-up guide as the pattern each block repeats).
 
 1. **The exponential converter.** Matched transistor pair, temperature
    compensating resistor, scale and high-frequency trimmers; coarse and fine
@@ -464,10 +481,12 @@ an owned module specification and acceptance gate rather than a parallel list.
 
 - **Money:** fabrication orders wait on the user; the lab has its own budget
   and can start now.
-- **Decisions outstanding:** the tracking limit, the IO board's world-side jack
-  size, its mix semantics, one or two hold stages on the SSG, the filter's pole
-  count. Option B is implemented; the attenuverter's remaining M4 items are
-  paperwork and the skeleton, not circuit decisions.
+- **Decisions outstanding:** the IO board's world-side jack size and its mix
+  semantics (both now in `docs/decisions/` as researched questions), one or
+  two hold stages on the SSG, the filter's pole count. The tracking limit is
+  confirmed. Option B is implemented and factored into blocks; what M4 still
+  owes is cost and stock, input protection and three datasheet checks by
+  hand.
 - **The three hard problems:** pitch tracking over temperature (the hardest
   analog work in the plan), switching-supply noise beside precision audio on
   R1, and a modelled chain that has never met an oscilloscope — R1 is the
@@ -527,15 +546,17 @@ datasheet and model redistribution terms.
 
 ## Next Work Item
 
-1. **M4, the rest**: factor the reusable parts of the attenuverter into the
-   generator (power entry, precision buffer, module skeleton), then the
-   provenance, mechanical-stack, cost and first-power-up paperwork. See
-   [HANDOFF.md](HANDOFF.md) for the exact next action.
-2. **L1**: review [HOMELAB.md](HOMELAB.md) with the user and start Stage A
-   purchases; the lab must exist before R1's boards arrive.
-3. **P1**: the exponential-converter block, beginning with the matched-pair
-   model and the temperature-sweep deck; confirm the tracking limit first.
-4. **Answer the open decisions** for R1 (jack size, mix semantics) so its SPEC
-   can be written.
+1. **P1**: the exponential-converter block, beginning with the matched-pair
+   model with thermal coupling and the temperature-sweep deck reporting
+   tracking in cents against the confirmed limit. See [HANDOFF.md](HANDOFF.md)
+   for the exact next action.
+2. **L1**: the user buys Stage A of [HOMELAB.md](HOMELAB.md) as listed
+   (stated intent 2026-09-13; not yet bought); the lab must exist before
+   R1's boards arrive.
+3. **Answer the two R1 decision files** in `docs/decisions/` (jack size, mix
+   semantics) so the R1 SPEC can be written.
+4. **M4 leftovers**, before any order: cost and stock against JLCPCB, input
+   over-voltage protection, hand verification of the three datasheets the
+   attenuverter SPEC marks unverified.
 
 CI remains a parallel M3 obligation owed before the first order.

@@ -81,6 +81,7 @@ frontmatter at the top of the file; generated reports get theirs from
 pcbgen.cabal, cabal.project   the Haskell package (run cabal from here)
 cabal.project.freeze          pinned dependency versions; regenerate deliberately with `cabal freeze`
 toolkit/src/                  generator: Design model, KiCad emitters, router
+toolkit/src/Block/            block library: module skeleton, power entry, precision channel
 toolkit/app/Main.hs           registry of designs by name
 toolkit/pipeline.sh           preflight, generate, check, export: the entry point
 toolkit/check.sh, fab.sh      verification and fabrication, gated by check.ok
@@ -105,7 +106,7 @@ modules/<name>/
   build/                      check.sh and fab.sh output (ignored)
 ```
 
-Adding a module: create `modules/<name>/<Name>.hs`, add its directory to `hs-source-dirs` and its module to `exposed-modules` in `pcbgen.cabal`, register it in `toolkit/app/Main.hs`, write `docs/modules/<name>/SPEC.md`, link it from the document index, and add it to the valid-design cases in `toolkit/test/ValidateTests.hs`.
+Adding a module: create `modules/<name>/<Name>.hs`, add its directory to `hs-source-dirs` and its module to `exposed-modules` in `pcbgen.cabal`, register it in `toolkit/app/Main.hs`, write `docs/modules/<name>/SPEC.md`, link it from the document index, and add it to the valid-design cases in `toolkit/test/ValidateTests.hs`. Build it from the block library (`toolkit/src/Block/`): `skeleton hp` for the geometry and the panel project, `Block.Power` for power entry, `Block.Precision` for a buffered CV channel; a block fixes what its parts are and the design supplies a `Placed` per part, then `mergeNets` joins the rail fragments. A new block needs a consumer board to prove it on, a test in `toolkit/test/BlockTests.hs`, and the same models, decks and provenance as the circuit it came from.
 
 ## User direction
 

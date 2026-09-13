@@ -192,13 +192,43 @@ carries a one-time assembly fee per order.
 | RV1, RV2 | Alpha RD901F B100K | THT | hand |
 | J5 | 2×5 shrouded IDC | THT | hand |
 
+### Datasheet provenance
+
+Where every figure this design rests on came from, fetched headlessly on
+2026-09-13 unless stated. "Used for" says which numbers were taken, so a
+revision change can be checked against exactly those. The device models in
+[devices.lib](../../../modules/_models/devices.lib#L1) record the same
+sources for the parameters they encode. Anything marked **unverified** was
+not reachable as a document from this workstation; the figure used came from
+a distributor listing and the verification is owed by hand before an order.
+
+| Part | Manufacturer | Document, revision | URL | Used for |
+|---|---|---|---|---|
+| OPA2197IDR | Texas Instruments | SBOS737C, Rev. C, January 2016 – March 2018 | [ti.com/lit/gpn/OPA2197](https://www.ti.com/lit/gpn/OPA2197) (PDF); [HTML viewer](https://www.ti.com/document-viewer/OPA2197/datasheet) | V_OS ±100 µV max, drift ±2.5 µV/°C max, I_Q 1.0 typ / 1.3 mA max per amplifier, C_in 1.6 pF differential ∥ 6.4 pF common-mode, swing 125 mV from rail at 10 kΩ, supply ±2.25 to ±18 V, CMRR, PSRR, A_OL, GBW, slew ([ERROR-BUDGET.md](ERROR-BUDGET.md)) |
+| REF5050AIDR | Texas Instruments | SBOS410O, Rev. O, June 2007 – October 2025 | [ti.com/lit/gpn/REF50](https://www.ti.com/lit/gpn/REF50) (PDF); [HTML viewer](https://www.ti.com/document-viewer/REF50/datasheet) | 5.000 V ±0.1 % (AI grade), 8 ppm/°C max, 3 ppm/V, 30 ppm/mA max, I_Q 0.8 typ / 1.0 mA max, V_IN ≥ V_OUT + 0.2 V, C_L = 1 µF condition. The older path `ti.com/lit/ds/symlink/ref5050.pdf` now returns 404; TI hosts the family under REF50 |
+| B5819W SL (C8598) | JSCJ, Jiangsu Changjing Electronics Technology | **unverified**: LCSC's datasheet link is an in-page viewer, JSCJ's site offers no direct PDF | [LCSC C8598](https://www.lcsc.com/product-detail/C8598.html) | 40 V, 1 A, V_F 0.6 V at 1 A, SOD-123, from the LCSC listing. The model in devices.lib is a fitted generic Schottky curve and says so; only the series drop (0.2–0.35 V at 5 mA) enters the budget |
+| RT0805BRD0710KL (C110775) | Yageo | RT thin-film series; **unverified**: yageo.com redirects to a script-rendered site and the Mouser mirror timed out | [LCSC C110775](https://www.lcsc.com/product-detail/C110775.html) | ±0.1 %, ±25 ppm/°C, from the LCSC listing; these two numbers are the inversion-error and ratio-drift rows of the budget, so confirm them on Yageo's PYu-RT datasheet before ordering |
+| CL21B105KBFNNNE (C28323) | Samsung Electro-Mechanics | Part-number code confirmed on Samsung's [Component Library](https://product.samsungsem.com/mlcc/basic-search.do) (21 = 0805, B = X7R, 105 = 1 µF, K = ±10 %, B = 50 V, F = 1.25 mm); MLCC catalogue December 2025; per-part page is script-only, **unverified** | [samsungsem.com catalogue](https://product.samsungsem.com/resources/file/product-catalog/MLCC_2512.pdf) | value and voltage only (the REF5050's 1 µF stability condition) |
+| 10 µF C15850, 100 nF C49678, 10 pF C0G C344177, 1 k C17513, 1 M C17514 | various | LCSC listings only, **unverified** as documents | jlcpcb.com parts library, 2026-09-08 and 2026-09-13 | value, tolerance class and voltage; no figure from these enters the error budget except the 10 pF C0G's dielectric (stability) |
+| Thonkiconn PJ398SM | QingPu (WQP), sold by Thonk | Thonk drawing, ver. 1, undated (JPG) | [thonk.co.uk drawing](https://www.thonk.co.uk/wp-content/uploads/2018/07/Thonkiconn_Jack_Datasheet-new.jpg); [product page](https://www.thonk.co.uk/shop/thonkiconn/) | body 9 mm, bushing 5.5 mm (M6, 4.5 threaded), footprint 9 × 10.5 mm, DC 30 V 0.5 A ([../../MECHANICAL.md](../../MECHANICAL.md)) |
+| Alpha RD901F-40-00D B100K | Taiwan Alpha Electronic | 9 mm single metal-shaft catalogue, 5 pages, undated; Thonk's vertical drawing SLH-211 (directory dated 2014-12-10) | [taiwanalpha.com catalogue](https://www.taiwanalpha.com/downloads?target=products&id=113); [Thonk drawings](https://www.thonk.co.uk/wp-content/uploads/Documents/alpha/9mm/) | body 10 mm, M7 × 0.75 bushing 5 mm, shaft 15 mm, footprint 9.5 × 12.0 mm, pins at 2.5 mm, bracket slots 11.4 mm apart, 300°, nut 2.0 mm; ±20 % total resistance from distributor listings; no linearity or tempco figure is published |
+| 2×5 shrouded IDC header | generic DIN 41651; Würth 61201021621 as the representative drawing | Würth datasheet rev. 002.001, 2026-08-30 | [we-online.com 61201021621](https://www.we-online.com/components/products/datasheet/61201021621.pdf); mating socket [61201023021](https://www.we-online.com/components/products/datasheet/61201023021.pdf) rev. 002.000, 2022-08-30 | housing 9.1 mm tall, 20.36 × 8.75 mm; socket 8.45 mm plus strain relief ([../../MECHANICAL.md](../../MECHANICAL.md)). Record the header actually bought when it is |
+
 ## Status
 
 - Precision design implemented and simulated against the adopted limits;
   not built, not measured. Physical confirmation is the M5 gate.
+- The design is built from the block library: the module skeleton
+  (`Block.Eurorack`), power entry and protection (`Block.Power`) and the
+  buffered attenuverter channel (`Block.Precision`), placed by
+  `Attenuverter.hs`. The channel block is the one that reappears on every CV
+  input of the five-board system.
+- Mechanical stack and the fit review of the SMD strips:
+  [../../MECHANICAL.md](../../MECHANICAL.md). First power-up procedure with
+  the expected readings: [POWER-UP.md](POWER-UP.md).
 - Outstanding before an order: input over-voltage protection (a separate M4
-  item), mechanical-fit review of the new SMD strips against the jack and
-  pot bodies, and a first-power-up guide.
+  item), the hand verification of the datasheets marked unverified above,
+  and an itemised cost and stock check against JLCPCB.
 - Latest checks and hardware status: [../../HANDOFF.md](../../HANDOFF.md).
 - Diagnostic fabrication command: `toolkit/fab.sh attenuverter` (SMD
   assembly, back side); this is not purchase approval.

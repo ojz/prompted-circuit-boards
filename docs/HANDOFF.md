@@ -8,75 +8,64 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-13 by Claude Fable 5.1 (home laptop). This is current state,
-not an append-only diary. The roadmap owns priorities, module specs own circuit
-requirements and setup owns tool versions and commands. See
+Updated 2026-09-13 (evening) by Claude Fable 5.1 (home laptop). This is
+current state, not an append-only diary. The roadmap owns priorities, module
+specs own circuit requirements, setup owns tool versions and commands,
+[MECHANICAL.md](MECHANICAL.md) owns the panel-to-board stack. See
 [README.md](README.md).
 
 ## Current Position
 
-- Two module designs exist: the passive mult and the dual attenuverter. KiCad
-  projects and the attenuverter's simulation netlist come from Haskell.
-  Neither module has been built or measured.
-- **The attenuverter is now the option B precision design** (implemented
-  2026-09-13): one OPA2197 per channel as unity-gain buffer plus attenuverter
-  stage, 10 kΩ 0.1 % thin-film gain resistors with 10 pF C0G compensation,
-  1 MΩ input, a REF5050 offset reference. Every acceptance limit in
-  [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md)
-  is asserted by one of eight decks and passes; the results are tabulated in
-  [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md), which also
-  carries the decision record. The decision file is retired; the inbox is
-  empty.
-- **Every PCB is 100 mm tall** (`eurorackPcbHeight`, was 108): JLCPCB's cheap
-  tier. The attenuverter's SMD was re-laid into the two pad-free strips
-  between the panel controls, which did not move; the mult regenerated with
-  the same placement on a shorter board. AGENTS.md carries the rule.
-- M1/M2 complete; M3 has pinned dependencies but no CI; M4's circuit work is
-  done and its skeleton, provenance and paperwork items remain (roadmap).
-- The home lab list ([HOMELAB.md](HOMELAB.md)) was cut to about EUR 300 for
-  assembly and power-up and about EUR 500 for everything on 2026-09-13, after
-  the user rejected the EUR 1,680 version; no fume extractor, ever. No
-  purchases are approved or made. Panel development remains deferred.
+- Two module designs exist, the passive mult and the dual attenuverter
+  (option B precision circuit, simulated against every limit in its error
+  budget). Neither has been built or measured.
+- **The block library exists** (M4): `Block.Eurorack` (module skeleton:
+  panel and board geometry from the HP count, rail holes, the panel
+  project), `Block.Power` (2×5 header, series Schottkys, bulk capacitors and
+  their nets) and `Block.Precision` (the buffered attenuverter channel). A
+  block fixes what its parts are; a design supplies a `Placed` per part and
+  merges the rails with `mergeNets`. The attenuverter is built from all
+  three, the mult from the skeleton. Tests in `toolkit/test/BlockTests.hs`
+  pin each block's identity.
+- **M4 paperwork**: datasheet provenance with URLs and revisions is in the
+  attenuverter SPEC (three parts marked unverified, see Remaining Limits);
+  the mechanical stack and fit review are in [MECHANICAL.md](MECHANICAL.md);
+  the first-power-up guide is
+  [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md).
+- **User decisions of 2026-09-13**, taken on the session's planning page
+  and recorded in the roadmap: pitch tracking limit confirmed at ±2 cents
+  over 5 octaves, ±5 over 8, 15 to 35 °C; the LED driver block is dropped
+  from the roadmap (LED indication is decided per board); Stage A of the
+  home lab will be bought as listed (not yet bought); itemised cost and
+  stock against JLCPCB was left out of this session's scope.
+- Two researched decision files wait in `docs/decisions/` for R1: the
+  world-side jack size and the mix semantics.
+- M1/M2 complete; M3 has pinned dependencies but no CI; M4 owes cost and
+  stock, input over-voltage protection and three datasheet checks by hand.
+  Panel development remains deferred.
 
 ## Latest Change
 
-- **Option B, end to end.** `modules/attenuverter/Attenuverter.hs` is the
-  new circuit; `modules/_models/devices.lib` gains OPA2197 and REF5050
-  subcircuits built from the datasheet maxima read from TI's HTML datasheet
-  viewer on 2026-09-13 (offset 100 µV with 2.5 µV/°C, 1.6 pF + 6.4 pF input
-  capacitance, a second pole at 20 MHz which is an assumption and says so,
-  125 mV swing clamp, 375 Ω open-loop output resistance; the reference's
-  3 ppm/V, 30 ppm/mA and 8 ppm/°C, its 0.2 V dropout and the NR pin's
-  internal resistor). Temperature enters through SPICE's `TEMPER`, which a
-  deck sets with `option temp` *after* `reset` (before it, `reset` discards
-  it; that cost one wrong run).
-- **The netlist generator emits a loop-gain probe.** `Emit.Spice` now puts a
-  0 V source `V<ref>_o<pin>` between every op-amp unit's output and its net,
-  and knows `Reference_Voltage` symbols (Vin, GND, Trim/NR, Vout order). The
-  probe is a wire at DC and in transient analysis; in AC a deck gives it an
-  amplitude and reads the Middlebrook voltage-injection loop gain
-  `-V(amp side)/V(net side)`. That is how the `stability` deck measures phase
-  margin on the generated circuit instead of on a copy of it: 72° for the
-  attenuverter stage with 10 pF of stray, 27° with `C_f` removed.
-- **One design value changed on deck evidence.** The decision file assumed
-  100 kΩ gain resistors. With the op-amp's input capacitance in the model the
-  full-clockwise gain rose 1.3 % at 20 kHz (4.6 % with 10 pF stray), because
-  the capacitance's current flows through `R_f` and shelves the response
-  towards `1 + C_in/C_f`. With 10 kΩ it is 0.05 %, the inversion corner moves
-  from 159 kHz to 1.6 MHz and the phase margin is unchanged; the buffer makes
-  the value invisible outside the board. Recorded in the budget's stability
-  section and SPEC.md.
-- **Eight decks** replace the six: `transfer`, `headroom` (at 11.4 V rails,
-  100 kΩ load), `interaction` (patched, turned and driven), `corners`
-  (0.1 % parts, ±5 % rails), `loading` (output and source), `transient`,
-  `stability` (loop gain and audio-band flatness) and `temperature`
-  (10–40 °C). Their limits are the budget's, not the models'.
-- **LCSC numbers** for the new parts were verified against LCSC's product
-  data on 2026-09-13: OPA2197IDR C139363, REF5050AIDR C27804, 10 kΩ 0.1 %
-  C110775, 10 pF C0G C344177, 1 µF C28323, 1 MΩ C17514. All extended except
-  the 1 µF and 1 MΩ.
-- Home-lab rewrite and the height rule change are in the same session; see
-  Current Position.
+Four checkpoints on 2026-09-13, one per item:
+
+1. **Skeleton.** Both designs and both panels carried their own panel
+   arithmetic; `Block.Eurorack` owns it now. Regenerating all five projects
+   changed no generated file.
+2. **Power entry.** `Block.Power` plus `Design.Placed` and `Design.mergeNets`.
+   The schematic was identical up to the order of five symbols. The board
+   re-routed to an equivalent solution because the pad order within the
+   rail nets changed and the router's tie-breaks with it (745 mm of copper
+   against 752, 23 vias against 22, no contested cells, no findings). Worth
+   knowing: **the grid router's result depends on pad order within a net**,
+   so a reorder of parts can move copper without changing the circuit. Not a
+   defect, but it weakens byte-identity as a regression check; a canonical
+   pad order in the router would restore it.
+3. **Precision channel.** `Block.Precision`. Board identical to the previous
+   checkpoint up to line order; schematic differs only in the sheet note,
+   which had still said 100k where the design has been 10k since the
+   option B decks.
+4. **Paperwork**: provenance, mechanical stack, power-up guide, roadmap and
+   this handoff, two R1 decision files.
 
 ## Verification
 
@@ -84,47 +73,44 @@ Home laptop, 2026-09-13, GHC 9.6.7 / cabal 3.18.1.0, KiCad 10:
 
 | Check | Result |
 |---|---|
-| `cabal run -v0 pcbgen -- all` | all five projects regenerated; attenuverter routed in 12 iterations, 0 contested cells, 22 vias, detour 1.18, no analog findings, zero predicted cross-channel coupling |
-| `cabal test` | 65/65 passed |
-| `toolkit/sim.sh attenuverter` | 8 decks, 0 failed (25 PASS lines); numbers in SPEC.md |
+| `cabal run -v0 pcbgen -- all` after the skeleton | all five projects regenerated, no file changed |
+| `cabal test` | 80/80 passed (65 before this session; 15 block tests added) |
 | `toolkit/pipeline.sh attenuverter` | module and panel: ERC clean, DRC clean with schematic parity, renders, `check.ok` written; not exported |
-| `toolkit/pipeline.sh mult` | module and panel clean at the new 100 mm height; not exported |
+| `toolkit/pipeline.sh mult` | module and panel clean; not exported |
+| `toolkit/sim.sh attenuverter` | 8 decks, 0 failed, on the netlist generated from the block-built design |
+| Sorted-line comparison of the generated files against the previous commit | skeleton: identical; power: schematic identical, board re-routed; precision: board identical, schematic note corrected |
 
-Not rerun: `toolkit/test-scripts.sh` (its fixture is the attenuverter; the
-fault injections do not depend on the circuit), the benchmark, the
-field-solver and `nodebudget.py` checks (inputs unchanged). No manufacturing
-release or physical measurement was made.
-
-Native reports, renders and `check.ok` manifests live under each module's
-ignored `build/`, with panels in `build/panel/`. Artifact paths and commands
-here are relative to the repository root.
+Not rerun: `toolkit/test-scripts.sh`, the benchmark, the field-solver and
+`nodebudget.py` checks (inputs unchanged). No manufacturing release or
+physical measurement was made.
 
 ## Remaining Limits
 
-- Simulated, not measured. The models have no finite CMRR or PSRR, no noise,
-  no output stage beyond a clamp, and draw no load current from the rails; the
-  budget carries CMRR and PSRR from the datasheets. The buffer's phase margin
-  rests on the model's assumed second pole. Pot end resistance and linearity
-  are unpublished and need measurement.
-- Input over-voltage protection is not designed in (separate M4 item). The
-  mechanical fit of the new SMD strips against the jack and pot bodies has
-  been checked only geometrically (pads and courtyards clear); a render review
-  is owed before any order. No first-power-up guide exists yet.
-- The REF5050 starts slowly: 10 kΩ internal against 1 µF on the NR pin is a
-  10 ms time constant, plus 200 µs to settle. Harmless for a module, worth
-  knowing when a bench measurement starts at power-up.
-- CI on a runner with KiCad 10 is still owed by M3. Freerouting rows in
-  BENCH.md are not deterministic; only grid-astar rows are the diff.
+- Simulated, not measured; the model limits in the attenuverter SPEC stand.
+  The mechanical stack is read from drawings and not yet from a built board;
+  the pot bodies set a 10 mm panel gap and the jack bushings stop 1 mm short
+  of the panel, which the first build must confirm is acceptable.
+- Three datasheets could not be fetched as documents from this workstation
+  and are marked **unverified** in the SPEC: the JSCJ B5819W (LCSC viewer
+  only), Yageo's RT thin-film series (script-rendered site, distributor
+  mirror timed out) and Samsung's per-part page. The figures used come from
+  LCSC listings; the Yageo tolerance and tempco enter the error budget, so
+  check them by hand before an order.
+- The power-up guide has never been performed; its expected readings are
+  datasheet arithmetic and its supply procedure assumes the Rosfix pair from
+  HOMELAB.md.
+- Input over-voltage protection is not designed in. CI on a runner with
+  KiCad 10 is still owed by M3.
 
 ## Next Action
 
-**M4's remaining items** (roadmap): factor the reusable parts of the
-attenuverter into the generator (power entry and protection, precision
-buffer, module skeleton), then datasheet provenance with URLs for every part,
-the mechanical stack, itemised cost and stock against JLCPCB, assembly views
-and the first-power-up guide. Then P1's exponential-converter block, whose
-tracking limit (±2 cents over 5 octaves, proposed) the user has not yet
-confirmed.
+**P1, the exponential converter**: the matched-pair device model with
+thermal coupling in `modules/_models/devices.lib`, a temperature-sweep deck
+that reports tracking in cents against the confirmed limit (±2 cents over
+5 octaves, ±5 over 8, 15 to 35 °C), the reference-design survey the
+proven-circuit rule requires, and the bench calibration procedure. It has
+no board yet; its first consumer is R2.
 
-For the user: Stage A of [HOMELAB.md](HOMELAB.md) can be bought whenever
-convenient; confirm the supply's floating output on its product page first.
+For the user: answer the two R1 decision files in `docs/decisions/`, and
+buy Stage A of [HOMELAB.md](HOMELAB.md) when convenient, confirming the
+supply's floating output on its product page first.
