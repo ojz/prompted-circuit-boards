@@ -1,27 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Front panel for UTIL-01 ATTENUVERTER as a PCB. Geometry comes from
--- "Designs.Attenuverter" so the two can never disagree.
+-- "Attenuverter" so the two can never disagree; the panel outline, hole
+-- library and rail holes come from the shared skeleton ("Block.Eurorack").
 module AttenuverterPanel (attenuverterPanel) where
 
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-
+import           Block.Eurorack
 import           Design
-import           Attenuverter (jackPanelAt, panelHeight, panelWidth, potPanelAt, railHoleX, railHoleY)
-
-holeSym :: LibId
-holeSym = LibId "Mechanical" "MountingHole"
-
--- | Thonkiconn barrel is M6 (6.4 mm clearance); the Alpha 9 mm pot bushing is
--- 7 mm, for which the repository library carries a 7.2 mm hole.
-jackHoleFp, potHoleFp, railHoleFp :: LibId
-jackHoleFp = LibId "MountingHole" "MountingHole_6.4mm_M6"
-potHoleFp  = LibId "pcbgen" "Hole_7.2mm"
-railHoleFp = LibId "MountingHole" "MountingHole_3.2mm_M3"
-
--- | A hole is not a component: nothing is installed and it leaves the BOM.
-hole :: Text -> Text -> LibId -> (Double, Double) -> (Double, Double) -> Part
-hole ref val fp at schAt = (part ref val holeSym fp at schAt) { partRefOnSilk = False, partAssembly = Mechanical }
+import           Attenuverter (jackPanelAt, potPanelAt, sk)
 
 holes :: [Part]
 holes =
@@ -32,9 +17,7 @@ holes =
   , hole "H5" "Pot 1"      potHoleFp  (potPanelAt 1)        (50.8, 63.5)
   , hole "H6" "Pot 2"      potHoleFp  (potPanelAt 2)        (76.2, 63.5)
   ]
-  ++ [ hole ("H" <> T.pack (show n)) "Rail" railHoleFp (x, y) (127.0 + 25.4 * fromIntegral i, 38.1 + 12.7 * fromIntegral j)
-     | (n, (i, x, j, y)) <- zip [7 :: Int ..] [ (i, x, j, y) | (i, x) <- zip [0 :: Int ..] railHoleX, (j, y) <- zip [0 :: Int ..] railHoleY ]
-     ]
+  ++ railHoles sk 7
 
 legend :: [BoardText]
 legend =
@@ -47,27 +30,17 @@ legend =
   , BoardText "OUT" "F.SilkS" (fst (jackPanelAt 2 True), 87.0) 0 1.5
   , BoardText "-  0  +" "F.SilkS" (panelWidth / 2, 100.0) 0 1.5
   ]
+  where panelWidth = skPanelWidth sk
 
 attenuverterPanel :: Module
 attenuverterPanel = Module
   { modName = "panel"
   , modOutDir = "modules/attenuverter/kicad/panel"
   , modTitle = "UTIL-01 ATTENUVERTER front panel, 6HP"
-  , modHP = 6
+  , modHP = skHP sk
   , modParts = holes
   , modNets = []
-  , modBoard = Board
-      { bdWidth = panelWidth
-      , bdHeight = panelHeight
-      , bdCornerRadius = 1.0
-      , bdRules = defaultRules
-      , bdTraces = []
-      , bdAutoRoute = Nothing
-      , bdZones = []
-      , bdTexts = legend
-      , bdCustomRules = ""
-      , bdAnalog = noAnalog
-      }
+  , modBoard = panelBoard sk legend
   , modNotes =
       [ "UTIL-01 ATTENUVERTER front panel: 6HP Doepfer 3U, 30.0 x 128.5 mm."
       , "H1-H4: 6.4 mm holes for Thonkiconn jacks. H5-H6: 7.2 mm holes for Alpha 9 mm pots."

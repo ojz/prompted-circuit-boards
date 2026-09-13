@@ -11,69 +11,47 @@ module Mult
   ( mult
   , handRouted
     -- * Geometry shared with the panel design
-  , hp, panelWidth, panelHeight
+  , sk
   , colX, rowY, rows
-  , railHoleX, railHoleY
   ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
 
+import           Block.Eurorack
 import           Design
 
 -- Panel ----------------------------------------------------------------------
 
-hp :: Int
-hp = 6
+-- | 6HP: 30.0 x 128.5 mm panel, 28.0 x 100.0 mm board.
+sk :: Skeleton
+sk = skeleton 6
 
-panelWidth, panelHeight :: Double
-panelWidth = eurorackPanelWidth hp          -- 30.0 (Doepfer table)
-panelHeight = eurorackPanelHeight            -- 128.5
-
--- | Jack barrel centres on the panel, from its top-left corner.
--- 13.7 mm pitch: the official footprint needs 13.6 mm minimum (tip pad of one
--- jack vs. sleeve pad of the next, 0.2 mm clearance, 0.5 mm hole-to-hole).
-jackPitch, firstRowY :: Double
-jackPitch = 13.7
+-- | Jack barrel centres on the panel, from its top-left corner, at the
+-- 13.7 mm column pitch the official footprint allows ('thonkiconnPitch').
+firstRowY :: Double
 firstRowY = 30.0
 
 rows :: [Int]
 rows = [0 .. 5]
 
 rowY :: Int -> Double
-rowY k = firstRowY + jackPitch * fromIntegral k          -- 30.0 .. 98.5
+rowY k = firstRowY + thonkiconnPitch * fromIntegral k    -- 30.0 .. 98.5
 
 -- | Column centres, 15 mm apart: 9 mm bodies leave 6 mm between them.
 colX :: Int -> Double
 colX 0 = 7.5
 colX _ = 22.5
 
--- | Doepfer: holes 3.0 mm from the top and bottom edges, first hole 7.5 mm
--- from the left edge, further holes on the 5.08 mm grid.
-railHoleY :: [Double]
-railHoleY = [3.0, panelHeight - 3.0]
-
-railHoleX :: [Double]
-railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
-
 -- Board ----------------------------------------------------------------------
 
--- | Board: 100 mm tall (JLCPCB's cheap tier), centred on the 128.5 mm panel, 1 mm inside
--- each side edge.
 boardW, boardH :: Double
-boardW = panelWidth - 2.0                                 -- 28.0
-boardH = eurorackPcbHeight                                -- 100.0
-
-boardOffsetX, boardOffsetY :: Double
-boardOffsetX = 1.0
-boardOffsetY = eurorackPcbTop                             -- 10.25
-
-toBoard :: (Double, Double) -> (Double, Double)
-toBoard (x, y) = (x - boardOffsetX, y - boardOffsetY)
+boardW = skBoardWidth sk                                  -- 28.0
+boardH = skBoardHeight sk                                 -- 100.0
 
 -- | Footprint origin is the barrel / sleeve pad; body extends +y (downwards).
 jackAt :: Int -> Int -> (Double, Double)
-jackAt col k = toBoard (colX col, rowY k)                 -- x 6.5 / 21.5, y 19.75 + 13.7k
+jackAt col k = toBoard sk (colX col, rowY k)              -- x 6.5 / 21.5, y 15.75 + 13.7k
 
 tipPadDy :: Double
 tipPadDy = 11.4
@@ -88,9 +66,7 @@ jumperAt = (boardW / 2, snd (tipPad 0 2))                 -- (14.0, 58.55)
 
 -- Parts ------------------------------------------------------------------------
 
-thonkiconnSym, thonkiconnFp, jumperSym, jumperFp :: LibId
-thonkiconnSym = LibId "Connector_Audio" "AudioJack2_SwitchT"
-thonkiconnFp  = LibId "Connector_Audio" "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+jumperSym, jumperFp :: LibId
 jumperSym     = LibId "Jumper" "SolderJumper_2_Open"
 jumperFp      = LibId "Jumper" "SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
 
@@ -150,7 +126,7 @@ jumperLinks =
      ]
 
 fullBoard :: [(Double, Double)]
-fullBoard = [(0, 0), (boardW, 0), (boardW, boardH), (0, boardH)]
+fullBoard = boardOutline sk
 
 board :: Board
 board = Board
@@ -197,7 +173,7 @@ mult = Module
   { modName = "mult"
   , modOutDir = "modules/mult/kicad"
   , modTitle = "MULT - passive 2x6 multiple"
-  , modHP = hp
+  , modHP = skHP sk
   , modParts = jacks ++ [jumper]
   , modNets = nets
   , modBoard = board

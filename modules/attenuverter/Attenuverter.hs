@@ -32,25 +32,21 @@
 module Attenuverter
   ( attenuverter
     -- * Geometry shared with the panel design
-  , hp, panelWidth, panelHeight
+  , sk
   , jackPanelAt, potPanelAt
-  , railHoleX, railHoleY
   ) where
 
 import           Data.Text      (Text)
 import qualified Data.Text      as T
 
+import           Block.Eurorack
 import           Design
-import           Route.Geometry (rotatePt)
 
 -- Panel ----------------------------------------------------------------------
 
-hp :: Int
-hp = 6
-
-panelWidth, panelHeight :: Double
-panelWidth = eurorackPanelWidth hp          -- 30.0
-panelHeight = eurorackPanelHeight            -- 128.5
+-- | 6HP: 30.0 x 128.5 mm panel, 28.0 x 100.0 mm board.
+sk :: Skeleton
+sk = skeleton 6
 
 -- | Pot shafts on the panel centre line; channel 1 above channel 2.
 potPanelAt :: Int -> (Double, Double)
@@ -63,41 +59,19 @@ potPanelAt _ = (15.0, 64.0)
 jackPanelAt :: Int -> Bool -> (Double, Double)
 jackPanelAt ch isOut = (if isOut then 22.5 else 7.5, if ch == 1 then 38.0 else 80.0)
 
-railHoleY :: [Double]
-railHoleY = [3.0, panelHeight - 3.0]
-
-railHoleX :: [Double]
-railHoleX = [7.5, 7.5 + 3 * 5.08]                         -- 7.5, 22.74
-
 -- Board ----------------------------------------------------------------------
 
 boardW, boardH :: Double
-boardW = panelWidth - 2.0                                 -- 28.0
-boardH = eurorackPcbHeight                                -- 100.0
+boardW = skBoardWidth sk                                  -- 28.0
+boardH = skBoardHeight sk                                 -- 100.0
 
-boardOffsetX, boardOffsetY :: Double
-boardOffsetX = 1.0
-boardOffsetY = eurorackPcbTop                             -- 14.25
-
-toBoard :: (Double, Double) -> (Double, Double)
-toBoard (x, y) = (x - boardOffsetX, y - boardOffsetY)
-
--- | Footprint origin that puts a footprint-local point at a wanted board
--- position, for the side and rotation the part will get. Mirrors what the
--- PCB emitter does: flip (negate local y) first, then rotate.
-originFor :: Side -> Double -> (Double, Double) -> (Double, Double) -> (Double, Double)
-originFor side rot (lx, ly) (bx, by) =
-  let ly' = if side == Back then negate ly else ly
-      (dx, dy) = rotatePt rot (lx, ly')
-  in (bx - dx, by - dy)
+-- | Panel coordinates to board coordinates, for this module's skeleton.
+onBoard :: (Double, Double) -> (Double, Double)
+onBoard = toBoard sk
 
 -- Library ids ----------------------------------------------------------------
 
-jackSym, jackFp, potSym, potFp, opampSym, vrefSym, soic8, rSym, r0805, cSym, c0805, dSym, sod123, hdrSym, hdrFp :: LibId
-jackSym  = LibId "Connector_Audio" "AudioJack2_SwitchT"
-jackFp   = LibId "Connector_Audio" "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
-potSym   = LibId "Device" "R_Potentiometer"
-potFp    = LibId "Potentiometer_THT" "Potentiometer_Alpha_RD901F-40-00D_Single_Vertical"
+opampSym, vrefSym, soic8, rSym, r0805, cSym, c0805, dSym, sod123, hdrSym, hdrFp :: LibId
 opampSym = LibId "Amplifier_Operational" "OPA2197xD"
 vrefSym  = LibId "Reference_Voltage" "REF5050AD"
 soic8    = LibId "Package_SO" "SOIC-8_3.9x4.9mm_P1.27mm"
@@ -129,7 +103,7 @@ rowY3 = 147.32
 -- is declared unconnected; an input jack's TN carries OFFSET.
 jack :: Text -> Text -> Int -> Bool -> Part
 jack ref val ch isOut =
-  (part ref val jackSym jackFp (toBoard (jackPanelAt ch isOut))
+  (part ref val thonkiconnSym thonkiconnFp (onBoard (jackPanelAt ch isOut))
         (if isOut then 203.20 else 38.1, if ch == 1 then rowY1 else rowY2))
     { partNoConnect = [ "TN" | isOut ] }
 
@@ -139,7 +113,7 @@ jack ref val ch isOut =
 -- (y = 29.5 and 71.5 on the panel), lugs 4.8 mm either side of it.
 pot :: Text -> Int -> Part
 pot ref ch =
-  (part ref "B100K" potSym potFp (originFor Front 90 (7.5, 2.5) (toBoard (potPanelAt ch))) (96.52, if ch == 1 then rowY1 else rowY2))
+  (part ref "B100K" alphaPotSym alphaPotFp (originFor Front 90 (7.5, 2.5) (onBoard (potPanelAt ch))) (96.52, if ch == 1 then rowY1 else rowY2))
     { partRot = 90 }
 
 -- | Factory-assembled SMD part on the back, at a panel position. JLCPCB
@@ -148,7 +122,7 @@ pot ref ch =
 -- checks (the diode footprint has its own cathode bar).
 smd :: Text -> Text -> LibId -> LibId -> Text -> (Double, Double) -> (Double, Double) -> Part
 smd ref val sy fp code panelPos schPos =
-  (part ref val sy fp (toBoard panelPos) schPos)
+  (part ref val sy fp (onBoard panelPos) schPos)
     { partSide = Back, partFields = lcsc code, partRefOnSilk = False, partAssembly = Factory }
 
 withRef :: Part -> Part
@@ -230,7 +204,7 @@ parts =
     -- centred at (1.27, 5.08) and the shroud reaches 4.45 mm either side of
     -- it, so a centre at panel y 109.5 keeps it 0.3 mm inside the board's
     -- bottom edge at 114.25. Through-hole, soldered by hand.
-  , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (toBoard (14.5, 109.5))) (38.1, rowY3))
+  , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (onBoard (14.5, 109.5))) (38.1, rowY3))
       { partSide = Back, partRot = 90, partAssembly = Hand }
   ]
 
@@ -277,7 +251,7 @@ routedNets = map netName nets
 -- Board ----------------------------------------------------------------------
 
 fullBoard :: [(Double, Double)]
-fullBoard = [(0, 0), (boardW, 0), (boardW, boardH), (0, boardH)]
+fullBoard = boardOutline sk
 
 board :: Board
 board = Board
@@ -298,7 +272,7 @@ board = Board
       , BoardText "UTIL-01"      "B.SilkS" (boardW / 2, 5.3) 0 1.0
         -- Red-stripe marker beside the header's pin-1 end, below J5's own
         -- reference text.
-      , BoardText "-12V" "B.SilkS" (toBoard (26.5, 112.8)) 0 0.8
+      , BoardText "-12V" "B.SilkS" (onBoard (26.5, 112.8)) 0 0.8
       ]
   , bdCustomRules = ""
   , bdAnalog = attenuverterIntent
@@ -376,7 +350,7 @@ attenuverter = Module
   { modName = "attenuverter"
   , modOutDir = "modules/attenuverter/kicad"
   , modTitle = "UTIL-01 ATTENUVERTER - dual attenuverter / offset"
-  , modHP = hp
+  , modHP = skHP sk
   , modParts = parts
   , modNets = nets
   , modBoard = board

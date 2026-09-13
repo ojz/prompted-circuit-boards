@@ -29,6 +29,7 @@ library
         Kicad.Library
         Kicad.Uuid
         Design
+        Block.Eurorack
         Validate
         Bench
         Emit.Schematic
@@ -61,6 +62,7 @@ test-suite pcbgen-test
     main-is:          Main.hs
     other-modules:    Harness
                       AnalogTests
+                      BlockTests
                       SpiceTests
                       ValidateTests
                       RouteTests
