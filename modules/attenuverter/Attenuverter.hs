@@ -37,9 +37,9 @@ module Attenuverter
   ) where
 
 import           Data.Text      (Text)
-import qualified Data.Text      as T
 
 import           Block.Eurorack
+import           Block.Power
 import           Design
 
 -- Panel ----------------------------------------------------------------------
@@ -71,18 +71,13 @@ onBoard = toBoard sk
 
 -- Library ids ----------------------------------------------------------------
 
-opampSym, vrefSym, soic8, rSym, r0805, cSym, c0805, dSym, sod123, hdrSym, hdrFp :: LibId
+opampSym, vrefSym, soic8, rSym, r0805, cSym :: LibId
 opampSym = LibId "Amplifier_Operational" "OPA2197xD"
 vrefSym  = LibId "Reference_Voltage" "REF5050AD"
 soic8    = LibId "Package_SO" "SOIC-8_3.9x4.9mm_P1.27mm"
 rSym     = LibId "Device" "R"
 r0805    = LibId "Resistor_SMD" "R_0805_2012Metric"
-cSym     = LibId "Device" "C"
-c0805    = LibId "Capacitor_SMD" "C_0805_2012Metric"
-dSym     = LibId "Device" "D_Schottky"
-sod123   = LibId "Diode_SMD" "D_SOD-123"
-hdrSym   = LibId "Connector_Generic" "Conn_02x05_Odd_Even"
-hdrFp    = LibId "Connector_IDC" "IDC-Header_2x05_P2.54mm_Vertical"
+cSym     = capSym
 
 -- | JLCPCB parts. Passives, diodes and the original codes were verified on
 -- jlcpcb.com on 2026-09-08; the precision parts and the new passives against
@@ -193,20 +188,27 @@ parts =
   , smd "C6" "1u" cSym c0805 "C28323" (17.5, 52.0) (223.52, rowY3 + 15.24)
   , smd "C7" "1u" cSym c0805 "C28323" (21.0, 52.0) (256.54, rowY3 + 15.24)
   , smd "C8" "1u" cSym c0805 "C28323" (24.5, 52.0) (238.76, rowY3 + 22.86)
-    -- Bulk caps and Schottkys either side of U2 in its middle row (a
-    -- SOD-123 courtyard is 4.7 mm wide, so the diodes take the outer spots).
-  , smd "D1" "B5819W" dSym sod123 "C8598" (4.3, 98.5)  (99.06, rowY3)
-  , smd "C1" "10u"  cSym c0805 "C15850" (8.5, 98.5)  (129.54, rowY3)
-  , smd "C2" "10u"  cSym c0805 "C15850" (20.0, 98.5) (144.78, rowY3)
-  , smd "D2" "B5819W" dSym sod123 "C8598" (24.5, 98.5) (114.30, rowY3)
-    -- 2x5 shrouded IDC header along the bottom edge, on the back, pins 1-2
-    -- (-12 V) at the right. Footprint origin is pin 1; the pad field is
-    -- centred at (1.27, 5.08) and the shroud reaches 4.45 mm either side of
-    -- it, so a centre at panel y 109.5 keeps it 0.3 mm inside the board's
-    -- bottom edge at 114.25. Through-hole, soldered by hand.
-  , (part "J5" "POWER" hdrSym hdrFp (originFor Back 90 (1.27, 5.08) (onBoard (14.5, 109.5))) (38.1, rowY3))
-      { partSide = Back, partRot = 90, partAssembly = Hand }
   ]
+  ++ powerParts powerEntry
+
+-- | Power entry ('Block.Power') placed for this board. The 2x5 shrouded IDC
+-- header runs along the bottom edge, on the back, pins 1-2 (-12 V) at the
+-- right: its footprint origin is pin 1, the pad field is centred at
+-- (1.27, 5.08) and the shroud reaches 4.45 mm either side of it, so a centre
+-- at panel y 109.5 keeps it 0.3 mm inside the board's bottom edge at 114.25.
+-- The bulk capacitors and Schottkys sit either side of U2 in its middle
+-- row (a SOD-123 courtyard is 4.7 mm wide, so the diodes take the outer
+-- spots). Schematic: the third row, left of the reference.
+powerEntry :: PowerEntry
+powerEntry = PowerEntry
+  { peHeader     = Placed "J5" (originFor Back 90 (1.27, 5.08) (onBoard (14.5, 109.5))) 90 (38.1, rowY3)
+  , peHeaderSide = Back
+  , peDiodePos   = Placed "D2" (onBoard (24.5, 98.5)) 0 (114.30, rowY3)
+  , peDiodeNeg   = Placed "D1" (onBoard (4.3, 98.5))  0 (99.06, rowY3)
+  , peBulkPos    = Placed "C1" (onBoard (8.5, 98.5))  0 (129.54, rowY3)
+  , peBulkNeg    = Placed "C2" (onBoard (20.0, 98.5)) 0 (144.78, rowY3)
+  , peSmdSide    = Back
+  }
 
 -- Nets -----------------------------------------------------------------------
 
@@ -223,16 +225,17 @@ channelNets n u jIn jOut rv rA rF rO rIn cF =
   , Net ("OUT" <> n)   Signal [(rO, "2"), (jOut, "T")]
   ]
 
+-- | The power block contributes the header, diodes and bulk capacitors to
+-- GND, +12V, -12V and defines the raw rails; everything else on the rails
+-- is listed here and merged in by name.
 nets :: [Net]
-nets =
+nets = mergeNets $
+  powerNets powerEntry ++
   [ Net "GND"  Power  ([ (j, "S") | j <- ["J1", "J2", "J3", "J4"] ] ++ [("RV1", "1"), ("RV2", "1")]
-                       ++ [ (c, "2") | c <- ["C1", "C2", "C3", "C4", "C6", "C7", "C8", "C11", "C12"] ]
-                       ++ [("R9", "2"), ("R10", "2"), ("U3", "4")]
-                       ++ [ ("J5", T.pack (show p)) | p <- [3 .. 8 :: Int] ])
-  , Net "+12V" Power  [("D2", "1"), ("C1", "1"), ("C3", "1"), ("C11", "1"), ("C6", "1"), ("U1", "8"), ("U2", "8"), ("U3", "2")]
-  , Net "-12V" Power  [("D1", "2"), ("C2", "1"), ("C4", "1"), ("C12", "1"), ("U1", "4"), ("U2", "4")]
-  , Net "P12_RAW" Signal [("J5", "9"), ("J5", "10"), ("D2", "2")]
-  , Net "N12_RAW" Signal [("J5", "1"), ("J5", "2"), ("D1", "1")]
+                       ++ [ (c, "2") | c <- ["C3", "C4", "C6", "C7", "C8", "C11", "C12"] ]
+                       ++ [("R9", "2"), ("R10", "2"), ("U3", "4")])
+  , Net "+12V" Power  [("C3", "1"), ("C11", "1"), ("C6", "1"), ("U1", "8"), ("U2", "8"), ("U3", "2")]
+  , Net "-12V" Power  [("C4", "1"), ("C12", "1"), ("U1", "4"), ("U2", "4")]
     -- The reference output is normalled to both input jacks' switch pins.
   , Net "OFFSET"  Signal [("J1", "TN"), ("J3", "TN"), ("U3", "6"), ("C7", "1")]
   , Net "NR"      Signal [("U3", "5"), ("C8", "1")]

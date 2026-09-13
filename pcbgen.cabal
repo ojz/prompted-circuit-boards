@@ -30,6 +30,7 @@ library
         Kicad.Uuid
         Design
         Block.Eurorack
+        Block.Power
         Validate
         Bench
         Emit.Schematic

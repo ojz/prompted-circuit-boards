@@ -8,8 +8,10 @@ module Design
   , Assembly (..)
   , Part (..)
   , part
+  , Placed (..)
   , NetKind (..)
   , Net (..)
+  , mergeNets
   , Trace (..)
   , PadConnect (..)
   , Zone (..)
@@ -75,6 +77,16 @@ data Part = Part
 part :: Text -> Text -> LibId -> LibId -> (Double, Double) -> (Double, Double) -> Part
 part ref val sy fp at schAt = Part ref val sy fp at 0 Front [] schAt 0 True [] [] Hand
 
+-- | Where a part of a reusable block goes. A block ("Block.Power",
+-- "Block.Precision") fixes what each of its parts is; the design that uses
+-- the block supplies one of these per part to say where it sits.
+data Placed = Placed
+  { plRef   :: Text               -- ^ reference designator
+  , plAt    :: (Double, Double)   -- ^ footprint origin, board coordinates
+  , plRot   :: Double             -- ^ board rotation, degrees
+  , plSchAt :: (Double, Double)   -- ^ schematic position
+  } deriving (Show)
+
 -- | Power nets become KiCad power symbols and global nets; signal nets become
 -- local net labels, which KiCad names with a leading slash on the board.
 data NetKind = Power | Signal
@@ -85,6 +97,19 @@ data Net = Net
   , netKind :: NetKind
   , netPins :: [(Text, Text)]   -- ^ (reference, pad/pin number)
   } deriving (Show)
+
+-- | Merge nets that share a name and kind into one, keeping the order in
+-- which names first appear and concatenating pins in order. This is how a
+-- design combines the @GND@, @+12V@ and @-12V@ fragments that each block
+-- contributes with its own. Two nets of the same name but different kinds
+-- are left alone, so validation still reports them as a duplicate.
+mergeNets :: [Net] -> [Net]
+mergeNets = foldl add []
+  where
+    add acc n
+      | any (same n) acc = map (\m -> if same n m then m { netPins = netPins m ++ netPins n } else m) acc
+      | otherwise        = acc ++ [n]
+    same n m = netName m == netName n && netKind m == netKind n
 
 pcbNetName :: Net -> Text
 pcbNetName n = case netKind n of

@@ -4,13 +4,74 @@
 -- them produced, and their arithmetic must match the rules in AGENTS.md.
 module BlockTests (tests) where
 
+import           Data.List (sort, nub)
+import           Data.Text (Text)
+import qualified Data.Text as T
+
 import           Block.Eurorack
+import           Block.Power
 import           Design
 import           Harness
 
+-- | A power entry placed anywhere, for the tests: what matters is the
+-- identity of the parts and nets, not where they are.
+pe :: PowerEntry
+pe = PowerEntry
+  { peHeader = Placed "J5" (13.5, 95.25) 90 (38.1, 147.32), peHeaderSide = Back
+  , peDiodePos = Placed "D2" (23.5, 84.25) 0 (114.3, 147.32)
+  , peDiodeNeg = Placed "D1" (3.3, 84.25) 0 (99.06, 147.32)
+  , peBulkPos = Placed "C1" (7.5, 84.25) 0 (129.54, 147.32)
+  , peBulkNeg = Placed "C2" (19.0, 84.25) 0 (144.78, 147.32)
+  , peSmdSide = Back }
+
+pinsOf :: [Net] -> [(Text, Text)]
+pinsOf = concatMap netPins
+
 tests :: [Test]
 tests =
-  [ test "skeleton 6 is the 6HP module the rules describe" $
+  [ -- Power entry.
+    test "powerParts places the header by hand and the rest by the factory, with LCSC numbers" $
+      let ps = powerParts pe
+          hand = [ p | p <- ps, partAssembly p == Hand ]
+          fact = [ p | p <- ps, partAssembly p == Factory ]
+      in expectAll
+           [ (sort (map partRef ps) == ["C1", "C2", "D1", "D2", "J5"], "refs " ++ show (map partRef ps))
+           , (map partRef hand == ["J5"], "hand-installed parts " ++ show (map partRef hand))
+           , (length fact == 4 && all (any ((== "LCSC Part #") . fst) . partFields) fact, "every factory part carries an LCSC Part #")
+           , (all (not . partRefOnSilk) fact && all partRefOnSilk hand, "passives silent on silk, header labelled")
+           , (all ((== Back) . partSide) ps, "every part on the side the design asked for")
+           , ([ partRot p | p <- ps, partRef p == "J5" ] == [90], "header rotation comes from its placement") ]
+
+  , test "powerNets uses every pin of every power part exactly once" $
+      let pins = pinsOf (powerNets pe)
+          wanted = sort ([ ("J5", tshow n) | n <- [1 .. 10 :: Int] ] ++ [ (r, p) | r <- ["D1", "D2", "C1", "C2"], p <- ["1", "2"] ])
+      in expectAll
+           [ (sort pins == wanted, "pins " ++ show (sort pins))
+           , (length pins == length (nub pins), "a pin appears twice") ]
+
+  , test "powerNets puts the raw rails on the header and the protected rails after the diodes" $
+      let ns = powerNets pe
+          net n = concat [ netPins m | m <- ns, netName m == n ]
+      in expectAll
+           [ (("J5", "9") `elem` net "P12_RAW" && ("J5", "10") `elem` net "P12_RAW" && ("D2", "2") `elem` net "P12_RAW", "P12_RAW " ++ show (net "P12_RAW"))
+           , (("J5", "1") `elem` net "N12_RAW" && ("J5", "2") `elem` net "N12_RAW" && ("D1", "1") `elem` net "N12_RAW", "N12_RAW " ++ show (net "N12_RAW"))
+           , (("D2", "1") `elem` net "+12V" && ("C1", "1") `elem` net "+12V", "+12V " ++ show (net "+12V"))
+           , (("D1", "2") `elem` net "-12V" && ("C2", "1") `elem` net "-12V", "-12V " ++ show (net "-12V"))
+           , (all (\p -> ("J5", tshow p) `elem` net "GND") [3 .. 8 :: Int] && ("C1", "2") `elem` net "GND" && ("C2", "2") `elem` net "GND", "GND " ++ show (net "GND"))
+           , ([ netKind m | m <- ns, netName m `elem` ["GND", "+12V", "-12V"] ] == [Power, Power, Power], "rails are power nets")
+           , ([ netKind m | m <- ns, netName m `elem` ["P12_RAW", "N12_RAW"] ] == [Signal, Signal], "raw rails are signal nets (no power symbol exists for them)") ]
+
+  , test "mergeNets joins same-name same-kind nets in first-appearance order and leaves kind clashes alone" $
+      let merged = mergeNets
+            [ Net "GND" Power [("A", "1")], Net "X" Signal [("A", "2")]
+            , Net "GND" Power [("B", "1")], Net "X" Power [("C", "1")], Net "Y" Signal [] , Net "GND" Power [("C", "2")] ]
+      in expectAll
+           [ (map netName merged == ["GND", "X", "X", "Y"], "order " ++ show (map netName merged))
+           , (concat [ netPins m | m <- merged, netName m == "GND" ] == [("A", "1"), ("B", "1"), ("C", "2")], "GND pins " ++ show [ netPins m | m <- merged, netName m == "GND" ])
+           , (length [ () | m <- merged, netName m == "X" ] == 2, "a Signal X and a Power X must both survive for validation to reject") ]
+
+    -- Skeleton.
+  , test "skeleton 6 is the 6HP module the rules describe" $
       let sk = skeleton 6
       in expectAll
            [ (skPanelWidth sk == 30.0, "panel width " ++ show (skPanelWidth sk) ++ ", expected 30.0 (Doepfer 6HP)")
@@ -94,3 +155,6 @@ tests =
     round2 :: Double -> Double
     round2 x = fromIntegral (round (x * 100) :: Integer) / 100
     r2 (x, y) = (round2 x, round2 y)
+
+tshow :: Show a => a -> Text
+tshow = T.pack . show
