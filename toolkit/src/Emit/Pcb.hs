@@ -328,7 +328,7 @@ netPad pinNet ref pinNames (List (Atom "pad" : Str padNum : rest)) =
   let net = case M.lookup (ref, padNum) pinNet of
         Just n  -> n
         Nothing ->
-          let nm = fromMaybe "" (lookup padNum pinNames)
+          let nm = T.replace "/" "{slash}" (fromMaybe "" (lookup padNum pinNames))
           in if T.null nm || nm == "~"
                then "unconnected-(" <> ref <> "-Pad" <> padNum <> ")"
                else "unconnected-(" <> ref <> "-" <> nm <> "-Pad" <> padNum <> ")"

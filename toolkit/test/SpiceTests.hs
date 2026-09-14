@@ -23,7 +23,17 @@ tests =
   , diodeAnodeComesFirst
   , attenuverterHasNoUnmodelledParts
   , unreadableValueIsRefused
+  , unknownLibraryIsRefused
   ]
+
+unknownLibraryIsRefused :: Test
+unknownLibraryIsRefused = test "a symbol from an unmapped library is refused, not skipped" $
+  let design = (tiny [ Net "A" Signal [("U9", "1")], Net "B" Signal [("U9", "2")] ])
+        { modParts = [ part "U9" "L78L05" (LibId "Regulator_Linear" "L78L05_SO8")
+                            (LibId "Package_SO" "SOIC-8_3.9x4.9mm_P1.27mm")
+                            (0, 0) (0, 0) ] }
+  in expect (any (\problem -> spRef problem == "U9") (spiceProblems design))
+       "an unmapped symbol library should be reported against its part"
 
 -- | @+12V@ and @-12V@ both scrubbed to @_12V@, so the netlist put the
 -- op-amp's V+ and V- on one node and shorted the supplies. Nothing in the
@@ -82,6 +92,8 @@ attenuverterHasNoUnmodelledParts =
            , "unit A should be wired non-inverting, inverting, V+, V-, out:\n" ++ out)
          , ("XU1_7 WIPER1 INV1 P12V N12V U1_o7 OPA2197" `isInfixOf` out
            , "unit B should use pins 5, 6, 7:\n" ++ out)
+         , ("XU2_7 WIPER2 INV2 P12V N12V U2_o7 OPA2197" `isInfixOf` out
+           , "channel 2's stage should be on U2:\n" ++ out)
            -- Each unit drives a private probe node that a 0 V source joins
            -- to the net: the loop-gain injection point (see Emit.Spice).
          , ("VU1_o1 U1_o1 BUF1 DC 0 AC 0" `isInfixOf` out

@@ -17,7 +17,7 @@ import           Mult          (mult)
 import           Route.Check
 import           Route.Geometry
 import           Route.Router
-import           Design         (Module)
+import           Design         (Module (..), Net (..), Part (..))
 
 tests :: [Test]
 tests =
@@ -31,7 +31,27 @@ tests =
   , manualWidthBlocks
   , attenuverterRoutesCleanly
   , multRoutesCleanly
+  , unconnectedPinNameEscapesSlashes
   ]
+
+unconnectedPinNameEscapesSlashes :: Test
+unconnectedPinNameEscapesSlashes = testIO "unconnected pin names escape slashes for schematic parity" $ do
+  cache <- newLibCache
+  let fixture = attenuverter
+        { modNets = [ net { netPins = filter (/= ("U3", "5")) (netPins net) }
+                    | net <- modNets attenuverter ]
+        , modParts = [ if partRef component == "U3"
+                         then component { partNoConnect = "5" : partNoConnect component }
+                         else component
+                     | component <- modParts attenuverter ] }
+  problem <- routeProblemFor cache fixture
+  let names = [ name | PadGeom reference number (Just name) _ _ _ <- rpPads problem
+                     , reference == "U3", number == "5" ]
+  pure $ expectAll
+    [ (length names == 1, "expected one net name for U3.5: " ++ show names)
+    , (any (T.isInfixOf "{slash}") names, "missing KiCad slash escape: " ++ show names)
+    , (not (any (T.isInfixOf "/") names), "raw slash in unconnected pin name: " ++ show names)
+    ]
 
 -- Fixtures ---------------------------------------------------------------------
 

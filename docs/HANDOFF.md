@@ -8,8 +8,9 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-13 (evening) by Claude Fable 5.1 (home laptop). This is
-current state, not an append-only diary. The roadmap owns priorities, module
+Updated 2026-09-14 by GitHub Copilot (work laptop), after integrating the
+2026-09-13 home-laptop checkpoint. This is current state, not an append-only
+diary. The roadmap owns priorities, module
 specs own circuit requirements, setup owns tool versions and commands,
 [MECHANICAL.md](MECHANICAL.md) owns the panel-to-board stack. See
 [README.md](README.md).
@@ -46,43 +47,52 @@ specs own circuit requirements, setup owns tool versions and commands,
 
 ## Latest Change
 
-Four checkpoints on 2026-09-13, one per item:
+Recovered workstation synchronization without rewriting published history:
 
-1. **Skeleton.** Both designs and both panels carried their own panel
-   arithmetic; `Block.Eurorack` owns it now. Regenerating all five projects
-   changed no generated file.
-2. **Power entry.** `Block.Power` plus `Design.Placed` and `Design.mergeNets`.
-   The schematic was identical up to the order of five symbols. The board
-   re-routed to an equivalent solution because the pad order within the
-   rail nets changed and the router's tie-breaks with it (745 mm of copper
-   against 752, 23 vias against 22, no contested cells, no findings). Worth
-   knowing: **the grid router's result depends on pad order within a net**,
-   so a reorder of parts can move copper without changing the circuit. Not a
-   defect, but it weakens byte-identity as a regression check; a canonical
-   pad order in the router would restore it.
-3. **Precision channel.** `Block.Precision`. Board identical to the previous
-   checkpoint up to line order; schematic differs only in the sheet note,
-   which had still said 100k where the design has been 10k since the
-   option B decks.
-4. **Paperwork**: provenance, mechanical stack, power-up guide, roadmap and
-   this handoff, two R1 decision files.
+- The remote already contained Friday's `fe11124` documentation checkpoint.
+  Local `main` at `1ea98dc` had no outgoing commits, nine incoming commits,
+  and changes in 23 tracked/untracked paths, including an untracked stability
+  experiment. The committed branches had not diverged.
+- Saved the full tracked and untracked work, including the retired precision
+  decision's deletion, in recovery stash
+  `5ca11c95875f37967d48d7d17ce067919edcec52`, named
+  `recovery: work-laptop before weekend sync 2026-09-14`. A verified standalone
+  bundle is retained locally at `.git/recovery-2026-09-14.bundle`. Neither
+  backup was dropped or published; both remain on the work laptop.
+- Fast-forwarded to `d560786`. The weekend's 100 mm boards, block-library
+  refactors, four-pin reference model with noise-reduction filtering, loop-gain
+  probes, eight simulation decks and newer documentation remain authoritative.
+- Recovered the saved SPICE unknown-library refusal and its regression,
+  retaining the newer four-pin reference mapping and output probes. The saved
+  channel-2 assertion was adapted to the probe-based output. Recovered the
+  PCB emitter's `{slash}` escape for unconnected pin names with a new fixture.
+  Both missing behaviors were demonstrated failing before restoring their fixes.
+- The saved component-validation change is already identical upstream. The
+  adopted option B decision is recorded in the current SPEC; the newer two R1
+  decision files remain unanswered and untouched.
+- The older 47 pF compensation design, older models, peaking/overshoot deck
+  and generated artifacts remain available in the recovery snapshot; they were
+  not replayed over the weekend's 10 pF design and direct loop-gain tests.
+  This integration does not claim equivalence of every old numerical limit or
+  validate the underlying device-model assumptions anew.
 
 ## Verification
 
-Home laptop, 2026-09-13, GHC 9.6.7 / cabal 3.18.1.0, KiCad 10:
+Work laptop, 2026-09-14, GHC 9.6.7 / cabal 3.14.2.0, KiCad 10.0.3,
+ngspice 47, after reconciling the saved changes with `d560786`:
 
 | Check | Result |
 |---|---|
-| `cabal run -v0 pcbgen -- all` after the skeleton | all five projects regenerated, no file changed |
-| `cabal test` | 80/80 passed (65 before this session; 15 block tests added) |
-| `toolkit/pipeline.sh attenuverter` | module and panel: ERC clean, DRC clean with schematic parity, renders, `check.ok` written; not exported |
-| `toolkit/pipeline.sh mult` | module and panel clean; not exported |
-| `toolkit/sim.sh attenuverter` | 8 decks, 0 failed, on the netlist generated from the block-built design |
-| Sorted-line comparison of the generated files against the previous commit | skeleton: identical; power: schematic identical, board re-routed; precision: board identical, schematic note corrected |
+| Focused SPICE-emitter and unconnected-pin naming regressions | both fail before the recovered fixes and pass afterwards |
+| `cabal test --test-show-details=direct` | 82/82 passed, including the weekend's block tests and both recovered behaviors |
+| `toolkit/pipeline.sh attenuverter` | regeneration matches the weekend project/report; module and panel ERC/DRC/parity and renders pass; `check.ok` written |
+| `toolkit/sim.sh attenuverter` | 8 decks, 0 failed, using the current block-built netlist |
+| `toolkit/test-scripts.sh` | 79 passed, 0 failed; native checks, scratch export/refusals, simulator stubs and report checks |
 
-Not rerun: `toolkit/test-scripts.sh`, the benchmark, the field-solver and
-`nodebudget.py` checks (inputs unchanged). No manufacturing release or
-physical measurement was made.
+Not rerun: the mult's native pipeline, the full benchmark, field-solver and
+`nodebudget.py` checks. The mult's last native pass is the home-laptop
+checkpoint on 2026-09-13. The script suite's fabrication export is a disposable
+control, not a manufacturing release. No physical measurement was made.
 
 ## Remaining Limits
 
@@ -101,6 +111,9 @@ physical measurement was made.
   HOMELAB.md.
 - Input over-voltage protection is not designed in. CI on a runner with
   KiCad 10 is still owed by M3.
+- The router depends on pad order within a net: the weekend's power-block
+  refactor changed routing without changing the circuit. Keep that limitation
+  in mind when interpreting byte-identity checks across structural refactors.
 
 ## Next Action
 

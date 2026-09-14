@@ -110,7 +110,7 @@ emitSpice m = T.unlines $
 -- | What a symbol means electrically. Driven by the library identity rather
 -- than by the reference letter, because a reference is a label and a symbol
 -- is a commitment about pins.
-data Kind = Res | Cap | Diode | Pot | Jack | OpAmp | VRef | Header | NotElectrical
+data Kind = Res | Cap | Diode | Pot | Jack | OpAmp | VRef | Header | NotElectrical | Unknown
   deriving (Eq, Show)
 
 symbolKind :: Part -> Kind
@@ -122,10 +122,13 @@ symbolKind p = case (libNick sym, libItem sym) of
   ("Diode", _)                  -> Diode
   ("Connector_Audio", _)        -> Jack
   ("Amplifier_Operational", _)  -> OpAmp
-  ("Reference_Voltage", _)      -> VRef
+  ("Reference_Voltage", item) | "REF50" `T.isPrefixOf` item -> VRef
   ("Connector_Generic", _)      -> Header
   ("Mechanical", _)             -> NotElectrical
-  _                             -> NotElectrical
+  ("MountingHole", _)           -> NotElectrical
+  ("Jumper", _)                 -> NotElectrical
+  ("pcbgen", _)                 -> NotElectrical
+  _                             -> Unknown
   where sym = partSymbol p
 
 -- | The SPICE lines for one part, or why it cannot be emitted.
@@ -166,6 +169,8 @@ elementFor m p = case symbolKind p of
   VRef -> vrefLines m p
   Header -> pure ["* " <> ref <> ": connector, nodes come from the deck"]
   NotElectrical -> pure ["* " <> ref <> ": not an electrical part"]
+  Unknown -> Left ("no SPICE mapping for symbols from library '"
+                   <> libNick (partSymbol p) <> "' (" <> libItem (partSymbol p) <> ")")
   where
     ref = partRef p
     value = spiceValue (partValue p)
