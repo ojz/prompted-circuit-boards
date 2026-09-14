@@ -8,11 +8,13 @@ retire_when: "the project direction is replaced; merge lasting decisions and rem
 
 # Roadmap: From A Musical Idea To A Playable Row
 
-Updated: 2026-09-13. Status: M1-M2 complete; M3 lacks CI; M4 is the method
-rehearsal on the attenuverter (option B circuit implemented and simulated
-against its limits, factored into the first three library blocks, provenance,
-mechanical stack and first-power-up guide written on 2026-09-13; cost/stock
-and input protection remain); no board has been built or measured. The plan below replaces the earlier per-module milestones (DUSG, SSG)
+Updated: 2026-09-14. Status: M1-M2 complete; M3 lacks CI; M4 is the method
+rehearsal on the attenuverter (option B implemented, characterized in simulation
+and factored into three library blocks). The order-readiness review found open
+reference-capacitor, input-protection, loaded-accuracy and bring-up/measurement
+issues; documents being written does not close those gates. See
+[ORDER-READINESS.md](ORDER-READINESS.md). No board has been built or measured.
+The plan below replaces the earlier per-module milestones (DUSG, SSG)
 with a five-board system designed around the five-board fabrication minimum.
 
 ## Goal And Constraints
@@ -122,12 +124,19 @@ regardless of width. The panel controls did not move; the attenuverter's SMD
 strips were re-laid into the pad-free zones between them, and the mult
 regenerated unchanged in placement. Required of every module.
 
-**No doubling up.** Every order is five boards, so a dual VCA yields ten VCAs.
+**No doubling up.** The five-copy planning assumption means a dual VCA would
+yield ten VCAs if all five PCBs were populated.
 Instead, one board combines *different* functions: a slope generator with a
 VCA, a filter with a drive VCA, a random generator with its own noise source,
 a power supply with a world interface and a mixer -- small analog computers.
 Five identical filters is acceptable because five filters are useful; ten
 attenuverters are not.
+
+**Quantity clarification, 2026-09-14:** PCB fabrication quantity and assembly
+quantity are not necessarily identical. JLCPCB currently advertises assembly
+starting at two units; the selected service and live quote must establish the
+actual quantities (source in [ORDER-READINESS.md](ORDER-READINESS.md)). This
+does not change the agreed combined-function boards or authorize an order.
 
 **Chaining is done with dedicated jacks, not CV thrus.** Clock out, reset out,
 end-of-rise and end-of-fall triggers, and a divider's /16 output let board n
@@ -212,7 +221,7 @@ M0 Direction recorded [DONE]
   -> M2 Routing and assembly correctness [DONE 2026-09-09]
   -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
   -> R0 Routing benchmark [DONE 2026-09-10]
-  -> M4 Method rehearsal on the attenuverter: option B circuit, first three blocks, provenance, mechanical stack, power-up guide [DONE 2026-09-13]; cost/stock and input protection [OPEN]
+  -> M4 Method rehearsal: option B characterization and first three blocks exist; order-readiness findings [OPEN; see ORDER-READINESS.md]
   -> P1 Shared blocks: exponential converter, gain element
   -> P2 Five rounds, one board each, in dependency order:
        R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
@@ -268,7 +277,7 @@ five boards). Option B was decided on 2026-09-11 and implemented on
 - [DONE 2026-09-13] OPA2197 and REF5050 models from datasheet maxima, with
   input capacitance, a second pole and temperature terms; option B with
   10 kΩ gain resistors (chosen on deck evidence, not the assumed 100 kΩ);
-  PCB at 100 mm; eight decks asserting every limit in
+  PCB at 100 mm; eight decks covering the adopted characterization checks in
   [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md),
   including a loop-gain phase-margin measurement through a probe the
   netlist generator now emits in every op-amp output; pipeline passed;
@@ -289,8 +298,12 @@ five boards). Option B was decided on 2026-09-11 and implemented on
   first-power-up guide
   ([modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md)).
 - Remaining: itemised cost and stock against JLCPCB (deferred by the user on
-  2026-09-13); input over-voltage protection; the hand verification of the
-  three unverified datasheets before any order.
+  2026-09-13); input over-voltage protection; complete part evidence and the
+  findings in [ORDER-READINESS.md](ORDER-READINESS.md). In particular, demonstrate
+  effective reference output capacitance over tolerance/bias/temperature,
+  allocate source and receiver loading in the relevant pitch path, and correct
+  the first-power and DC-measurement procedure. Some previously inaccessible
+  PDFs were obtained on 2026-09-14; acquisition is not complete verification.
 
 Gate: every consequential electrical, mechanical, sourcing, and assembly
 assumption has evidence or an explicit bounded experiment; the human receives
@@ -545,6 +558,12 @@ addresses, order credentials, and personal history out of public files. Respect
 datasheet and model redistribution terms.
 
 ## Next Work Item
+
+**Before any order:** close the findings and release gates in
+[ORDER-READINESS.md](ORDER-READINESS.md). R1 remains the planned first order and
+has no specification or PCB yet. An earlier small rehearsal order would need
+its own reviewed candidate and explicit scope/quote approval. Card availability
+does not substitute for either review.
 
 1. **P1**: the exponential-converter block, beginning with the matched-pair
    model with thermal coupling and the temperature-sweep deck reporting

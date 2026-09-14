@@ -9,7 +9,8 @@ retire_when: "the project ends or another current-state record takes over; Git i
 # Current Handoff
 
 Updated 2026-09-14 by GitHub Copilot (work laptop), after integrating the
-2026-09-13 home-laptop checkpoint. This is current state, not an append-only
+2026-09-13 home-laptop checkpoint and performing a partial order-readiness review.
+This is current state, not an append-only
 diary. The roadmap owns priorities, module
 specs own circuit requirements, setup owns tool versions and commands,
 [MECHANICAL.md](MECHANICAL.md) owns the panel-to-board stack. See
@@ -18,8 +19,10 @@ specs own circuit requirements, setup owns tool versions and commands,
 ## Current Position
 
 - Two module designs exist, the passive mult and the dual attenuverter
-  (option B precision circuit, simulated against every limit in its error
-  budget). Neither has been built or measured.
+  (option B, passing its current characterization decks). Neither has been
+  built or measured. **Ordering is on hold**: see
+  [ORDER-READINESS.md](ORDER-READINESS.md) for the reference-capacitor margin,
+  powered-off input protection, loaded pitch accuracy and bring-up findings.
 - **The block library exists** (M4): `Block.Eurorack` (module skeleton:
   panel and board geometry from the HP count, rail holes, the panel
   project), `Block.Power` (2×5 header, series Schottkys, bulk capacitors and
@@ -29,7 +32,7 @@ specs own circuit requirements, setup owns tool versions and commands,
   three, the mult from the skeleton. Tests in `toolkit/test/BlockTests.hs`
   pin each block's identity.
 - **M4 paperwork**: datasheet provenance with URLs and revisions is in the
-  attenuverter SPEC (three parts marked unverified, see Remaining Limits);
+  attenuverter SPEC (verification remains incomplete, see Remaining Limits);
   the mechanical stack and fit review are in [MECHANICAL.md](MECHANICAL.md);
   the first-power-up guide is
   [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md).
@@ -42,10 +45,33 @@ specs own circuit requirements, setup owns tool versions and commands,
 - Two researched decision files wait in `docs/decisions/` for R1: the
   world-side jack size and the mix semantics.
 - M1/M2 complete; M3 has pinned dependencies but no CI; M4 owes cost and
-  stock, input over-voltage protection and three datasheet checks by hand.
+  stock, complete part evidence and closure of the order-readiness findings.
   Panel development remains deferred.
 
 ## Latest Change
+
+Partial order-readiness assessment of `6f1d417`, without changing the circuit:
+
+- [ORDER-READINESS.md](ORDER-READINESS.md) records a hold verdict, specific
+  closure checks, manufacturer-document evidence, false-positive triage and
+  the analyses not completed. R1 is the planned first manufactured board,
+  but its specification and design are still absent.
+- Ran schematic, full PCB/proximity, cross-domain and EMC analyzers for both
+  existing boards. Named-net comparisons cover 88 attenuverter and 26 mult
+  physical-component pins. Thermal tools assessed zero components and reported
+  SKIPPED because power/extraction inputs were missing; that is not a pass.
+- Downloaded OPA2197, REF50, Yageo RT, JSCJ B5819W and Samsung MLCC PDFs by
+  direct URLs after the bulk sync hit its Windows manifest-replacement bug.
+  Checked the critical IC requirements and resistor codes; full part audits,
+  extracted-parasitic simulation, lifecycle/assembly stock and quotes remain open.
+- Re-ran the mult's native ERC/DRC/parity and renders successfully. Review JSON
+  and PDFs are ignored local artifacts in `modules/<name>/build/`, not a release.
+- The first-power-up guide needs correction before use: current limiting is
+  not a guarantee against damage, display resolution is not accuracy, and an
+  AC-coupled interface cannot measure static DC offsets. The lab purchase list
+  was not changed or newly approved.
+
+## Recovery Retained
 
 Recovered workstation synchronization without rewriting published history:
 
@@ -89,9 +115,9 @@ ngspice 47, after reconciling the saved changes with `d560786`:
 | `toolkit/sim.sh attenuverter` | 8 decks, 0 failed, using the current block-built netlist |
 | `toolkit/test-scripts.sh` | 79 passed, 0 failed; native checks, scratch export/refusals, simulator stubs and report checks |
 
-Not rerun: the mult's native pipeline, the full benchmark, field-solver and
-`nodebudget.py` checks. The mult's last native pass is the home-laptop
-checkpoint on 2026-09-13. The script suite's fabrication export is a disposable
+Not rerun for the readiness review: the full mult pipeline/panel, full benchmark,
+field-solver and `nodebudget.py` checks. The mult board's native check was rerun
+and passed on 2026-09-14. The script suite's fabrication export is a disposable
 control, not a manufacturing release. No physical measurement was made.
 
 ## Remaining Limits
@@ -100,15 +126,12 @@ control, not a manufacturing release. No physical measurement was made.
   The mechanical stack is read from drawings and not yet from a built board;
   the pot bodies set a 10 mm panel gap and the jack bushings stop 1 mm short
   of the panel, which the first build must confirm is acceptable.
-- Three datasheets could not be fetched as documents from this workstation
-  and are marked **unverified** in the SPEC: the JSCJ B5819W (LCSC viewer
-  only), Yageo's RT thin-film series (script-rendered site, distributor
-  mirror timed out) and Samsung's per-part page. The figures used come from
-  LCSC listings; the Yageo tolerance and tempco enter the error budget, so
-  check them by hand before an order.
+- The SPEC's previously inaccessible Yageo, JSCJ and Samsung PDFs were obtained
+  locally during this review. Selected checks and remaining gaps are in the
+  readiness report; this does not complete all part, capacitance or model checks.
 - The power-up guide has never been performed; its expected readings are
   datasheet arithmetic and its supply procedure assumes the Rosfix pair from
-  HOMELAB.md.
+  HOMELAB.md. Do not follow it unchanged before resolving review finding OR-04.
 - Input over-voltage protection is not designed in. CI on a runner with
   KiCad 10 is still owed by M3.
 - The router depends on pad order within a net: the weekend's power-block
@@ -117,6 +140,10 @@ control, not a manufacturing release. No physical measurement was made.
 
 ## Next Action
 
+For order preparation, use [ORDER-READINESS.md](ORDER-READINESS.md)'s closure
+list. The existing R1 decisions remain unanswered; no new circuit choice or
+purchase was inferred from the request for this assessment.
+
 **P1, the exponential converter**: the matched-pair device model with
 thermal coupling in `modules/_models/devices.lib`, a temperature-sweep deck
 that reports tracking in cents against the confirmed limit (±2 cents over
@@ -124,6 +151,6 @@ that reports tracking in cents against the confirmed limit (±2 cents over
 proven-circuit rule requires, and the bench calibration procedure. It has
 no board yet; its first consumer is R2.
 
-For the user: answer the two R1 decision files in `docs/decisions/`, and
-buy Stage A of [HOMELAB.md](HOMELAB.md) when convenient, confirming the
-supply's floating output on its product page first.
+For the user: answer the two R1 decision files in `docs/decisions/`. Before
+buying the proposed supplies, establish manufacturer-supported series operation
+and a suitable measurement plan; see OR-04 and [HOMELAB.md](HOMELAB.md).

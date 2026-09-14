@@ -14,6 +14,7 @@ retire_when: "a replacement index is agreed and all incoming links are updated"
 |---|---|
 | [../AGENTS.md](../AGENTS.md) | Standing operating rules, document lifecycle and decision processing. |
 | [HANDOFF.md](HANDOFF.md) | Current checkpoint, verified evidence, limitations and next action. |
+| [ORDER-READINESS.md](ORDER-READINESS.md) | Current hold verdict, electrical and bring-up findings, review coverage and requirements before a prototype order. |
 | [ROADMAP.md](ROADMAP.md) | Direction, constraints, and the phased plan: shared blocks, five rounds (one board each), one row, then compounding. Agent-maintained. |
 | [SETUP.md](SETUP.md) | Installation, reproduction commands and known tool pitfalls. |
 | [HOMELAB.md](HOMELAB.md) | Staged home-lab shopping list (bol.com, debit card): what to buy, why, prices seen, and which instruments the laptop can drive. |
@@ -22,7 +23,7 @@ retire_when: "a replacement index is agreed and all incoming links are updated"
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, the option B decision record, the precision circuit, simulated results against the adopted limits, parts. |
 | [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, first versus adopted parts, the adopted acceptance limits. |
-| [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md) | First power-up of an assembled attenuverter on the Stage A bench: checks, wiring, expected readings, stop conditions. |
+| [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md) | Draft first-power-up procedure; do not use unchanged until the safety and measurement findings in ORDER-READINESS.md are closed. |
 | [modules/mult/SPEC.md](modules/mult/SPEC.md) | Passive mult intent, connectivity, geometry and assembly. |
 | [BENCH.md](BENCH.md) | Recorded routing benchmark output, not a fabrication or SOTA approval. |
 | [modules/attenuverter/route-report.md](modules/attenuverter/route-report.md) | Generated attenuverter routing and predicted analog findings. |
