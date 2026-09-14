@@ -100,8 +100,14 @@ Before layout, the agent must establish:
    all be summed without clipping on +/-12 V rails. Specify usable headroom
    and overload recovery rather than silently promising impossible swing.
 4. Proven protection for hot-plugging, unpowered inputs, output shorts and
-   consumer equipment. Select a switched TRS jack whose contacts support the
-   normalled behavior, with an actual datasheet and footprint check.
+   consumer equipment. **Jack finding, 2026-09-14:** no switched 3.5 mm TRS
+   jack fits the module's panel stack ([../../MECHANICAL.md](../../MECHANICAL.md),
+   panel hardware standard). The only stereo jack that fits, the QingPu
+   WQP-WQP419GR, has no switch contact, so the normalled individual outputs
+   cannot be sensed at a world-side stereo jack. How the approved normalling
+   is kept is the user's choice in
+   [../../decisions/2026-09-14-panel-hardware.md](../../decisions/2026-09-14-panel-hardware.md),
+   section 1; the jack layout waits on it.
 5. The PD rail/current budget and switching-noise limits for this board and
    its intended downstream modules. Current `Block.Power` is protection and
    filtering, not a PD converter. Preserve accessible first-power test points.

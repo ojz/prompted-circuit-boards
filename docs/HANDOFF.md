@@ -32,6 +32,18 @@ handoff holds current evidence and next actions, not a session history.
 - M1/M2 complete; M3 has pinned dependencies but no CI. Panel development and
   the final case remain deferred. P1's converter/gain blocks serve R2/R3 and
   do not block starting R1.
+- **Panel hardware standard drafted 2026-09-14** (home laptop, three parallel
+  research agents; findings in [MECHANICAL.md](MECHANICAL.md)): one part per
+  role with stack fit, footprint and source. Two facts changed: the Alpha
+  pot's "15 mm" shaft is measured from the mounting surface, so about 13 mm
+  stands above the panel (was recorded as 18), and Thonk ships jacks without
+  nuts or washers. **Blocking finding for R1:** no switched TRS 3.5 mm jack
+  fits the stack, so the approved normalling cannot come from the world-side
+  jack; the choice is in
+  [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md)
+  together with 18 preference questions (knob, nuts, LEDs, toggle, USB-C
+  front or back). Two repository footprints are owed before R1's layout:
+  the stereo Thonkiconn and the sub-mini toggle.
 
 ## Latest Change
 
@@ -102,11 +114,15 @@ measurement was made; software/hardware tests were not rerun for this docs-only 
 
 ## Next Action
 
-1. **R1 design:** establish the complete connection diagram and verified reference
+1. **R1 design:** first the user answers section 1 of the panel-hardware
+  decision file (how normalling survives an unswitched stereo jack), then
+  establish the complete connection diagram and verified reference
   circuits, then derive connector-level and power budgets from the approved spec.
   Propose how phone/laptop stereo playback occupies the four mono channels before
   fixing jack allocation. Preserve DC CV paths and protected consumer audio;
-  do not promise phone recording through an ordinary headphone socket.
+  do not promise phone recording through an ordinary headphone socket. Draw
+  the two owed footprints (stereo Thonkiconn, sub-mini toggle) into
+  `lib/footprints/` with their dimensions confirmed on a drawing or sample.
 2. **Lab procurement:** finalize a linked, itemized assembly basket and verify the
   exact supply/manual, precision measurement method and R1 probing requirements
   in [HOMELAB.md](HOMELAB.md). Identify owned equipment before pricing adapters.
