@@ -13,6 +13,11 @@ module, and R1 is not yet an orderable design.** This is a partial engineering
 assessment, not a completed fabrication sign-off or a claim of measured behavior.
 No design files, part choices or acceptance thresholds were changed by this review.
 
+Decision update, 2026-09-14: the R1 connector and mixer answers are now adopted
+in [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md), and their inbox files are
+retired. This closes the behavior-question prerequisite, not the engineering or
+release findings below. The original review's circuit evidence remains unchanged.
+
 ## What Exists
 
 | Area | Actual state at 6f1d417 |
@@ -22,7 +27,7 @@ No design files, part choices or acceptance thresholds were changed by this revi
 | Attenuverter | 28 x 100 mm, 31 components, 24 SMD placements, eight passing characterization decks. Reference-capacitor margin, input protection and loaded pitch performance remain open. |
 | Passive mult | 28 x 100 mm, 12 hand-installed jacks plus a solder jumper. Native checks pass. It provides no gain or buffering and cannot establish active-circuit precision. |
 | Planned instrument | R1 IO + Mixer, R2 Slope + VCA, R3 Filter + VCA, R4 SSG + Noise, R5 Boolean + Clock are roadmap stages, not five finished PCB designs. |
-| First planned order | R1, not five attenuverters. Its specification, power architecture, circuit, models and board are not present. The two R1 inbox questions are unanswered. |
+| First planned order | R1, not five attenuverters. Behavior specification now approved; power architecture, circuit, models and board are not implemented. |
 | Physical evidence | No board has been built or measured. A lab plan and first-power-up guide exist, but equipment capability and procedures are not fully validated. |
 
 See [ROADMAP.md](ROADMAP.md) for the agreed sequence. A separate rehearsal order
@@ -139,7 +144,8 @@ deferred; lack of final panel art or a case need not block a bench-only PCB.
 ### OR-06: Release And Commercial Gates Are Still Open
 
 **Priority: before payment. Confidence: high, repository/artifact inventory.**
-- R1 needs its answered decisions, specification and full design/check cycle.
+- R1's behavior questions are answered; its engineering specification and full
+  design/check cycle still need completion.
 - The roadmap explicitly requires CI before the first order; it is absent.
 - No current retained Gerber/BOM/CPL release, assembly-preview review or delivered
   quote is present. The earlier scratch export is not an approved release.
@@ -202,9 +208,9 @@ artifacts under `modules/<name>/build/`; they are not portable release evidence.
 
 ## Path To A First Order
 
-1. Answer the existing R1 questions on [jack size](decisions/2026-09-13-r1-jack-size.md)
-   and [mix semantics](decisions/2026-09-13-r1-mix-semantics.md). Develop R1 as
-   the planned first board; do not wait for unrelated router optimisation.
+1. Develop R1 from its approved [specification](modules/io-mixer/SPEC.md) as
+  the planned first board; do not wait for unrelated router optimisation or
+  reopen the answered connector and mixer questions.
 2. Close the reusable-block findings, especially capacitor margin, input faults
    and complete interface accuracy, before relying on them in another board.
 3. Establish the first-power and measurement procedure with supported equipment

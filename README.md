@@ -19,6 +19,10 @@ not an editor.
 [docs/SETUP.md](docs/SETUP.md) for workstation setup. Standing agent rules are
 in [AGENTS.md](AGENTS.md).
 
+For a short explanation of the code, use the
+[code map](docs/README.md#where-the-code-lives). These are tools that design and
+check analog hardware on the laptop, not software running inside the modules.
+
 The design direction is to reuse proven circuit approaches and validate them
 to explicit precision requirements, not invent new circuitry for novelty.
 When a researched decision needs the user's input, the agent creates an editable
@@ -111,8 +115,9 @@ CLAUDE.md          imports AGENTS.md
 
 | Module | HP | Scope |
 |--------|----|--------|
+| [docs/modules/io-mixer/SPEC.md](docs/modules/io-mixer/SPEC.md) | Not fixed | R1: four-channel mono/DC mixer, 3.5 mm stereo consumer audio and USB-C PD power; requirements, not an implemented circuit yet. |
 | [docs/modules/mult/SPEC.md](docs/modules/mult/SPEC.md) | 6 | 2x6 passive multiple; no power. |
-| [docs/modules/attenuverter/SPEC.md](docs/modules/attenuverter/SPEC.md) | 6 | Dual attenuverter with offset normalling; precision redesign is pending. |
+| [docs/modules/attenuverter/SPEC.md](docs/modules/attenuverter/SPEC.md) | 6 | Dual buffered attenuverter with reference offset normalling. |
 
 Current check results and hardware status belong in
 [docs/HANDOFF.md](docs/HANDOFF.md), not a second status table here.

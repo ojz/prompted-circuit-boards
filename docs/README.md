@@ -35,7 +35,7 @@ and deleted after the checkpoint, not kept as another set of notes.
 | [ORDER-READINESS.md](ORDER-READINESS.md) | Current hold verdict, electrical and bring-up findings, review coverage and requirements before a prototype order. |
 | [ROADMAP.md](ROADMAP.md) | Direction, constraints, and the phased plan: shared blocks, five rounds (one board each), one row, then compounding. Agent-maintained. |
 | [SETUP.md](SETUP.md) | Installation, reproduction commands and known tool pitfalls. |
-| [HOMELAB.md](HOMELAB.md) | Staged home-lab shopping list (bol.com, debit card): what to buy, why, prices seen, and which instruments the laptop can drive. |
+| [HOMELAB.md](HOMELAB.md) | Staged lab procurement: historical candidates, capability checks still needed, safety boundaries and the next exact purchase basket. Not an instruction to buy everything unchanged. |
 | [JLCPCB.md](JLCPCB.md) | What the fab actually charges for, and which routing objectives that justifies. |
 | [MECHANICAL.md](MECHANICAL.md) | Panel-to-board stack, module depth and the fit review of each board, from manufacturer drawings until a build measures them. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |

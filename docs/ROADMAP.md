@@ -14,8 +14,10 @@ and factored into three library blocks). The order-readiness review found open
 reference-capacitor, input-protection, loaded-accuracy and bring-up/measurement
 issues; documents being written does not close those gates. See
 [ORDER-READINESS.md](ORDER-READINESS.md). No board has been built or measured.
-The plan below replaces the earlier per-module milestones (DUSG, SSG)
-with a five-board system designed around the five-board fabrication minimum.
+The plan below replaces the earlier per-module milestones (DUSG, SSG) with the
+user's five-board instrument composition. Fabricated and populated quantities
+must be confirmed separately in each quote; the composition is not a claim that
+five populated copies of each board are mandatory.
 
 ## Goal And Constraints
 
@@ -36,7 +38,7 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, trimmers and other suitable large parts |
 | Work cadence | Approximately one session per week, using a variable remaining token budget; progress must survive gaps and model changes |
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
-| Home lab | Start from an empty bench, cheapest tool that does each job: about EUR 300 to assemble and power up, about EUR 500 for everything including an optional scope ([HOMELAB.md](HOMELAB.md)), inside the EUR 500-1000 envelope. Bought in stages from bol.com with the user's debit card. No fume extractor. Fabrication orders still wait on the user |
+| Home lab | Start from an empty bench within the agreed EUR 500-1000 envelope. Prefer economical, verified tools and staged purchases; exact equipment, prices and owned items belong in [HOMELAB.md](HOMELAB.md). No extractor purchase is added. Both equipment spending and fabrication orders require the user's approval. |
 | System power | The IO board supplies the system from USB-C Power Delivery; a current-limited bench supply is still required to test that board itself and for every first power-up |
 | Front panels | Deferred 2026-09-10; boards can be bench-tested lying flat, and the art is a separate project |
 | Eurorack case | Deferred and budgeted separately; needed when the row is assembled as an instrument |
@@ -205,7 +207,8 @@ preserve the working path until the replacement passes.
 Use [HANDOFF.md](HANDOFF.md) for the current tested checkpoint, commands,
 results and gaps. Native rule checks, software regression tests and simulation
 results are different evidence; none alone is fabrication approval. Module
-requirements live in [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md)
+requirements live in [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md),
+[modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md)
 and [modules/mult/SPEC.md](modules/mult/SPEC.md), not a second status table here.
 
 M1/M2's wiring, via/pad, disconnected-pre-route and assembly faults are retained
@@ -222,7 +225,6 @@ M0 Direction recorded [DONE]
   -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
   -> R0 Routing benchmark [DONE 2026-09-10]
   -> M4 Method rehearsal: option B characterization and first three blocks exist; order-readiness findings [OPEN; see ORDER-READINESS.md]
-  -> P1 Shared blocks: exponential converter, gain element
   -> P2 Five rounds, one board each, in dependency order:
        R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
        every round: models -> error budget -> decks -> board -> checks -> approval -> order
@@ -230,7 +232,9 @@ M0 Direction recorded [DONE]
   -> P4 One row: case, panels, the calibration and first-power-up guide
   -> P5 Compounding: block library, first one-shot candidate, then the digital control plane
 
-L1 Home lab (HOMELAB.md) must exist before R1's boards arrive; purchasable now.
+P1 Shared blocks (exponential converter, gain element) are needed for R2/R3, not to start R1.
+L1 Home lab (HOMELAB.md): prepare purchases alongside R1; verify capability before buying.
+Equipment and reviewed procedures must exist before the tests that require them.
 CI (M3) proceeds in parallel and is owed before the first order.
 ```
 
@@ -320,7 +324,7 @@ mechanical stack, power-up guide as the pattern each block repeats).
    compensating resistor, scale and high-frequency trimmers; coarse and fine
    tune inputs. Deliverables: the device model for the matched pair with
    thermal coupling, a temperature-sweep deck reporting tracking in cents, the
-   proposed limit confirmed or changed by the user, and the bench calibration
+  confirmed pitch-tracking limit, and the bench calibration
    procedure the user will perform five times per round. Used by R2 and R3.
 2. **The gain element.** Choose the OTA or VCA part once (the slope's VCA, the
    filter's drive VCA and the SVF's two integrators all use it), model it from
@@ -339,17 +343,18 @@ measurement is chosen; a respin gets its own reason, cost and approval.
 
 | Round | Board | What it proves | Why this position |
 |---|---|---|---|
-| R1 | **IO + Mixer** — USB-C PD power supply, ±12 V / +5 V distribution, line-level inputs summed to a mix, independent line-level outputs | The supply is quiet enough for precision boards; the modelled crosstalk chain against a **two-trace coupon** placed on this board's spare area | The user owns no case or supply, so nothing else can be powered or heard. Fully testable alone with a charger, a laptop and a DAW |
+| R1 | **IO + Mixer** — USB-C PD supply and rail distribution; four level-controlled mono DC channels, normalled individual outputs and 3.5 mm TRS consumer audio ([SPEC](modules/io-mixer/SPEC.md)) | Quiet supply and precise interfaces; the modelled crosstalk chain against a **two-trace coupon** on spare area | Provides power and world audio interfaces. First-power and switching/precision measurements still require the reviewed bench setup, not just a charger and DAW. |
 | R2 | **Slope + VCA** — half a DUSG cycling as a tracking triangle VCO, EOR/EOF triggers, VCA normalled to the slope | The exponential-converter block on the simpler circuit; the shared gain element; the first voice | Audible through R1. Proves P1 on the circuit that is easier to reason about |
 | R3 | **Resonant Filter + VCA** — drive stage into a 2-pole SVF, LP/BP/HP/notch, feedback path, tracking at self-oscillation | The same expo block reused, not re-proven; drive and feedback behaviour; the second oscillator | The voice gets its character |
 | R4 | **SSG + Noise** — smooth/stepped generator, S&H and T&H, analog white noise, comparator | Hold-stage droop and feedthrough; noise level range and spectrum; comparator behaviour | Modulation and randomness; depends on nothing new but the analog switch |
 | R5 | **Boolean + Clock** — shared-threshold logic, edge triggers, /2 to /16 divider with reset | Logic thresholds and timing; a divider chain five boards deep | Utilities last; nothing depends on them |
 
-The detailed panel lists for these boards are being edited by the user and
-move into `docs/modules/<name>/SPEC.md` when a round is promoted; a round is
-not started until its SPEC exists and its open questions (tracking limit,
-world-side jack size, IO mix semantics, hold stages, filter pole count) are
-answered.
+R1's behavior was approved in conversation on 2026-09-14 and is now in
+[modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md); its two answered inbox
+files are retired. The agent derives the electrical limits and panel allocation
+from those decisions. Later rounds need their own specification and any genuine
+user-facing choices resolved when relevant. The pitch tracking limit is already
+confirmed; do not reopen it as a blank questionnaire.
 
 Per-round gate: the board's stated behaviours pass both their simulation
 assertions and their physical measurements within the chosen cost and space;
@@ -358,25 +363,25 @@ board revision and installed parts. Budget and approve each round separately.
 
 ### L1: Build The Home Lab In Stages
 
-Prerequisites: the agreed budget and an empty bench. Purchasable now with the
-user's debit card; **must exist before R1's boards arrive.** The shopping list
-with staged purchases, prices and reasons is [HOMELAB.md](HOMELAB.md), owned by
-the agent and confirmed by the user as items are bought. The user rejected the
-first list (EUR 1,680) as far too expensive on 2026-09-13; the current list
-buys the cheapest tool that does each job: **Stage A about EUR 300, Stage B
-about EUR 30-100, everything including an optional handheld scope about
-EUR 500**, inside the EUR 500-1000 envelope. Scriptability is a bonus, not a
-requirement; the scope is deferred until a measurement asks for it; **no fume
-extractor, ever** (open window and a fan). Purchase order is Stage A (what the
-first boards need), then the audio interface (which runs the tracking,
-response, noise and crosstalk measurements from Python), then a scope only if
-needed. The stages below use HOMELAB.md's letters.
+Prerequisites: the agreed budget and an empty bench. Procurement preparation can
+proceed alongside R1, and the necessary equipment **must exist before its boards
+are powered.** [HOMELAB.md](HOMELAB.md) owns the candidates, prices and purchase
+record; do not duplicate a shopping total here. The agent verifies the exact
+equipment, supported setup and delivered price before recommending a basket.
+The user confirms purchases and receipt.
+
+Assembly essentials can proceed before R1 is designed. Supply series operation,
+precision DC measurement and R1's switching/stability tests need verified methods
+before instrument selection is final. Scriptability is a bonus, not a requirement.
+No extractor is added against the user's direction; the proposed window/fan
+arrangement is not thereby verified as adequate ventilation. The stages below
+use HOMELAB's letters, and equipment must precede the tests that need it.
 
 | Stage | Equipment and guidance | Acceptance |
 |---|---|---|
-| A (part 1): assembly and basic measurements | Temperature-controlled soldering station, tips/stand, solder/flux, cleaning, cutters/tweezers, heat-resistant surface, ventilation (window and fan), eye protection, ESD basics, a fused-input multimeter with leads | Guided practice and continuity/resistance checks completed before working on the first module |
+| A (part 1): assembly and basic measurements | Temperature-controlled soldering station, tips/stand, solder/flux, cleaning, cutters/tweezers, heat-resistant surface, assessed ventilation, eye protection, ESD basics, an appropriately protected multimeter and rated leads | Guided practice and continuity/resistance checks completed before working on the first module |
 | A (part 2): safe first power | Current-limited bench supply capable of bipolar ±12 V (series-capable channels), a USB-C PD charger and PD tester for R1, identified cables, connectors and protection | Exact wiring, polarity, grounding, current-limit settings and shutdown criteria documented and checked without a board attached |
-| B: dynamic measurements and scripting | A USB audio interface as spectrum analyser and stimulus, driven from Python; attenuation for Eurorack levels; a cheap scope only when a measurement (R1's switching converter) asks for one | Guided probe compensation and a known-signal exercise; a first measurement script reads an instrument and reports what it read |
+| B: dynamic measurements and scripting | Suitable audio interface, protected adapters and a separate DC-stimulus method; scope and probes selected for R1's converter/amplifier checks | Guided safe probing, a known-signal exercise and an uncertainty budget; a first measurement script reports actual instrument readings |
 | C: later expansion | Eurorack case/power, additional instruments, rework tools | Buy only when a named task requires them; case/power have a separate budget |
 
 Prefer instruments the laptop can drive, so that calibration becomes a script
@@ -494,12 +499,12 @@ an owned module specification and acceptance gate rather than a parallel list.
 
 - **Money:** fabrication orders wait on the user; the lab has its own budget
   and can start now.
-- **Decisions outstanding:** the IO board's world-side jack size and its mix
-  semantics (both now in `docs/decisions/` as researched questions), one or
-  two hold stages on the SSG, the filter's pole count. The tracking limit is
-  confirmed. Option B is implemented and factored into blocks; what M4 still
-  owes is cost and stock, input protection and three datasheet checks by
-  hand.
+- **Later decisions:** one or two hold stages on the SSG and the filter's pole
+  count may need clarification for those rounds. R1's connector and mixer choices
+  are answered; the tracking limit is confirmed. R1's remaining electrical,
+  compatibility and layout details are agent design work, not unanswered versions
+  of those choices. Option B is implemented; readiness findings, part evidence,
+  cost and stock remain to be closed before ordering.
 - **The three hard problems:** pitch tracking over temperature (the hardest
   analog work in the plan), switching-supply noise beside precision audio on
   R1, and a modelled chain that has never met an oscilloscope — R1 is the
@@ -561,21 +566,27 @@ datasheet and model redistribution terms.
 
 **Before any order:** close the findings and release gates in
 [ORDER-READINESS.md](ORDER-READINESS.md). R1 remains the planned first order and
-has no specification or PCB yet. An earlier small rehearsal order would need
+now has an approved [behavior specification](modules/io-mixer/SPEC.md), but no
+circuit implementation or PCB yet. An earlier small rehearsal order would need
 its own reviewed candidate and explicit scope/quote approval. Card availability
 does not substitute for either review.
 
-1. **P1**: the exponential-converter block, beginning with the matched-pair
-   model with thermal coupling and the temperature-sweep deck reporting
-   tracking in cents against the confirmed limit. See [HANDOFF.md](HANDOFF.md)
-   for the exact next action.
-2. **L1**: the user buys Stage A of [HOMELAB.md](HOMELAB.md) as listed
-   (stated intent 2026-09-13; not yet bought); the lab must exist before
-   R1's boards arrive.
-3. **Answer the two R1 decision files** in `docs/decisions/` (jack size, mix
-   semantics) so the R1 SPEC can be written.
-4. **M4 leftovers**, before any order: cost and stock against JLCPCB, input
-   over-voltage protection, hand verification of the three datasheets the
-   attenuverter SPEC marks unverified.
+The user confirmed two immediate tracks on 2026-09-14:
+
+1. **Finish R1.** The jack/mixer decisions are adopted in its specification.
+  Next derive the complete connection diagram, source/load and power budgets,
+  protection and proven circuit choices; then implement models, assertions,
+  Haskell design and layout. Close the relevant reusable-block findings before
+  using those blocks in R1. The agent owns the engineering, not the user.
+2. **Prepare and buy the home lab in stages.** Finalize Stage A's exact basket,
+  links and delivered total in [HOMELAB.md](HOMELAB.md). Confirm supply series
+  capability and the measurement method before recommending those instruments.
+  Purchase intent is not confirmation that equipment has been bought, and the
+  existing candidate list is not an instruction to buy everything unchanged.
+
+P1's exponential converter and gain element remain work for R2/R3; they are not
+prerequisites for starting R1. Router research, final panel art and a final case
+need not delay these two tracks. Use the existing working documents and compact
+handoff rather than create additional task plans or status files.
 
 CI remains a parallel M3 obligation owed before the first order.
