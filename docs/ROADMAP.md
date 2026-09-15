@@ -438,7 +438,7 @@ measurement is chosen; a respin gets its own reason, cost and approval.
 | R2 | **Slope + VCA** — half a DUSG cycling as a tracking triangle VCO, EOR/EOF triggers, VCA normalled to the slope | The exponential-converter block on the simpler circuit; the shared gain element; the first voice | Audible through R1. Proves P1 on the circuit that is easier to reason about |
 | R3 | **Resonant Filter + VCA** — drive stage into a 2-pole SVF, LP/BP/HP/notch, feedback path, tracking at self-oscillation | The same expo block reused, not re-proven; drive and feedback behaviour; the second oscillator | The voice gets its character |
 | R4 | **SSG + Noise** — smooth/stepped generator, S&H and T&H, analog white noise, comparator | Hold-stage droop and feedthrough; noise level range and spectrum; comparator behaviour | Modulation and randomness; depends on nothing new but the analog switch |
-| R5 | **Boolean + Clock** — shared-threshold logic, edge triggers, /2 to /16 divider with reset | Logic thresholds and timing; a divider chain five boards deep | Utilities last; nothing depends on them |
+| R5 | **Boolean + Clock** — shared-threshold logic including `A AND NOT B`, edge triggers, /2 to /16 divider with reset, and a candidate fixed-pattern trigger sequencer ([draft plan](modules/boolean-clock/SPEC.md); architecture asked in [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md)) | Logic thresholds and timing; a divider chain five boards deep; the first digital-logic modelling step | Utilities last; nothing depends on them, but its logic levels are fixed early so R2's triggers meet them |
 
 R1's behavior was approved in conversation on 2026-09-14 and is now in
 [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md); its two answered inbox
@@ -583,6 +583,10 @@ retune them merely because this wishlist exists.
 
 ### Parked And Dissolved Ideas
 
+- **Fixed-pattern trigger sequencer in R5:** raised by the user on 2026-09-15
+  and under decision, not parked. It has no pots per step and selects patterns
+  with a maintained switch; see the [R5 plan](modules/boolean-clock/SPEC.md).
+  It does not un-park the item below.
 - **4-step chainable sequencer:** parked 2026-09-11. Five boards chaining into
   20 steps is the purest example of the five-board rule as a feature; it brings
   the first digital-logic modelling step and depends on the pot-linearity

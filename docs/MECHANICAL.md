@@ -49,6 +49,13 @@ Paperface panels. Final artwork and fabrication remain deferred under
   control rule in [AGENTS.md](../AGENTS.md#rules). Show the routing consequences
   of inserting a plug as well as the function of each control. Routine build
   calibration is distinct from a hidden performance mode.
+- **State LEDs sit diagonally off their jack (provisional).** The user's
+  Paperface observation of 2026-09-15: an output's indicator LED is offset
+  diagonally from the jack it reports, less than half a cell away, so it reads
+  as belonging to that jack and takes no grid cell of its own. The exact offset
+  is set by S1's geometry checks against the jack nut and cable barrel on the
+  front and the jack courtyard on the back; it is not a number yet. R5 is the
+  first board that will use it ([R5 plan](modules/boolean-clock/SPEC.md)).
 - **Check both sides of the panel.** Allow for fingers, plugged-in cable
   barrels, knob skirts, switch travel, nuts, tool access, adjacent modules and
   the component bodies/pads behind the panel. Hole clearance alone is not fit.

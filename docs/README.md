@@ -42,6 +42,8 @@ and deleted after the checkpoint, not kept as another set of notes.
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md) | Partly integrated hardware inbox: persistent-switch policy settled; R1 normalling and exact hardware variants still unanswered. |
 | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | R1's approved four-channel mono/DC behavior and 3.5 mm stereo consumer audio boundary; implementation requirements. |
+| [modules/boolean-clock/SPEC.md](modules/boolean-clock/SPEC.md) | R5's draft plan from the user's 2026-09-15 notes: `A AND NOT B`, proposed behavior table, budget items to derive, and the staged plan. Not approved behavior. |
+| [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md) | Pending: how R5's multi-input digital part and trigger sequencer are realised; recommendation is hardwired CMOS with a diode matrix. |
 | [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, the option B decision record, the precision circuit, simulated results against the adopted limits, parts. |
 | [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, first versus adopted parts, the adopted acceptance limits. |
 | [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md) | Draft first-power-up procedure; do not use unchanged until the safety and measurement findings in ORDER-READINESS.md are closed. |

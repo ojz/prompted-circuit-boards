@@ -8,8 +8,8 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-15 by GitHub Copilot (work laptop), after recording the panel
-language, direct-control policy and queued browser-only sketcher milestones.
+Updated 2026-09-15 by Claude Code (home laptop), after processing the user's
+logic-module notes into the R5 draft plan and one architecture decision.
 Use [README.md](README.md) as the document register and short code map. This
 handoff holds current evidence and next actions, not a session history.
 
@@ -20,6 +20,14 @@ handoff holds current evidence and next actions, not a session history.
   model, local HTML sketcher and later generator bridge are queued in
   [ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-queued), not implemented
   or scheduled to run automatically. The editor requires no backend.
+- **R5 Boolean + Clock has a draft plan.** The user's 2026-09-15 inbox note
+  is integrated into [modules/boolean-clock/SPEC.md](modules/boolean-clock/SPEC.md):
+  `A AND NOT B` defined and provided in both orders, a proposed behavior table
+  awaiting confirmation, the budget items to derive, and a six-step plan. The
+  one genuine choice, how the multi-input digital part and fixed-pattern trigger
+  sequencer are realised, is in
+  [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md)
+  with hardwired CMOS plus a diode matrix recommended. No circuit or part chosen.
 - **First module: R1 IO + Mixer.** Its [behavior specification](modules/io-mixer/SPEC.md)
   now records the approved connector and mixer choices. Circuit, parts, models,
   Haskell implementation and board are not implemented. The attenuverter remains
@@ -52,17 +60,18 @@ handoff holds current evidence and next actions, not a session history.
 
 ## Latest Change
 
-- The standing rules in [AGENTS.md](../AGENTS.md#rules) now record the user's
-  no-menu, visible persistent-control requirement and distinguish current
-  sketching work from deferred final panels. The CYCLE-switch example is an
-  interface constraint, not a dynamic-state retention project.
-- S1-S3 have prerequisites, deliverables and test gates, including intentional
-  blank cells and portable save/reopen. There is no new HTML, layout format,
-  generator input or export implementation, and no existing board was moved.
-- The active hardware inbox is registered in [README.md](README.md). Its
-  stale blank-answer-as-approval and finished-fit claims are corrected; all
-  remaining answers are preserved. No new questionnaire, supplier research,
-  parts order or hardware-release approval was introduced.
+- Processed the inbox note `2026-09-15-thoughts.md` (its text is quoted
+  verbatim in the R5 plan) and deleted it. Created the R5 draft specification
+  and the architecture decision file; added the R5 row's links and the
+  fixed-pattern sequencer entry to [ROADMAP.md](ROADMAP.md); recorded the
+  provisional diagonally-offset LED convention in
+  [MECHANICAL.md](MECHANICAL.md#panel-layout-language); registered both new
+  files in [README.md](README.md). Documentation only: no code, CAD, model or
+  deck changed, so no regeneration or test run was owed.
+- The earlier 2026-09-15 work-laptop checkpoint recorded the no-menu,
+  visible persistent-control rule and the S1-S3 gates in
+  [AGENTS.md](../AGENTS.md#rules) and the roadmap; the hardware inbox's stale
+  claims were corrected with all answers preserved.
 
 ## Recovery Retained
 
@@ -130,7 +139,10 @@ measurement was made; software/hardware tests were not rerun for this docs-only 
   mono channels. Preserve DC CV paths and protected consumer audio; no promise
   of phone recording through an ordinary headphone socket. Verify the two
   proposed custom footprints before using them.
-3. **Lab procurement:** finalize a linked, itemized assembly basket and verify the
+3. **R5 decision:** when the user answers the architecture file, record the
+  answer in the R5 plan, confirm or edit its behavior table with them, and
+  only then start reference-circuit provenance. No R5 code before that.
+4. **Lab procurement:** finalize a linked, itemized assembly basket and verify the
   exact supply/manual, precision measurement method and R1 probing requirements
   in [HOMELAB.md](HOMELAB.md). Identify owned equipment before pricing adapters.
   The agent handles research; the user approves spending and reports delivery.
