@@ -1,5 +1,5 @@
 ---
-status: "pending"
+status: "partly integrated 2026-09-15; R1 normalling and hardware variants pending"
 owner: "user answer; agent research and integration"
 read_when: "choosing or placing any panel-mounted part, designing R1's jack layout, or after the user edits this file"
 update_when: "the user answers, evidence changes, or the agent records the outcome"
@@ -11,36 +11,41 @@ retire_when: "the answers are recorded in docs/MECHANICAL.md (hardware standard)
 ## Decision Needed
 
 The panel hardware standard in [../MECHANICAL.md](../MECHANICAL.md) names one
-part per role (jack, pot, knob, trimmer, toggle, LED, USB-C inlet). The
-engineering side is done: each part fits the 10 mm panel stack, has or can
-have a footprint, and has a source. What remains is (1) one real design
-decision that the research forced, about how R1's normalling works, and
-(2) a set of preference questions whose answers change which variant is
-bought but not whether the design works. Nothing can be ordered, and R1's
-jack layout cannot be drawn, until section 1 is answered; section 2 can wait
-until the first order but decides the knob and pot variant, so it is cheaper
-to answer now.
+candidate per role (jack, pot, knob, trimmer, toggle, LED, USB-C inlet).
+Research is not finished mechanical verification: some drawing dimensions,
+footprints and sample fits remain unresolved. Section 1 concerns R1's normalled
+outputs; section 2 retains hardware preferences, not permission to buy anything.
+The shared panel language and visible-control policy were adopted on 2026-09-15
+and are recorded in their owning documents, not left as unanswered questions.
+
+R1's final jack allocation waits on section 1 and its engineering checks.
+Provisional sketches and the S1/S2 software milestones can proceed independently.
+A sketch is not an orderable design. Prototype board orders still need the
+applicable review and explicit purchase approval; final panel cutting needs
+the mechanical fit gate. Buying samples for that gate remains a separate,
+user-approved purchase, not something blocked on already having fit evidence.
 
 ## 1. R1 normalling with an unswitched stereo jack
 
-**No switched 3.5 mm TRS jack fits the module stack.** The only vertical
-stereo jack that shares the Thonkiconn's bushing, hole, pitch and panel gap
-(QingPu WQP-WQP419GR, the "Stereo Thonkiconn") has no switch contact. Every
-switched alternative is too tall, too wide, rated for a thinner panel, or a
-right-angle part; the table in MECHANICAL.md lists them. So the approved
-R1 behaviour "inserting a plug into a channel's individual output removes
-that channel from the mix" cannot be sensed by the world-side jack.
+**None of the checked switched 3.5 mm TRS jacks fits the proposed stack.**
+The proposed QingPu WQP-WQP419GR ("Stereo Thonkiconn") has no switch contact,
+and its mounting height still needs confirmation. The checked switched
+alternatives have incompatible dimensions or mounting arrangements; the table
+in MECHANICAL.md lists them. This is not an exhaustive market claim. The
+approved behaviour "inserting a plug into a channel's individual output
+removes that channel from the mix" cannot be sensed by the WQP419GR's own
+contacts.
 
 | Option | What changes | Cost |
 |---|---|---|
-| **A. Individual outputs become synth-side mono jacks (recommended)** | The four per-channel outputs use the switched mono Thonkiconn at synth level, so the normalling works exactly as approved. The stereo TRS jacks are used only where the outside world actually connects: the stereo consumer input and the consumer-level mix output. | Changes the approved wording "individual outputs at consumer audio level" to "at synth level". A phone or laptop still gets the mix at consumer level; a single channel goes to the outside world only through the mix. No new footprint risk, no new mechanics. |
+| **A. Individual outputs become synth-side mono jacks (recommended)** | The four per-channel outputs use the switched mono Thonkiconn at synth level, retaining plug-controlled removal from the mix. Stereo TRS jacks serve the consumer input and consumer-level mix output. | Changes the approved individual outputs from consumer to synth level. A single channel reaches the outside world through the consumer mix output. The mono footprint exists; the world-side stereo footprint and fit still need verification. |
 | **B. Keep consumer-level individual outputs and add a mix-defeat toggle per channel** | Four stereo TRS individual outputs plus four sub-mini toggles that take a channel out of the mix by hand. | Four switches at about £2.20 each, four more panel holes and wider panel; the mix state no longer follows what is plugged in, which is a different musical behaviour from the one you approved. |
-| C. Rebuild the panel stack around a switched TRS jack | Taller pot bushings or spacers, 8 mm panel holes, a hand-drawn footprint for a jack with no published drawing. | Throws away the validated stack for one connector. Not recommended. |
+| C. Rebuild the panel stack around a switched TRS jack | Select a documented switched jack, then redesign and verify the related bushings, holes, footprint and stack. | Reworks the drawing-derived stack; feasibility is not established without a verified candidate. Not recommended on the present evidence. |
 
-The recommendation is **A**. The acceptance check is that the R1 spec's
-"Adopted behavior" table is updated to say where each jack type sits and
-that the generated-netlist tests still cover normalled, removed and restored
-contributions.
+The recommendation is **A**, not an approved change. The acceptance check is
+that the R1 spec's "Adopted behavior" table says where each jack type sits and
+that the future generated-netlist tests cover the agreed included, removed and
+restored contributions. R1 has no implemented circuit or tests yet.
 
 **Your answer (A, B, C or your own):**
 
@@ -48,15 +53,18 @@ contributions.
 
 ## 2. Preference questions
 
-Each answer has one engineering consequence, stated after the arrow. A blank
-means the agent uses the recommendation in bold.
+Each answer has an engineering consequence stated alongside it. **A blank is
+unanswered, not permission to use the recommendation.** Provisional sketch
+defaults are allowed when clearly marked; they do not choose an orderable part.
+Question 13's general interaction choice is settled; the remaining hardware
+variants are not implied by approving the grid language.
 
 ### Knobs and pots
 
 1. **One knob size on every module, or a size hierarchy (bigger for the main
-   control)?** → One size means 15 mm pot centres everywhere and one line
-   item; a hierarchy lets the biggest knob set the spacing and may force 8HP
-   where 6HP would do. **Recommended: one size.**
+    control)?** One size simplifies stocking and spacing; a hierarchy may use
+    several grid cells or more panel width. Final spacing requires the mockup
+    in MECHANICAL.md; neither 15 nor 15.24 mm is approved. **Recommended: one size.**
    Answer:
 2. **Push-on knurled shaft (T18) that indexes in 20° steps and can be pulled
    off, or a D-shaft whose pointer is fixed at the moulding, or a two-part
@@ -68,9 +76,10 @@ means the agent uses the recommendation in bold.
    for CV attenuators, red for level)?** → Stocking only; same price.
    **Recommended: one colour, decide which.**
    Answer (colour or scheme):
-4. **A pointer line on the knob, or a plain knob with the marking on the
-   panel?** → Panel graphics are deferred, so a plain knob would be unreadable
-   until then. **Recommended: pointer line.**
+4. **Pointer line or another unmistakable position indicator on the knob?**
+    The adopted visible-control rule requires readable position; a rotationally
+    symmetric unmarked knob cannot provide it, even with a panel scale.
+    **Recommended: pointer line.**
    Answer:
 5. **Skirted (a disc hiding the nut) or unskirted?** → A skirt adds 2 to 3 mm
    of diameter and raises the minimum pot spacing. **Recommended: unskirted.**
@@ -113,10 +122,12 @@ means the agent uses the recommendation in bold.
     → Longer is easier by feel and catches cables; shorter is tidier. Same
     switch, same price. **Recommended: standard.**
     Answer:
-13. **Where a middle position makes musical sense, three-position switches
-    (about £0.70 more each) or two-position?** **Recommended: three where it
-    removes a menu.**
-    Answer:
+13. **Persistent modes: settled 2026-09-15.** Use maintained, labelled switches,
+    not menus or momentary buttons that toggle hidden operating modes. The
+    user's example is a CYCLE switch that stays on across power removal.
+    The number of positions follows the actual supported functions; it is not
+    a blanket preference for three-position switches. The standing rule lives
+    in [AGENTS.md](../../AGENTS.md#rules).
 14. **LED brightness: visible in a dark studio (1 to 2 mA) or in daylight
     (10 to 20 mA)?** → Eight bright LEDs draw 160 mA from the PD-derived rail
     and add ripple when they blink. **Recommended: dim, 2 mA.**
@@ -150,4 +161,14 @@ Ready for integration: no
 
 ## Processing Record
 
-Empty until the user answers.
+2026-09-15, explicit approval in conversation: the sparse Paperface-inspired
+panel language, own printed/laser-cut faceplates and direct persistent controls
+are recorded in [MECHANICAL.md](../MECHANICAL.md#panel-layout-language) and
+[AGENTS.md](../../AGENTS.md#rules). The user clarified that power cycling concerns
+visible maintained control positions, not detailed dynamic-state restoration.
+Question 13 is therefore integrated, with no universal position count selected.
+
+No answer selected A/B/C for R1 or the remaining exact hardware variants. Their
+answer fields are unchanged. Retain this file until those choices and resulting
+engineering work are integrated; the next trigger is an explicit answer or new
+fit evidence, not a token reset. S1/S2 can proceed without those answers.

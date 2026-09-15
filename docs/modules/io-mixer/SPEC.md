@@ -50,6 +50,14 @@ and at a safe consumer audio level. The individual consumer outputs and consumer
 mix output carry the same mono signal on left and right contacts through a
 properly designed output network. A stereo plug does not imply stereo mixing.
 
+The [instrument interaction rules](../../../AGENTS.md#rules) apply: channel
+levels use dedicated absolute-position controls, and any persistent mode needs
+a visible maintained control, not a hidden button latch. Follow the
+[shared panel language](../../MECHANICAL.md#panel-layout-language) and show the
+mix-removal consequence of a normalled output on the panel. These rules do not
+approve any of the alternative jack arrangements in the still-open hardware
+decision below.
+
 Phone/laptop playback is an intended input source, not something to omit because
 the older question assumed there was no external source. A stereo input must
 combine left and right through a summing circuit with controlled loading; never
@@ -100,11 +108,12 @@ Before layout, the agent must establish:
    all be summed without clipping on +/-12 V rails. Specify usable headroom
    and overload recovery rather than silently promising impossible swing.
 4. Proven protection for hot-plugging, unpowered inputs, output shorts and
-   consumer equipment. **Jack finding, 2026-09-14:** no switched 3.5 mm TRS
-   jack fits the module's panel stack ([../../MECHANICAL.md](../../MECHANICAL.md),
-   panel hardware standard). The only stereo jack that fits, the QingPu
-   WQP-WQP419GR, has no switch contact, so the normalled individual outputs
-   cannot be sensed at a world-side stereo jack. How the approved normalling
+  consumer equipment. **Jack finding, 2026-09-14:** none of the checked switched
+  3.5 mm TRS jacks fits the proposed stack
+  ([../../MECHANICAL.md](../../MECHANICAL.md), panel hardware standard).
+  The proposed QingPu WQP-WQP419GR has no switch contact and its mounting height
+  remains unverified, so it cannot itself sense insertion for the normalled
+  individual outputs. How the approved normalling
    is kept is the user's choice in
    [../../decisions/2026-09-14-panel-hardware.md](../../decisions/2026-09-14-panel-hardware.md),
    section 1; the jack layout waits on it.

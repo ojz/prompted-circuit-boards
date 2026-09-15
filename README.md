@@ -62,8 +62,8 @@ been removed.
 
 1. Describe or change a module in `modules/<name>/<Name>.hs` and write or
    update `docs/modules/<name>/SPEC.md` with the operating limits, geometry and
-   intent. The design file is the netlist and the placement; there is no other
-   input.
+   intent. Today the Haskell design supplies the netlist and placement. The
+   planned sketcher/layout bridge is not implemented or an additional input yet.
 2. Generate the KiCad projects from the repository root (`all`, or one design
    name):
    ```
@@ -89,8 +89,11 @@ been removed.
    ```
 
 `toolkit/pipeline.sh <name> [--fab]` combines generation, native checks and
-optional export. Panel development and ordering remain deferred. An export
-does not constitute approval to purchase or a claim of measured performance.
+optional export. Final panel artwork and fabrication remain deferred; the
+[shared panel language](docs/MECHANICAL.md#panel-layout-language) and
+[browser-only sketcher milestones](docs/ROADMAP.md#s1-shared-panel-model-and-checks-queued)
+are authorized work now. An export does not constitute approval to purchase
+or a claim of measured performance.
 
 ## Repository layout
 

@@ -8,7 +8,7 @@ retire_when: "the project direction is replaced; merge lasting decisions and rem
 
 # Roadmap: From A Musical Idea To A Playable Row
 
-Updated: 2026-09-14. Status: M1-M2 complete; M3 lacks CI; M4 is the method
+Updated: 2026-09-15. Status: M1-M2 complete; M3 lacks CI; M4 is the method
 rehearsal on the attenuverter (option B implemented, characterized in simulation
 and factored into three library blocks). The order-readiness review found open
 reference-capacitor, input-protection, loaded-accuracy and bring-up/measurement
@@ -40,7 +40,9 @@ instrument and a repeatable process, not a more elaborate CAD framework.
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
 | Home lab | Start from an empty bench within the agreed EUR 500-1000 envelope. Prefer economical, verified tools and staged purchases; exact equipment, prices and owned items belong in [HOMELAB.md](HOMELAB.md). No extractor purchase is added. Both equipment spending and fabrication orders require the user's approval. |
 | System power | The IO board supplies the system from USB-C Power Delivery; a current-limited bench supply is still required to test that board itself and for every first power-up |
-| Front panels | Deferred 2026-09-10; boards can be bench-tested lying flat, and the art is a separate project |
+| Instrument interaction | Follow the visible, persistent control rules in [AGENTS.md](../AGENTS.md#rules): the panel and cables describe the musical setup. No separate power-loss state-saving project. |
+| Panel standard | Paperface-inspired sparse grid and original printed/laser-cut faceplates; adopted principles and provisional dimensions live in [MECHANICAL.md](MECHANICAL.md#panel-layout-language). |
+| Front panels | Final artwork and fabrication remain deferred; the shared layout model, ergonomic mockups and browser-only sketcher are authorized now (2026-09-15). |
 | Eurorack case | Deferred and budgeted separately; needed when the row is assembled as an instrument |
 | Release intent | Personal instrument; a public repository is acceptable, but commercial readiness is not a current goal |
 | Stack policy | Code-first and headless; retain working pieces and replace weak ones on evidence |
@@ -181,6 +183,7 @@ itself, fix the missing electrical and manufacturing guarantees.
 |---|---|---|
 | Conversation and intent | User-facing plain-language specifications and acceptance examples | A new session can identify what is wanted, what is approved, and what remains unknown without replaying old chats |
 | Haskell / pcbgen | Keep as an agent-maintained source of truth; add validation and reusable circuit blocks | Invalid designs are rejected, useful diagnostics are produced, and changes remain small and testable |
+| Module sketcher [planned] | Local HTML/CSS/JavaScript for panel ideas; no backend, account or hosted service | Opens locally without a server or network; portable sketch files round-trip; the eventual generator bridge shares layout data rather than copying coordinates |
 | KiCad 10 libraries and CLI | Keep as the CAD target and independent native checker; no GUI dependency | Supported versions and library inputs are recorded; clean-checkout generation and checks reproduce |
 | Custom grid router | Keep on probation for simple routing, not as an analog design authority | No silent incomplete routing, accidental SMD via-in-pad, or disconnected pre-route assumptions; critical analog constraints are respected |
 | KiKit | Keep for fabrication and assembly exports behind an enforced release gate | Generated layers, drills, BOM, placement coordinates, sides, and part rotations survive end-to-end checks |
@@ -236,6 +239,12 @@ P1 Shared blocks (exponential converter, gain element) are needed for R2/R3, not
 L1 Home lab (HOMELAB.md): prepare purchases alongside R1; verify capability before buying.
 Equipment and reviewed procedures must exist before the tests that require them.
 CI (M3) proceeds in parallel and is owed before the first order.
+
+Independent software track, approved 2026-09-15:
+S1 Shared panel model and checks [QUEUED]
+  -> S2 Browser-only module sketcher [QUEUED; after S1]
+  -> S3 Generator bridge and panel exports [PLANNED; after S1/S2]
+S1/S2 may use explicitly provisional geometry; physical fit gates real layouts and cutting.
 ```
 
 Milestones and rounds are acceptance gates, not weekly deadlines. Split each
@@ -268,6 +277,88 @@ on GHC 9.6.7 since 2026-09-11).
 Open: **CI on a runner with KiCad 10 and its libraries.** This is owed before
 the first order, because an order is the first time a stale local pass would
 cost money. Local test passes do not close this gate.
+
+### S1: Shared Panel Model And Checks [QUEUED]
+
+First programming task for the next coding session, requested for the evening
+of 2026-09-16. This is a queue, not scheduled or background execution.
+Prerequisites exist: [the adopted panel language](MECHANICAL.md#panel-layout-language),
+the drawing-derived hardware catalogue and
+[Block.Eurorack](../toolkit/src/Block/Eurorack.hs)'s skeleton, `toBoard` and
+`originFor`. No final pitch, physical fit result or R1 jack allocation is assumed.
+
+Define a small, versioned JSON sketch format and a shared hardware/geometry
+catalogue under the existing toolkit, with tests alongside their implementation.
+Record units, HP, panel/grid origins and pitch, stable control IDs, hardware
+types, occupied cells, orientation, labels and functional groups. Hardware
+records carry hole and clearance geometry, centre-to-footprint offsets and
+evidence status; unknown dimensions are not zero-clearance approvals. Blank
+cells create neither components nor holes. Keep the format inert data, not
+executable code; it describes a panel idea, not a circuit or netlist.
+
+Start with a sparse mixed-control fixture and the existing form-factor mapping.
+Test round-trip preservation, empty and multi-cell spaces, invalid versions/IDs,
+non-finite coordinates, invalid grid settings, overlaps and panel/rail/PCB
+keepouts. Provisional or incomplete ideas can be saved with their unresolved
+status; they must never be reported as manufacturing-ready. Share constants
+and test vectors with Haskell instead of independently hand-maintaining a
+second set of panel dimensions in JavaScript.
+
+Gate: a sparse fixture round-trips without losing intent, invalid inputs fail
+clearly, and geometry checks agree with the existing skeleton and coordinate
+transforms. Bound this to what S2 consumes; do not build a general CAD framework
+or wait for hardware samples before delivering the first software checkpoint.
+
+### S2: Browser-Only Module Sketcher [QUEUED]
+
+Prerequisite: S1's format, catalogue and tested placement rules. Deliver a
+static HTML entry point with local assets, usable by opening it directly in a
+browser; no backend, login, cloud storage, CDN or required development server.
+The first screen is the editor. This is a laptop design tool, not the parked
+digital control plane inside the instrument.
+
+- Choose HP and an explicitly provisional grid profile; place knobs, jacks,
+  maintained switches and LEDs from a small palette. Start empty, not with a
+  panel full of holes. Show control outlines and optional clearance overlays.
+- Select, move, duplicate, delete, label and group controls; rotate supported
+  hardware, snap to the grid and allow controls to reserve multiple cells.
+  Show layout conflicts without silently relocating or dropping controls when
+  the width changes. Provide undo/redo and pointer, keyboard and touch access.
+- Open and download versioned JSON sketches; save/reopen is the portable
+  handoff to the agent and the other workstation. Browser storage may be a
+  recovery convenience, never the only copy. Failed imports or cancelled file
+  operations must leave the current work intact.
+
+Gate: browser tests cover sparse placement, editing, undo/redo, width-change
+conflicts and save/reopen equivalence, plus malformed input without data loss.
+Test local-file/offline loading and desktop/mobile screenshots for legible,
+non-overlapping controls. A user can sketch and exchange a module idea without
+editing Haskell. No circuit generation, audio simulation or release approval
+is implied by a successful sketch.
+
+### S3: Generator Bridge And Panel Exports [PLANNED]
+
+Prerequisites: S1/S2 and a reviewed mapping from sketch control IDs to a real
+design's parts. Consume the reviewed layout as mechanical input to `pcbgen`;
+Haskell remains authoritative for circuits, connections and assembly intent.
+Do not leave independently editable coordinates in both the sketch and the
+design. Derive panel holes, preview geometry and PCB anchors from the same
+records, through `toBoard`/`originFor`, including side and rotation offsets.
+Only panel-mounted hardware becomes fixed this way; the electronics remain
+subject to electrical placement requirements.
+
+Add true-size SVG previews and separate cut/print layers with explicit units,
+only occupied control holes and the required mounting features. A preview is
+not a laser-ready release: material, thickness, kerf and actual fit must pass
+[the mechanical gate](MECHANICAL.md#grid-and-fit-gate) before a cutting file
+is approved. Final panel artwork and fabrication still belong to P4.
+
+Gate: coordinate and output tests prove sketch/panel/PCB agreement, including
+a rotated offset-origin part and intentionally blank cells; malformed or
+unmapped input is rejected before altering an existing design. Use a reviewed
+fixture without snapping existing boards to a candidate grid. Any actual
+design migration must pass focused regressions, schematic ERC, then layout
+DRC with parity. The browser must not directly edit generated KiCad files.
 
 ### M4: Method Rehearsal On The Attenuverter [IN FLIGHT]
 
@@ -444,6 +535,14 @@ and error-budget templates, calibration procedures and scripts.
 - **CI** (M3), before the first order.
 - **Board variants** (same SMD, different hand-population) only if a round
   needs them; not speculatively.
+- **Shared interface conventions:** finish consistent panel labels, control
+  direction, bipolar zero, switch positions and normalled-route notation in
+  S1/S2. Derive nominal audio/CV ranges, gate thresholds, loading and protection
+  from R1 and later consumers' actual requirements; the connector shape alone
+  does not specify electrical compatibility. Keep numerical limits in the
+  owning module specifications and reuse them, rather than inventing a universal
+  signal level now. Fit, material and hardware-variant choices remain in
+  [MECHANICAL.md](MECHANICAL.md), not a new standards questionnaire.
 
 ### Routing Research Wishlist
 
@@ -499,12 +598,13 @@ an owned module specification and acceptance gate rather than a parallel list.
 
 - **Money:** fabrication orders wait on the user; the lab has its own budget
   and can start now.
-- **Later decisions:** one or two hold stages on the SSG and the filter's pole
-  count may need clarification for those rounds. R1's connector and mixer choices
-  are answered; the tracking limit is confirmed. R1's remaining electrical,
-  compatibility and layout details are agent design work, not unanswered versions
-  of those choices. Option B is implemented; readiness findings, part evidence,
-  cost and stock remain to be closed before ordering.
+- **Remaining decisions:** R1's approved normalled consumer outputs conflict
+  with the proposed unswitched stereo jack; the alternative is still unanswered
+  in [the hardware inbox](decisions/2026-09-14-panel-hardware.md). Do not change
+  its behaviour by treating a recommendation as approval. Later SSG details may
+  need a choice when that round starts; the two-pole filter and tracking limit
+  are already settled. Electrical budgets are agent design work. Option B is
+  implemented; readiness findings, part evidence, cost and stock remain open.
 - **The three hard problems:** pitch tracking over temperature (the hardest
   analog work in the plan), switching-supply noise beside precision audio on
   R1, and a modelled chain that has never met an oscilloscope — R1 is the
@@ -543,7 +643,7 @@ scaffolding.
 
 | Artifact | Purpose / owner |
 |---|---|
-| This roadmap | Agreed priorities, constraints, rounds and gates; the agent updates it at every material change |
+| This roadmap | Agreed priorities, constraints, hardware rounds and S1-S3 software gates; the agent updates it at every material change |
 | [HANDOFF.md](HANDOFF.md) | Agent-maintained compact current/blocked/next state and evidence; Git retains past checkpoints |
 | [HOMELAB.md](HOMELAB.md) | Staged lab shopping list with prices, reasons and laptop connectivity; agent-maintained, user-confirmed |
 | Stack decision and toolchain record | Agent-maintained versions, installation checks, tested library inputs, and reasons for any migration; build on [SETUP.md](SETUP.md) |
@@ -571,13 +671,21 @@ circuit implementation or PCB yet. An earlier small rehearsal order would need
 its own reviewed candidate and explicit scope/quote approval. Card availability
 does not substitute for either review.
 
-The user confirmed two immediate tracks on 2026-09-14:
+**Next coding session: S1, then S2 when its prerequisite passes.** Requested
+2026-09-15 for the next token window (evening of 2026-09-16). Begin with the
+sparse mixed-control round-trip fixture and shared geometry checks, then deliver
+the local HTML editor's first usable placement/save/reopen workflow. Checkpoint
+at each gate. Neither final pitch nor the R1 normalling answer blocks this work;
+both remain explicit constraints on a real design. No automatic work is scheduled.
+
+The two hardware tracks confirmed on 2026-09-14 remain active:
 
 1. **Finish R1.** The jack/mixer decisions are adopted in its specification.
-  Next derive the complete connection diagram, source/load and power budgets,
-  protection and proven circuit choices; then implement models, assertions,
-  Haskell design and layout. Close the relevant reusable-block findings before
-  using those blocks in R1. The agent owns the engineering, not the user.
+  Resolve the unswitched-jack behaviour tradeoff in the existing inbox before
+  fixing its jack allocation; derive the connection diagram, source/load and
+  power budgets, protection and proven circuit choices. Then implement models,
+  assertions, Haskell design and layout. Close relevant reusable-block findings
+  before reuse. The agent owns the engineering, not the user.
 2. **Prepare and buy the home lab in stages.** Finalize Stage A's exact basket,
   links and delivered total in [HOMELAB.md](HOMELAB.md). Confirm supply series
   capability and the measurement method before recommending those instruments.
@@ -586,7 +694,8 @@ The user confirmed two immediate tracks on 2026-09-14:
 
 P1's exponential converter and gain element remain work for R2/R3; they are not
 prerequisites for starting R1. Router research, final panel art and a final case
-need not delay these two tracks. Use the existing working documents and compact
-handoff rather than create additional task plans or status files.
+need not delay these tracks or the independent sketcher. Use the existing
+working documents and compact handoff rather than create additional task plans
+or status files.
 
 CI remains a parallel M3 obligation owed before the first order.

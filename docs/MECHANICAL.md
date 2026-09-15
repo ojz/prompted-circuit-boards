@@ -1,5 +1,5 @@
 ---
-status: "maintained; stack derived from manufacturer drawings 2026-09-13, panel hardware standard researched 2026-09-14 and pending the user's taste answers; nothing measured on a built module"
+status: "maintained; panel language adopted 2026-09-15; drawing-derived stack and proposed hardware still need choices and physical fit checks"
 owner: "the agent keeps it current; the first assembled board confirms or corrects it; the user answers the taste questions in docs/decisions/"
 read_when: "placing a panel-mounted part, choosing a jack, pot, knob, switch, LED, trimmer or connector, checking whether a board fits a case, or reviewing a render before an order"
 update_when: "a panel-mounted part, panel material or connector changes, a taste answer is integrated, or a build measures a different number"
@@ -11,13 +11,75 @@ sources_checked: "2026-09-14"
 
 What sits at which height between the front panel and the back of a module,
 how much depth a module takes, and which panel-mounted part is used for each
-role. Every number below was read from a manufacturer drawing or a
-distributor's stated dimension on the date in the frontmatter; none has been
-measured on a built module. The first assembled board is where this document
-gets its first correction. The form-factor rules themselves (panel height and
-width, 100 mm board, board centred 1 mm inside the panel edges) live in
-[../AGENTS.md](../AGENTS.md) and are implemented once in
-`toolkit/src/Block/Eurorack.hs`.
+role. Published hardware dimensions and derived stack estimates are identified
+below; proposed grid pitches are design candidates, not manufacturer specifications.
+Nothing has been measured on a built module. The form-factor rules themselves
+(panel height and width, 100 mm board, board centred 1 mm inside the panel edges)
+live in [../AGENTS.md](../AGENTS.md) and are implemented once in
+[Block.Eurorack](../toolkit/src/Block/Eurorack.hs).
+
+## Panel Layout Language
+
+Adopted in conversation on 2026-09-15. The visual reference is
+[Serge Paperface](https://serge-modular.com/paperface), inspected that day:
+regular control centres, clear functional groups and a consistent vocabulary
+of hardware and markings. Borrow those organizing principles, not Serge's
+artwork, circuits, banana-jack mechanics or panel dimensions. We keep Eurorack
+and make our own printed graphics and laser-cut faceplates, not ordered
+Paperface panels. Final artwork and fabrication remain deferred under
+[the standing panel policy](../AGENTS.md#rules).
+
+- **A grid of centres, not a universal hole.** Knobs, jacks, switches and LEDs
+  share placement coordinates but retain their own holes, body dimensions,
+  mounting stack and clearance envelopes.
+- **Sparse by design.** Empty cells are useful space, not missing components.
+  Do not pre-populate or cut every grid position. Large controls and functional
+  groups may reserve several cells. Mounting holes and service connectors have
+  their own geometry; they are not mandatory musical-control cells.
+- **Common rows across modules.** Choose one row origin and pitch once fit is
+  demonstrated. Do not restrict the approved module widths merely to obtain
+  uninterrupted columns across module boundaries. Functional grouping and
+  access take precedence over visual density.
+- **Consistent meanings.** Use one convention for inputs versus outputs,
+  synth TS versus consumer TRS ports, control direction and bipolar zero,
+  ranges/units, switch positions and normalled connections. Colour reinforces
+  labels or symbols, never replaces them. Exact symbols, typography, colours
+  and knob variants are not selected by this policy.
+- **Controls remain readable.** Apply the instrument's visible, persistent
+  control rule in [AGENTS.md](../AGENTS.md#rules). Show the routing consequences
+  of inserting a plug as well as the function of each control. Routine build
+  calibration is distinct from a hidden performance mode.
+- **Check both sides of the panel.** Allow for fingers, plugged-in cable
+  barrels, knob skirts, switch travel, nuts, tool access, adjacent modules and
+  the component bodies/pads behind the panel. Hole clearance alone is not fit.
+
+### Grid And Fit Gate
+
+**15 mm and 15.24 mm are mockup candidates, not approved pitches.** The latter
+is three nominal HP, but the panel width table, edge gaps and fixed rail holes
+still apply. The existing 13.7 mm Thonkiconn column pitch and proposed 15 mm
+small-knob spacing do not establish comfortable access with cables installed.
+Leave present board coordinates unchanged until a deliberate, checked migration.
+
+Panel coordinates are millimetres from the top-left, viewed from the front,
+with y downward. Grid origin is an explicit offset in that coordinate system.
+The shaft/barrel/hole centre is not necessarily a footprint origin:
+`Block.Eurorack.toBoard` and `originFor` already provide the board transform and
+side/rotation-aware footprint offset. The planned shared layout model must
+reuse that geometry, including the distinction between display and rear views.
+
+Before freezing the standard, inspect a true-size mockup with the selected
+knobs, switches and patch cables; verify body/pad clearances against drawings
+and then samples. Choose the laser-compatible panel material and thickness,
+check stiffness and thread engagement, and establish hole/kerf allowances with
+a test coupon. The current 2 mm aluminium stack is a reference calculation,
+not a decision about the user's laser or stock. Changing it requires rechecking
+every mounting stack. This gate does not block a sketcher using explicitly
+provisional hardware records.
+
+The programming sequence and acceptance checks live in
+[ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-queued).
+There is no sketcher, shared interchange format or laser export implemented yet.
 
 ## The stack, front to back
 
@@ -117,14 +179,16 @@ attenuverter-top.png` and `-bottom.png`), against the drawings above.
 
 ## Panel hardware standard
 
-One part per role, so every board shares footprints, panel holes, the stack
-and the shopping list. Researched on 2026-09-14 from manufacturer drawings,
+The goal is one checked part per role, so boards can share footprints, panel
+holes, the stack and the shopping list. This is not yet a fully approved or
+physically verified catalogue. Researched on 2026-09-14 from manufacturer drawings,
 distributor pages and KiCad 10's own footprint library; the research reports
 with every URL opened are summarised here and their conclusions are what is
-recorded. **Status** says whether a part is already in use, proposed and
-waiting only on the user's taste answers in
+recorded. **Status** says whether a part is already in use, proposed with
+choices outstanding in
 [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md),
-or blocked on a measurement. Prices are ex VAT as displayed on 2026-09-14
+or blocked on a measurement. Blank answers do not approve proposed variants.
+Prices are ex VAT as displayed on 2026-09-14
 (Thonk GBP, LCSC USD).
 
 | Role | Part | Stack fit | Footprint | Source and price | Status |
@@ -133,7 +197,7 @@ or blocked on a measurement. Prices are ex VAT as displayed on 2026-09-14
 | World-side jack, 3.5 mm TRS stereo, unswitched | QingPu **WQP-WQP419GR** (ex PJ366ST, "Stereo Thonkiconn") | same bushing, hole and pitch; body 1 mm wider; height 9 to 10 mm, **measure** | none official; the upstream proposal (kicad-footprints PR 823, never merged) is the mono footprint with silk and courtyard 0.5 mm wider and pins S/R/T. Copy ours into `lib/footprints/pcbgen.pretty` | Thonk £0.49; Exploding-Shed about €0.53 | **Proposed**; it has no switch contact, see below |
 | Pot | Taiwan Alpha **RD901F-40-15K-B…-00D** (T18 knurled 6 mm shaft; `F` D-shaft and `R1` 6.35 mm round are the same footprint) | body 10.0, M7 × 0.75 5 mm bushing, 7.2 mm hole, footprint 9.5 × 12.0, shaft end about 25 mm above the PCB | official `Potentiometer_Alpha_RD901F-40-00D_Single_Vertical` | Thonk £1.69; Uraltone €1.25; on LCSC as Extended plug-in (C5340289 B10K T18, C20619172 B100K round) but hand-installed here anyway | **In use** (B100K); shaft type waits on the knob answer |
 | Pot tapers | `B` linear for CV attenuators and attenuverters; `A` log for audio level; `C` reverse log exists; no `W` taper in Alpha's catalogue | | | Thonk stocks B 5K–1M, A 10K–1M, C50K, centre-detent B10K/B50K/B100K | Rule adopted |
-| Knob | **Davies 1900h clone, T18 push-on** (Thonk) | 12 mm base × 16 mm tall, about 13 mm bore, so the shaft stays inside; 15 mm pot centres is the comfortable minimum, so 12 mm is the ceiling for one column at 6HP | none needed | Thonk £0.68–0.75, 21 colours; alternatives Rogan PT-1P 11.4 mm £1.65, Sifam/Intellijel cap-and-body £1.12–4.07 with free pointer indexing | **Proposed**, waits on taste answers |
+| Knob | **Davies 1900h clone, T18 push-on** (Thonk) | 12 mm base x 16 mm tall, about 13 mm bore; proposed 15 mm pot centres need an ergonomic mockup, and larger controls may reserve multiple cells | none needed | Thonk £0.68–0.75, 21 colours; alternatives Rogan PT-1P 11.4 mm £1.65, Sifam/Intellijel cap-and-body £1.12–4.07 with free pointer indexing | **Proposed**, waits on taste answers |
 | Scale trimmer (V/oct scale, HF trim) | **Bourns 3224W** 12-turn SMD, top adjust, ±10 %, ±100 ppm/°C | 4.8 × 3.5 mm on the back: factory placed, adjusted from the back with the module out of the case, no panel hole | official `Potentiometer_Bourns_3224W_Vertical` | LCSC C81348, Extended, $1.18 (1) to $0.73 (1k) | **Proposed** |
 | Offset trimmer | **Bourns 3314J** single-turn SMD, ±20 %, ±100 ppm/°C; Vishay TS53YJ (official footprint, 0.1 % or 3 Ω end resistance, no LCSC number found) where end resistance matters | 4.5 mm square on the back, as above | official `Potentiometer_Bourns_3314J_Vertical` | LCSC C36376, Extended, $0.57 to $0.28 | **Proposed** |
 | Rejected trimmers | Bourns 3362P (no KiCad 10 footprint, through-hole, 200-cycle life), 3323 (in Bourns' obsolete-parts tree) | | | | Do not design in |
@@ -142,16 +206,18 @@ or blocked on a measurement. Prices are ex VAT as displayed on 2026-09-14
 | USB-C PD inlet (R1) | **GCT USB4125-GF-A-0190**, 6-pin power-only; A5 = CC1 and B5 = CC2 are present, which is all a PD sink needs; 3 A, 48 V | on the **back**, near the bottom edge, opening down, plug lying flat along the board: no panel cutout, about 7 mm of added depth. A front-side receptacle sits 1.6 mm above the PCB and cannot reach a panel 10 mm away; a receptacle on the top or bottom edge fires the plug into a rail | official `USB_C_Receptacle_GCT_USB4125-xx-x-0190_6P_TopMnt_Horizontal` | DigiKey (USB4135 sibling $0.58 at 10); **JLCPCB stock of any 6-pin power-only part unverified**. Fallback that JLCPCB does assemble: Korean Hroparts TYPE-C-31-M-12, 16-pin, C165948, $0.17, unused pins listed in `partNoConnect` | **Proposed**, waits on the front-or-back answer; front access would use a panel-mount coupler with a 12 mm hole, not a hand-soldered vertical receptacle |
 | Power header | 2×5 shrouded IDC, DIN 41651 | 9.1 mm housing on the back | official | any | **In use** |
 
-**No switched TRS 3.5 mm jack fits this stack.** Every candidate was checked
-against the 10 mm gap, the 13.7 mm pitch and a 2 mm panel: the WQP419GR has
+**None of the checked switched TRS 3.5 mm jacks fits the proposed stack.**
+The search compared candidates against the 10 mm gap, the 13.7 mm pitch and a
+2 mm panel: the WQP419GR has
 no switch; QingPu's PJ3410 switches the tip only and has a 13 mm body and an
 M8 bushing, which would lift the panel above the pot bushings; Amphenol's
 ACJS-MV35-5 switches both contacts but is 15.8 mm square, 24 mm tall and rated
 for a 1.15 mm panel; the Kobiconn 161-3508-E and Same Sky SJ1-3535NG are
 right-angle parts; the PJ3420 has a plastic bushing. R1's approved behaviour
 ("patching an individual output removes the channel from the mix") therefore
-cannot come from the world-side jack's own contacts, and the decision file
-puts the two workable alternatives to the user.
+cannot come from the proposed WQP419GR's own contacts. The decision file
+presents alternatives; their tradeoffs and unverified fit must not be treated
+as an approved change to R1's behaviour or an exhaustive market search.
 
 **Footprints to add to `lib/footprints/pcbgen.pretty`** before R1's layout:
 the stereo Thonkiconn (copy of the mono footprint, pins S/R/T, silk and

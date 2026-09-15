@@ -8,13 +8,18 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-14 by GitHub Copilot (work laptop), after integrating the user's
-R1 answers and aligning the next work with R1 design and home-lab procurement.
+Updated 2026-09-15 by GitHub Copilot (work laptop), after recording the panel
+language, direct-control policy and queued browser-only sketcher milestones.
 Use [README.md](README.md) as the document register and short code map. This
 handoff holds current evidence and next actions, not a session history.
 
 ## Current Position
 
+- **Next coding task: S1, then S2 at its gate.** The user requested programming
+  work for the next token window, the evening of 2026-09-16. The shared panel
+  model, local HTML sketcher and later generator bridge are queued in
+  [ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-queued), not implemented
+  or scheduled to run automatically. The editor requires no backend.
 - **First module: R1 IO + Mixer.** Its [behavior specification](modules/io-mixer/SPEC.md)
   now records the approved connector and mixer choices. Circuit, parts, models,
   Haskell implementation and board are not implemented. The attenuverter remains
@@ -29,42 +34,40 @@ handoff holds current evidence and next actions, not a session history.
 - `Block.Eurorack`, `Block.Power` and `Block.Precision` exist and are used by
   those designs. They are reusable definitions, not bench-proven circuits or a
   PD converter. Relevant review findings must be closed before reuse in R1.
-- M1/M2 complete; M3 has pinned dependencies but no CI. Panel development and
-  the final case remain deferred. P1's converter/gain blocks serve R2/R3 and
-  do not block starting R1.
-- **Panel hardware standard drafted 2026-09-14** (home laptop, three parallel
-  research agents; findings in [MECHANICAL.md](MECHANICAL.md)): one part per
-  role with stack fit, footprint and source. Two facts changed: the Alpha
-  pot's "15 mm" shaft is measured from the mounting surface, so about 13 mm
-  stands above the panel (was recorded as 18), and Thonk ships jacks without
-  nuts or washers. **Blocking finding for R1:** no switched TRS 3.5 mm jack
-  fits the stack, so the approved normalling cannot come from the world-side
-  jack; the choice is in
+- M1/M2 complete; M3 has pinned dependencies but no CI. Final panel artwork,
+  fabrication and case work remain deferred. Panel standards, ergonomic
+  mockups and sketcher programming are authorized now. P1's converter/gain
+  blocks serve R2/R3 and do not block R1.
+- **Panel language adopted; hardware catalogue still provisional.**
+  [MECHANICAL.md](MECHANICAL.md) owns the sparse grid, marking conventions and
+  fit gate. Exact pitch, material/thickness, remaining hardware variants and
+  sample fits are not approved by this discussion. **R1 remains blocked on
+  its jack tradeoff:** the proposed WQP419GR has no switch contact; no checked
+  switched TRS candidate fits the proposed stack. The unresolved choice is in
   [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md)
-  together with 18 preference questions (knob, nuts, LEDs, toggle, USB-C
-  front or back). Two repository footprints are owed before R1's layout:
-  the stereo Thonkiconn and the sub-mini toggle.
+  with the remaining hardware preferences. The general persistent-switch
+  question is integrated, not the R1 option or the blank variant answers.
+  The stereo Thonkiconn and sub-mini toggle still need verified repository
+  footprints before a layout uses them.
 
 ## Latest Change
 
-- The user's exact 2026-09-14 conversation answers are preserved in R1's spec
-  and checkpointed in `845ac0f`. They were not invented from the blank inbox
-  forms. The two answered forms are now retired; no pending question remains.
-- The single document register is [README.md](README.md), with the two working
-  documents first and a short explanation of the code. One spec replaces two
-  questions: 21 tracked Markdown files, no parallel notes folder or new task plan.
-- The lab guide now separates historical candidates from purchase-ready items,
-  removes unsupported current-limit/accuracy/grounding assurances and makes
-  6.35 mm cabling conditional on a chosen instrument. No fresh supplier/manual
-  verification, price refresh, purchase or circuit change was performed.
-- The roadmap and readiness report now point to the adopted specification.
-  Answering the behavior questions does not close the engineering or order gates.
+- The standing rules in [AGENTS.md](../AGENTS.md#rules) now record the user's
+  no-menu, visible persistent-control requirement and distinguish current
+  sketching work from deferred final panels. The CYCLE-switch example is an
+  interface constraint, not a dynamic-state retention project.
+- S1-S3 have prerequisites, deliverables and test gates, including intentional
+  blank cells and portable save/reopen. There is no new HTML, layout format,
+  generator input or export implementation, and no existing board was moved.
+- The active hardware inbox is registered in [README.md](README.md). Its
+  stale blank-answer-as-approval and finished-fit claims are corrected; all
+  remaining answers are preserved. No new questionnaire, supplier research,
+  parts order or hardware-release approval was introduced.
 
 ## Recovery Retained
 
-Friday's documentation was already pushed. The work-laptop changes were saved
-before fast-forwarding the nine weekend commits, then distinct SPICE refusal and
-unconnected-pin escaping fixes were recovered and published as `6f1d417`.
+Distinct SPICE refusal and unconnected-pin escaping fixes were recovered and
+published as `6f1d417` after synchronizing the two workstations on 2026-09-14.
 
 The full tracked/untracked backup remains in stash
 `5ca11c95875f37967d48d7d17ce067919edcec52`
@@ -88,7 +91,7 @@ and its same-day readiness review, not a new run after documentation edits:
 | `toolkit/sim.sh attenuverter` | 8 decks, 0 failed, using the current block-built netlist |
 | `toolkit/test-scripts.sh` | 79 passed, 0 failed; native checks, scratch export/refusals, simulator stubs and report checks |
 | Mult native check during readiness review | board ERC/DRC/parity and renders passed |
-| Current documentation checks | lifecycle fields, local links, approved R1 choices, retired inbox files, register coverage and whitespace checked; no code/CAD change requiring regeneration |
+| 2026-09-15 documentation checks | YAML lifecycle fields, local links/anchors, register coverage, retained pending answers and whitespace checked; no code/CAD change requiring regeneration |
 
 The full mult pipeline/panel, benchmark, field-solver and node-budget checks were
 not rerun for the readiness review. Its analyzers, PDF evidence, skipped thermal
@@ -114,20 +117,25 @@ measurement was made; software/hardware tests were not rerun for this docs-only 
 
 ## Next Action
 
-1. **R1 design:** first the user answers section 1 of the panel-hardware
-  decision file (how normalling survives an unswitched stereo jack), then
-  establish the complete connection diagram and verified reference
-  circuits, then derive connector-level and power budgets from the approved spec.
-  Propose how phone/laptop stereo playback occupies the four mono channels before
-  fixing jack allocation. Preserve DC CV paths and protected consumer audio;
-  do not promise phone recording through an ordinary headphone socket. Draw
-  the two owed footprints (stereo Thonkiconn, sub-mini toggle) into
-  `lib/footprints/` with their dimensions confirmed on a drawing or sample.
-2. **Lab procurement:** finalize a linked, itemized assembly basket and verify the
+1. **Next coding session: S1.** Start with one sparse mixed-control fixture,
+  the versioned sketch format and geometry checks against `Block.Eurorack`.
+  Once that gate passes, proceed to S2's local HTML placement/save/reopen
+  workflow. Keep unknown hardware dimensions and candidate pitches explicitly
+  provisional; do not let pending physical fit or R1's jack choice prevent
+  a usable sketcher. Detailed scope and gates live in the roadmap.
+2. **R1 design:** section 1 of the existing hardware inbox still needs the
+  user's normalling choice before final jack allocation. The agent establishes
+  the full connection diagram, proven reference circuits and connector-level
+  and power budgets, including how consumer stereo playback occupies the four
+  mono channels. Preserve DC CV paths and protected consumer audio; no promise
+  of phone recording through an ordinary headphone socket. Verify the two
+  proposed custom footprints before using them.
+3. **Lab procurement:** finalize a linked, itemized assembly basket and verify the
   exact supply/manual, precision measurement method and R1 probing requirements
   in [HOMELAB.md](HOMELAB.md). Identify owned equipment before pricing adapters.
   The agent handles research; the user approves spending and reports delivery.
 
 Close relevant [order-readiness findings](ORDER-READINESS.md) as the design uses
-those blocks and implement CI before an order. No new questionnaire, P1 research,
-router optimization or final panel work is needed to start these two tracks.
+those blocks and implement CI before an order. S1/S2 are independent of hardware
+delivery and do not authorize S3 to bypass the mechanical or native-check gates.
+There is no automatic work between sessions.
