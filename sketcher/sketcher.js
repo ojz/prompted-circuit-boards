@@ -118,7 +118,9 @@
       node.appendChild(icon(c.kind));
       if (selected && ui.editingLabel) {
         var input = el('input', {
-          type: 'text', value: c.label, maxlength: '24', 'aria-label': 'Label',
+          // core.at guarantees a string; the guard repeats it because this is
+          // the one place a missing label would be shown as text.
+          type: 'text', value: c.label || '', maxlength: '24', 'aria-label': 'Label',
           onclick: function (e) { e.stopPropagation(); },
           onkeydown: function (e) {
             if (e.key === 'Enter') { e.preventDefault(); commitLabel(col, row, this.value); }

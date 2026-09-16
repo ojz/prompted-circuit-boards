@@ -49,7 +49,7 @@ for (let row = 0; row < s.rows; row++) {
   for (let col = 0; col < s.columns; col++) {
     const c = core.at(s, col, row);
     top += pad(c ? (glyph[c.kind] || '?') : '') + '|';
-    bottom += pad(c ? c.label : '') + '|';
+    bottom += pad(c ? (c.label || '') : '') + '|';
   }
   console.log(top);
   console.log(bottom);

@@ -190,6 +190,47 @@ check('a second click on a filled cell opens its label field', () => {
   if (api.core.at(api.store.get(), 1, 0).label !== 'IN 1') throw new Error('label not saved');
 });
 
+check('a component with no label renders blank, never the word undefined', () => {
+  // The JSON leaves an empty label out, so anything that reads a cell and
+  // prints it has to cope. This checks the two places a person would see it:
+  // the caption under the icon, and the label field when it is open.
+  const led = sandbox.SKETCH_CATALOGUE.kinds.findIndex(k => k.id === 'led');
+  doc.getElementById('palette').children[led].dispatch('click');
+  cellNode(0, 1).dispatch('click');              // places it, opens the label
+  const open = cellNode(0, 1);
+  const input = open.children.find(c => c.tagName === 'INPUT');
+  if (!input) throw new Error('no label field opened');
+  const shown = input.getAttribute('value');
+  if (shown !== '' && shown !== null) throw new Error('the label field shows ' + JSON.stringify(shown));
+  input.dispatch('keydown', { key: 'Escape', preventDefault() {} });   // leave it blank
+  const texts = [];
+  (function walk(n) { if (n._text) texts.push(n._text); n.children.forEach(walk); })(cellNode(0, 1));
+  const bad = texts.filter(t => /undefined/.test(t));
+  if (bad.length) throw new Error('the cell renders ' + JSON.stringify(bad));
+  const caption = cellNode(0, 1).children.filter(c => c.className === 'tag');
+  if (caption.length && caption[0].textContent !== '') {
+    throw new Error('the caption is ' + JSON.stringify(caption[0].textContent));
+  }
+});
+
+check('nothing anywhere on the page renders the word undefined', () => {
+  const found = [];
+  (function walk(n, where) {
+    if (n._text && /undefined/.test(n._text)) found.push(where + ': ' + n._text);
+    Object.keys(n.attrs || {}).forEach(k => {
+      if (/undefined/.test(String(n.attrs[k]))) found.push(where + ' @' + k + ': ' + n.attrs[k]);
+    });
+    n.children.forEach((c, i) => walk(c, where + '>' + (c.tagName || '?').toLowerCase() + i));
+  })(doc.getElementById('grid'), 'grid');
+  ['note', 'status', 'limits', 'list', 'palette'].forEach(id => {
+    (function walk(n, where) {
+      if (n._text && /undefined/.test(n._text)) found.push(where + ': ' + n._text);
+      n.children.forEach((c, i) => walk(c, where + '>' + i));
+    })(doc.getElementById(id), id);
+  });
+  if (found.length) throw new Error(found.join('; '));
+});
+
 check('the note reports the grid and the width it implies', () => {
   const t = doc.getElementById('note').textContent;
   if (!/\d+ x \d+ grid/.test(t)) throw new Error('no grid size: ' + t);
