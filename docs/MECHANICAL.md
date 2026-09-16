@@ -52,10 +52,13 @@ Paperface panels. Final artwork and fabrication remain deferred under
 - **State LEDs sit diagonally off their jack (provisional).** The user's
   Paperface observation of 2026-09-15: an output's indicator LED is offset
   diagonally from the jack it reports, less than half a cell away, so it reads
-  as belonging to that jack and takes no grid cell of its own. The exact offset
-  is set by S1's geometry checks against the jack nut and cable barrel on the
-  front and the jack courtyard on the back; it is not a number yet. R5 is the
-  first board that will use it ([R5 plan](modules/boolean-clock/SPEC.md)).
+  as belonging to that jack and takes no grid cell of its own. **The offset is
+  still not a chosen number.** The geometry to choose it with now exists: the
+  sketcher places an LED inside another control's cell without calling it a
+  clash and checks the offset against the jack's nut and cable barrel in front
+  and its courtyard behind ([SKETCHER.md](SKETCHER.md)). Its sparse fixture
+  uses 6 mm diagonally as an illustration, not a convention. R5 is the first
+  board that will use it ([R5 plan](modules/boolean-clock/SPEC.md)).
 - **Check both sides of the panel.** Allow for fingers, plugged-in cable
   barrels, knob skirts, switch travel, nuts, tool access, adjacent modules and
   the component bodies/pads behind the panel. Hole clearance alone is not fit.
@@ -85,8 +88,10 @@ every mounting stack. This gate does not block a sketcher using explicitly
 provisional hardware records.
 
 The programming sequence and acceptance checks live in
-[ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-queued).
-There is no sketcher, shared interchange format or laser export implemented yet.
+[ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-done-2026-09-16). The sketcher and the shared
+interchange format exist ([SKETCHER.md](SKETCHER.md)) and draw the candidate
+pitches as candidates; no laser export is implemented, and nothing the
+sketcher shows closes this gate.
 
 ## The stack, front to back
 

@@ -241,8 +241,8 @@ Equipment and reviewed procedures must exist before the tests that require them.
 CI (M3) proceeds in parallel and is owed before the first order.
 
 Independent software track, approved 2026-09-15:
-S1 Shared panel model and checks [QUEUED]
-  -> S2 Browser-only module sketcher [QUEUED; after S1]
+S1 Shared panel model and checks [DONE 2026-09-16]
+  -> S2 Browser-only module sketcher [DONE 2026-09-16, one gate item open]
   -> S3 Generator bridge and panel exports [PLANNED; after S1/S2]
 S1/S2 may use explicitly provisional geometry; physical fit gates real layouts and cutting.
 ```
@@ -278,63 +278,71 @@ Open: **CI on a runner with KiCad 10 and its libraries.** This is owed before
 the first order, because an order is the first time a stale local pass would
 cost money. Local test passes do not close this gate.
 
-### S1: Shared Panel Model And Checks [QUEUED]
+### S1: Shared Panel Model And Checks [DONE 2026-09-16]
 
-First programming task for the next coding session, requested for the evening
-of 2026-09-16. This is a queue, not scheduled or background execution.
-Prerequisites exist: [the adopted panel language](MECHANICAL.md#panel-layout-language),
-the drawing-derived hardware catalogue and
-[Block.Eurorack](../toolkit/src/Block/Eurorack.hs)'s skeleton, `toBoard` and
-`originFor`. No final pitch, physical fit result or R1 jack allocation is assumed.
+Gate met. The `pcbgen-sketch` version 1 format, the hardware and grid
+catalogue and the geometry checks live in `toolkit/src/Sketch/`, with their
+tests in `toolkit/test/SketchTests.hs`. Use [SKETCHER.md](SKETCHER.md) for
+what the format holds and how to regenerate what the browser reads.
 
-Define a small, versioned JSON sketch format and a shared hardware/geometry
-catalogue under the existing toolkit, with tests alongside their implementation.
-Record units, HP, panel/grid origins and pitch, stable control IDs, hardware
-types, occupied cells, orientation, labels and functional groups. Hardware
-records carry hole and clearance geometry, centre-to-footprint offsets and
-evidence status; unknown dimensions are not zero-clearance approvals. Blank
-cells create neither components nor holes. Keep the format inert data, not
-executable code; it describes a panel idea, not a circuit or netlist.
+What the gate asked for and what answers it:
 
-Start with a sparse mixed-control fixture and the existing form-factor mapping.
-Test round-trip preservation, empty and multi-cell spaces, invalid versions/IDs,
-non-finite coordinates, invalid grid settings, overlaps and panel/rail/PCB
-keepouts. Provisional or incomplete ideas can be saved with their unresolved
-status; they must never be reported as manufacturing-ready. Share constants
-and test vectors with Haskell instead of independently hand-maintaining a
-second set of panel dimensions in JavaScript.
+- **Round-trip without losing intent.** The sparse mixed-control fixture keeps
+  its empty cells, its two-cell span, the offset that puts an LED beside its
+  jack, a rotation and a group through encode and decode, and printing is
+  deterministic.
+- **Invalid input fails clearly.** Twenty-four rejection cases cover wrong
+  version and format, a width that is not a panel, duplicate and malformed
+  ids, unknown hardware, non-finite and NaN coordinates, zero and negative
+  pitch, zero spans, fractional cells, disallowed rotations, unknown fields at
+  every level, a dangling group, an invented status and malformed JSON. Every
+  problem is reported at once, each naming its path.
+- **Geometry agrees with the skeleton and the existing transforms.** Placement
+  goes through `Block.Eurorack`'s `skeleton`, `toBoard` and `originFor`; a test
+  places a pot through the sketch model and compares the result with where
+  `Attenuverter.hs` actually put `RV1`.
+- **Shared, not duplicated.** `cabal run pcbgen -- sketcher` writes the
+  catalogue, the form-factor numbers and the test vectors as JavaScript, so
+  the browser is held to the Haskell numbers instead of keeping a second set
+  of panel dimensions.
 
-Gate: a sparse fixture round-trips without losing intent, invalid inputs fail
-clearly, and geometry checks agree with the existing skeleton and coordinate
-transforms. Bound this to what S2 consumes; do not build a general CAD framework
-or wait for hardware samples before delivering the first software checkpoint.
+Hardware records carry hole, front envelope, courtyard, footprint anchor and
+an evidence status; unverified envelopes drive notes and warnings and never a
+fit claim. Blank cells create nothing. The format describes a panel idea and
+carries no netlist.
 
-### S2: Browser-Only Module Sketcher [QUEUED]
+### S2: Browser-Only Module Sketcher [DONE 2026-09-16, one gate item open]
 
-Prerequisite: S1's format, catalogue and tested placement rules. Deliver a
-static HTML entry point with local assets, usable by opening it directly in a
-browser; no backend, login, cloud storage, CDN or required development server.
-The first screen is the editor. This is a laptop design tool, not the parked
-digital control plane inside the instrument.
+`sketcher/index.html` opens in a browser with no backend, login, cloud storage,
+CDN or development server. [SKETCHER.md](SKETCHER.md) is its guide.
 
-- Choose HP and an explicitly provisional grid profile; place knobs, jacks,
-  maintained switches and LEDs from a small palette. Start empty, not with a
-  panel full of holes. Show control outlines and optional clearance overlays.
-- Select, move, duplicate, delete, label and group controls; rotate supported
-  hardware, snap to the grid and allow controls to reserve multiple cells.
-  Show layout conflicts without silently relocating or dropping controls when
-  the width changes. Provide undo/redo and pointer, keyboard and touch access.
-- Open and download versioned JSON sketches; save/reopen is the portable
-  handoff to the agent and the other workstation. Browser storage may be a
-  recovery convenience, never the only copy. Failed imports or cancelled file
-  operations must leave the current work intact.
+Gate items met: sparse placement, editing, undo/redo, width-change conflicts
+and save/reopen equivalence are covered by 27 tests that run both under node
+(`node sketcher/tests.js`) and in the browser (`sketcher/tests.html`), against
+the vectors the generator wrote. Malformed input and a cancelled file open
+leave the current work intact, and a malformed stored sketch is reported
+rather than deleted. Changing the width moves and drops nothing; what no
+longer fits is listed. Pointer, keyboard and touch all reach every control.
 
-Gate: browser tests cover sparse placement, editing, undo/redo, width-change
-conflicts and save/reopen equivalence, plus malformed input without data loss.
-Test local-file/offline loading and desktop/mobile screenshots for legible,
-non-overlapping controls. A user can sketch and exchange a module idea without
-editing Haskell. No circuit generation, audio simulation or release approval
-is implied by a successful sketch.
+Those tests never touch the DOM, so `node sketcher/smoke.js` runs the editor
+itself against a minimal DOM stub: startup, placing a control, a width change,
+an undo, a refused paste and the rear view, eleven checks. It exists because
+the agent could not open a browser in this session, and it is why the editor's
+own code is known to run at all.
+
+Beyond the gate, on the user's 2026-09-16 direction: the editor holds a
+**sketchbook of several modules**, each with its own undo history and storage
+key, so a session can move between module ideas; and the generator emits a
+single-file bundle for the fast-ui channel, so the agent can put a panel on
+screen and read every sketch back.
+
+**Open gate item: the rendered screenshots.** Desktop and mobile screenshots
+of the editor were not captured. The browser extension available in the
+2026-09-16 session could not open a local page or a localhost server, and the
+check was stopped rather than worked around after three attempts. The layout
+has a phone breakpoint and the runs above cover the logic and the code paths,
+but nothing has confirmed how the page looks. Close this by opening
+`sketcher/index.html`, at a window width and at a phone width, and looking.
 
 ### S3: Generator Bridge And Panel Exports [PLANNED]
 
@@ -675,12 +683,13 @@ circuit implementation or PCB yet. An earlier small rehearsal order would need
 its own reviewed candidate and explicit scope/quote approval. Card availability
 does not substitute for either review.
 
-**Next coding session: S1, then S2 when its prerequisite passes.** Requested
-2026-09-15 for the next token window (evening of 2026-09-16). Begin with the
-sparse mixed-control round-trip fixture and shared geometry checks, then deliver
-the local HTML editor's first usable placement/save/reopen workflow. Checkpoint
-at each gate. Neither final pitch nor the R1 normalling answer blocks this work;
-both remain explicit constraints on a real design. No automatic work is scheduled.
+**S1 and S2 are done (2026-09-16); S3 is not started and is not scheduled.**
+The format, catalogue, checks and the browser editor are implemented and
+tested; [SKETCHER.md](SKETCHER.md) is their guide, and the one open gate item
+is the rendered screenshots. A sketch is still a panel idea: it approves no
+circuit, no part and no cutting file. S3 needs a reviewed sketch and a
+reviewed mapping from control ids to a real design's parts before it starts,
+and the grid pitch it would bake in is still a candidate.
 
 The two hardware tracks confirmed on 2026-09-14 remain active:
 

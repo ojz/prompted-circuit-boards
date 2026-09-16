@@ -8,6 +8,7 @@
 -- Existing generated files are overwritten; other files are left alone.
 module Main (main) where
 
+import           Control.Exception  (IOException, try)
 import           Control.Monad      (forM_, unless, when)
 import           Data.Maybe         (fromMaybe)
 import           Text.Read          (readMaybe)
@@ -16,9 +17,10 @@ import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
 import           System.Directory   (createDirectoryIfMissing)
 import           System.Environment (getArgs)
-import           System.Exit        (exitFailure)
+import           System.Exit        (ExitCode (..), exitFailure, exitWith)
 import           System.FilePath    ((</>), (<.>), takeDirectory)
-import           System.IO          (hPutStrLn, stderr)
+import           System.IO          (IOMode (WriteMode), hPutStrLn, hSetEncoding, hSetNewlineMode,
+                                     noNewlineTranslation, stderr, utf8, withFile)
 
 import           Design
 import           Attenuverter      (attenuverter)
@@ -34,6 +36,9 @@ import           Emit.Spice
 import           Emit.Schematic
 import           Kicad.Library
 import           Route.Router       (RouteConfig (..), RouteResult (..), RoutedNet (..), autoroute)
+import           Sketch.Check       (Finding (..), Severity (..), checkSketch)
+import           Sketch.Export
+import           Sketch.Model       (decodeSketchText, sxHP, sxName, sxControls)
 import           Validate
 
 designs :: [(String, Module)]
@@ -92,6 +97,8 @@ main = do
     ("sweep-via" : rest) -> sweepVia rest
     ["log", b]         -> routeLog b
     ["spice", d]       -> spiceFor d
+    ["sketcher"]       -> sketcherAssets
+    ("sketch" : files) | not (null files) -> checkSketches files
     [name]              -> run name Nothing
     [name, "--out", d]  -> run name (Just d)
     _ -> do
@@ -100,6 +107,8 @@ main = do
       hPutStrLn stderr "       pcbgen sweep-via [--iters N] [--starts N] [--costs N,N] [board ...]"
       hPutStrLn stderr "       pcbgen log <board>            route one board and print the router's log"
       hPutStrLn stderr "       pcbgen spice <design>         write the SPICE netlist for simulation"
+      hPutStrLn stderr "       pcbgen sketcher               write sketcher/catalogue.js, vectors.js, fixtures and the fast-ui bundle"
+      hPutStrLn stderr "       pcbgen sketch <file.json>...  validate sketches and print their findings"
       hPutStrLn stderr ("designs: " ++ unwords (map fst designs))
       exitFailure
 
@@ -285,3 +294,71 @@ selectBoards names = do
     exitFailure
   pure (if null names then benchBoards
         else [ b | b <- benchBoards, fst b `elem` names ])
+
+-- | The sketcher's generated inputs (docs/ROADMAP.md, S1/S2): the hardware
+-- catalogue and form-factor numbers, the test vectors, the reference fixture
+-- files, and a single-file bundle of the page for the fast-ui exchange
+-- channel. The page itself (sketcher/index.html and its assets) is written by
+-- hand and only inlined here.
+sketcherAssets :: IO ()
+sketcherAssets = do
+  let files = [ ("sketcher" </> "catalogue.js", catalogueJs)
+              , ("sketcher" </> "vectors.js", vectorsJs) ] ++ fixtureFiles
+  forM_ files $ \(path, txt) -> do
+    createDirectoryIfMissing True (takeDirectory path)
+    writeTextLf path txt
+    putStrLn ("wrote " ++ path)
+  indexHtml <- TIO.readFile ("sketcher" </> "index.html")
+  html <- bundle indexHtml (\rel -> TIO.readFile ("sketcher" </> T.unpack rel))
+  let out = "build" </> "sketcher" </> "index.html"
+  createDirectoryIfMissing True (takeDirectory out)
+  writeTextLf out html
+  putStrLn ("wrote " ++ out ++ " (fast-ui bundle)")
+
+-- | Write UTF-8 with LF line endings whatever the platform. A sketch is
+-- exchanged with a browser, which ends its lines with LF, and between two
+-- workstations; if the generator wrote CRLF on Windows then the same sketch
+-- would be a different file depending on who saved it, and every exchange
+-- would look like a whole-file diff. 'TIO.writeFile' uses the native newline
+-- mode, so the handle is opened explicitly here.
+writeTextLf :: FilePath -> Text -> IO ()
+writeTextLf path txt =
+  withFile path WriteMode $ \h -> do
+    hSetEncoding h utf8
+    hSetNewlineMode h noNewlineTranslation
+    TIO.hPutStr h txt
+
+-- | Validate sketch files and print their findings. Exit 1 if any file is
+-- not a sketch, 2 if every file is a sketch but one has a conflict, 0 when
+-- every sketch is clean apart from warnings and notes.
+checkSketches :: [FilePath] -> IO ()
+checkSketches files = do
+  results <- mapM checkOne files
+  when (any (== Left ()) results) exitFailure
+  when (any (== Right True) results) (exitWith (ExitFailure 2))
+  where
+    checkOne path = do
+      -- An unreadable file is a diagnostic like any other, not a crash: this
+      -- runs over a list, and one missing name must not lose the rest.
+      r <- try (TIO.readFile path) :: IO (Either IOException Text)
+      case r of
+        Left e -> do
+          hPutStrLn stderr (path ++ ": cannot be read (" ++ show e ++ ")")
+          pure (Left ())
+        Right txt -> report path txt
+    report path txt =
+      case decodeSketchText txt of
+        Left errs -> do
+          hPutStrLn stderr (path ++ ": not a valid sketch (" ++ show (length errs) ++ " problems)")
+          mapM_ (TIO.hPutStrLn stderr . ("  " <>)) errs
+          pure (Left ())
+        Right s -> do
+          let fs = checkSketch s
+              conflicts = [ f | f <- fs, fnSeverity f == Conflict ]
+          putStrLn (path ++ ": " ++ T.unpack (sxName s) ++ ", " ++ show (sxHP s) ++ "HP, "
+                    ++ show (length (sxControls s)) ++ " controls, " ++ show (length conflicts) ++ " conflicts")
+          forM_ fs $ \f -> TIO.putStrLn ("  " <> sev (fnSeverity f) <> " " <> fnKind f <> ": " <> fnMessage f)
+          pure (Right (not (null conflicts)))
+    sev Conflict = "CONFLICT"
+    sev Warning  = "warning "
+    sev Note     = "note    "

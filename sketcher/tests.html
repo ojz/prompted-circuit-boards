@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketcher Tests</title>
+<meta name="description" content="Runs the module sketcher's tests in a real browser, from a local file, against the vectors the generator wrote.">
+<link rel="stylesheet" href="style.css">
+<script src="catalogue.js"></script>
+<script src="vectors.js"></script>
+<script src="sketch-core.js"></script>
+<script src="sketchbook.js"></script>
+<script src="tests.js"></script>
+<style>
+  body { padding: 24px; max-width: 900px; margin: 0 auto; }
+  #summary { font-size: 18px; font-weight: 600; margin: 12px 0 20px; padding: 10px 14px; border-radius: 6px; }
+  #summary.ok { background: var(--note); color: #fff; }
+  #summary.bad { background: var(--conflict); color: #fff; }
+  ol { padding-left: 24px; }
+  li { margin: 3px 0; }
+  li.fail { color: var(--conflict); font-weight: 600; }
+  li .why { display: block; font-weight: 400; font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: pre-wrap; margin: 4px 0 8px 0; }
+  .env { font-size: 12px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<h1>Module Sketcher tests</h1>
+<p class="env" id="env"></p>
+<div id="summary">running…</div>
+<ol id="results"></ol>
+<script>
+(function () {
+  document.getElementById('env').textContent =
+    'Loaded from ' + (location.protocol === 'file:' ? 'a local file (file://), which is how the sketcher is meant to be opened' : location.protocol)
+    + ' · format ' + PCBGEN_CATALOGUE.format + ' v' + PCBGEN_CATALOGUE.version
+    + ' · ' + PCBGEN_CATALOGUE.hardware.length + ' hardware records, ' + PCBGEN_VECTORS.valid.length + ' fixtures, '
+    + PCBGEN_VECTORS.invalid.length + ' rejection cases';
+  var r = runSketcherTests();
+  var ok = r.passed === r.results.length;
+  var sum = document.getElementById('summary');
+  sum.className = ok ? 'ok' : 'bad';
+  sum.textContent = r.passed + '/' + r.results.length + ' tests passed';
+  var ol = document.getElementById('results');
+  r.results.forEach(function (t) {
+    var li = document.createElement('li');
+    li.className = t.ok ? '' : 'fail';
+    li.textContent = (t.ok ? 'PASS  ' : 'FAIL  ') + t.name;
+    t.failures.forEach(function (f) {
+      var s = document.createElement('span');
+      s.className = 'why';
+      s.textContent = f;
+      li.appendChild(s);
+    });
+    ol.appendChild(li);
+  });
+  // so a headless run can read one value
+  window.sketcherTestResult = { passed: r.passed, total: r.results.length, ok: ok };
+  console.log('sketcher tests: ' + r.passed + '/' + r.results.length + (ok ? ' PASS' : ' FAIL'));
+})();
+</script>
+</body>
+</html>

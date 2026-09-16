@@ -1,0 +1,145 @@
+/* Module Sketcher: a laptop design tool. Plain CSS, no framework, works
+   from file://. Colours are tokens so the fast-ui bundle and a dark OS both
+   read well. */
+:root {
+  --bg: #f4f1ea;
+  --panel: #fffdf8;
+  --ink: #1e1b16;
+  --ink-soft: #6b655c;
+  --rule: #d8d2c6;
+  --accent: #245a8d;
+  --accent-ink: #ffffff;
+  --conflict: #b3261e;
+  --warning: #a86a00;
+  --note: #4f6b3a;
+  --face: #e9e4d8;         /* the panel face */
+  --pcb: #9ac07a;          /* PCB zone tint */
+  --cell: #b8b0a2;
+  --front: #2d2a25;
+  --access: #245a8d;
+  --court: #8a3b8f;
+  --hole: #ffffff;
+  --sel: #d9822b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181b; --panel: #21232a; --ink: #ebe7df; --ink-soft: #a9a39a; --rule: #3a3d47;
+    --accent: #6ea8dc; --accent-ink: #0b1a2a; --conflict: #ff6b61; --warning: #f2b544; --note: #9bc27f;
+    --face: #2b2e37; --pcb: #4b6b3a; --cell: #545866; --front: #f2eee6; --access: #6ea8dc; --court: #c47cc9; --hole: #101114; --sel: #ffa552;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181b; --panel: #21232a; --ink: #ebe7df; --ink-soft: #a9a39a; --rule: #3a3d47;
+  --accent: #6ea8dc; --accent-ink: #0b1a2a; --conflict: #ff6b61; --warning: #f2b544; --note: #9bc27f;
+  --face: #2b2e37; --pcb: #4b6b3a; --cell: #545866; --front: #f2eee6; --access: #6ea8dc; --court: #c47cc9; --hole: #101114; --sel: #ffa552;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: 0.02em; }
+h2 { font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+p { margin: 6px 0; }
+.hint { color: var(--ink-soft); font-size: 12px; }
+.hidden { display: none !important; }
+.tag { font-size: 11px; text-transform: none; letter-spacing: 0; padding: 1px 6px; border: 1px solid var(--rule); border-radius: 10px; color: var(--ink-soft); }
+
+.app {
+  display: grid;
+  grid-template-columns: 290px 1fr 320px;
+  grid-template-rows: 48px 1fr;
+  grid-template-areas: "top top top" "left canvas right";
+  height: 100%;
+}
+.topbar { grid-area: top; display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--rule); background: var(--panel); }
+.topbar .status { flex: 1; color: var(--ink-soft); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.topbar-actions { display: flex; gap: 8px; }
+.sidebar { overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.sidebar.left { grid-area: left; border-right: 1px solid var(--rule); }
+.sidebar.right { grid-area: right; border-left: 1px solid var(--rule); }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; }
+.canvas-wrap { grid-area: canvas; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 16px; touch-action: none; }
+.canvas { max-height: calc(100vh - 80px); height: calc(100vh - 80px); width: auto; user-select: none; -webkit-user-select: none; }
+
+label { display: block; font-size: 12px; color: var(--ink-soft); margin: 6px 0; }
+label > input, label > select, label > textarea { display: block; width: 100%; margin-top: 2px; }
+label.check { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+label.check input { width: auto; margin: 0; }
+input[type="text"], input[type="number"], select, textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 5px 7px;
+}
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea { resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+button, .file-button {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 5px 10px; cursor: pointer;
+}
+button:hover, .file-button:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.file-button { display: inline-block; position: relative; overflow: hidden; }
+.file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: end; margin: 6px 0; }
+.row.four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.row.four label { margin: 0; }
+.row input[type="text"] { flex: 1; min-width: 60px; }
+
+ul.plain, .sketch-list, .findings { list-style: none; margin: 0; padding: 0; }
+.sketch-list li { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.sketch-list li:hover { background: var(--bg); }
+.sketch-list li.current { background: var(--accent); color: var(--accent-ink); }
+.sketch-list li .meta { margin-left: auto; font-size: 11px; opacity: 0.8; }
+.sketch-list li .badge { font-size: 11px; padding: 0 5px; border-radius: 8px; background: var(--conflict); color: #fff; }
+ul.plain li { display: flex; gap: 6px; align-items: center; padding: 2px 0; font-size: 13px; }
+ul.plain li button { padding: 1px 6px; font-size: 11px; }
+
+.palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.palette button { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; }
+.palette button.armed { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel); }
+.palette svg { width: 24px; height: 24px; flex: none; }
+
+.findings li { padding: 5px 8px; border-left: 3px solid var(--rule); margin: 4px 0; font-size: 12px; cursor: pointer; border-radius: 0 4px 4px 0; background: var(--bg); }
+.findings li.conflict { border-color: var(--conflict); }
+.findings li.warning { border-color: var(--warning); }
+.findings li.note { border-color: var(--note); color: var(--ink-soft); }
+.findings li:hover { filter: brightness(0.97); }
+.findings li .kind { font-weight: 600; margin-right: 6px; }
+
+/* SVG */
+.canvas .panel-face { fill: var(--face); stroke: var(--front); stroke-width: 0.3; }
+.canvas .pcb-zone { fill: var(--pcb); fill-opacity: 0.18; stroke: var(--pcb); stroke-width: 0.25; stroke-dasharray: 1.5 1; }
+.canvas .rail-hole { fill: var(--hole); stroke: var(--front); stroke-width: 0.2; }
+.canvas .rail-keepout { fill: none; stroke: var(--conflict); stroke-width: 0.15; stroke-dasharray: 0.6 0.6; opacity: 0.6; }
+.canvas .cell { fill: transparent; stroke: var(--cell); stroke-width: 0.15; stroke-dasharray: 0.8 0.8; }
+.canvas .cell.hot { fill: var(--sel); fill-opacity: 0.25; }
+.canvas .cell:hover { fill: var(--accent); fill-opacity: 0.12; }
+.canvas .ctl { cursor: grab; }
+.canvas .ctl.dragging { cursor: grabbing; opacity: 0.8; }
+.canvas .ctl .hole { fill: var(--hole); stroke: var(--front); stroke-width: 0.25; }
+.canvas .ctl .body { fill: var(--front); fill-opacity: 0.12; stroke: var(--front); stroke-width: 0.3; }
+.canvas .ctl .access { fill: none; stroke: var(--access); stroke-width: 0.2; stroke-dasharray: 1 0.7; opacity: 0.7; }
+.canvas .ctl .court { fill: var(--court); fill-opacity: 0.12; stroke: var(--court); stroke-width: 0.25; }
+.canvas .ctl .pointer { stroke: var(--front); stroke-width: 0.6; stroke-linecap: round; }
+.canvas .ctl .bat { stroke: var(--front); stroke-width: 1.2; stroke-linecap: round; }
+.canvas .ctl .led { fill: var(--note); fill-opacity: 0.8; }
+.canvas .ctl .label { font: 2.2px system-ui, sans-serif; fill: var(--front); text-anchor: middle; letter-spacing: 0.05em; pointer-events: none; }
+.canvas .ctl .idtext { font: 1.6px ui-monospace, monospace; fill: var(--ink-soft); text-anchor: middle; pointer-events: none; }
+.canvas .ctl.selected .body, .canvas .ctl.selected .court { stroke: var(--sel); stroke-width: 0.5; }
+.canvas .ctl.conflict .body, .canvas .ctl.conflict .court { stroke: var(--conflict); stroke-width: 0.5; }
+.canvas .ctl.warning .body { stroke: var(--warning); stroke-width: 0.4; }
+.canvas .ctl:focus { outline: none; }
+.canvas .ctl:focus .body { stroke: var(--accent); stroke-width: 0.6; }
+.canvas .scale { font: 2px ui-monospace, monospace; fill: var(--ink-soft); }
+.canvas .scale line { stroke: var(--ink-soft); stroke-width: 0.15; }
+.canvas .view-tag { font: 3px system-ui, sans-serif; fill: var(--ink-soft); }
+
+/* Phone and narrow windows: stack, canvas first. */
+@media (max-width: 1000px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 48px auto auto auto; grid-template-areas: "top" "canvas" "left" "right"; height: auto; }
+  .sidebar.left, .sidebar.right { border: none; border-top: 1px solid var(--rule); }
+  .canvas { height: 70vh; max-height: 70vh; }
+  .canvas-wrap { padding: 8px 16px; }
+  body { padding-bottom: 16px; }
+}

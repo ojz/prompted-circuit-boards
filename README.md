@@ -63,7 +63,9 @@ been removed.
 1. Describe or change a module in `modules/<name>/<Name>.hs` and write or
    update `docs/modules/<name>/SPEC.md` with the operating limits, geometry and
    intent. Today the Haskell design supplies the netlist and placement. The
-   planned sketcher/layout bridge is not implemented or an additional input yet.
+   [module sketcher](docs/SKETCHER.md) can draw a panel idea first, but the
+   bridge from a sketch into a design is not implemented, so a sketch is not
+   yet an input to generation.
 2. Generate the KiCad projects from the repository root (`all`, or one design
    name):
    ```
@@ -90,10 +92,10 @@ been removed.
 
 `toolkit/pipeline.sh <name> [--fab]` combines generation, native checks and
 optional export. Final panel artwork and fabrication remain deferred; the
-[shared panel language](docs/MECHANICAL.md#panel-layout-language) and
-[browser-only sketcher milestones](docs/ROADMAP.md#s1-shared-panel-model-and-checks-queued)
-are authorized work now. An export does not constitute approval to purchase
-or a claim of measured performance.
+[shared panel language](docs/MECHANICAL.md#panel-layout-language) is adopted
+and the [module sketcher](docs/SKETCHER.md) is built, a local HTML editor for
+panel ideas that produces no circuit and no cutting file. An export does not
+constitute approval to purchase or a claim of measured performance.
 
 ## Repository layout
 
@@ -107,6 +109,8 @@ modules/<name>/     one directory per module:
   <Name>.hs           design source (module), <Name>Panel.hs (front panel)
   kicad/, kicad/panel/  generated KiCad projects (committed)
   build/              verification and fabrication output (ignored)
+sketcher/          the browser panel editor; catalogue.js and vectors.js are generated
+sketches/          saved panel sketches; _fixtures/ is generated
 docs/              specifications, setup, roadmap, handoff and generated reports
    decisions/         editable user decision inbox; processed files are retired
    modules/<name>/    specification and generated routing report

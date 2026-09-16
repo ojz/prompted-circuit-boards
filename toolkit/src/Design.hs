@@ -27,6 +27,7 @@ module Design
   , Module (..)
   , pcbNetName
   , eurorackPanelWidth
+  , eurorackPanelWidths
   , eurorackPanelHeight
   , eurorackPcbHeight
   , eurorackPcbTop
@@ -284,22 +285,19 @@ data Module = Module
 -- (a100m_e.htm) rounds the nominal @HP × 5.08 − 0.3@ to these values; the
 -- formula is used for sizes the table does not list.
 eurorackPanelWidth :: Int -> Double
-eurorackPanelWidth hp = case hp of
-  1  -> 5.00
-  2  -> 9.80
-  4  -> 20.00
-  6  -> 30.00
-  8  -> 40.30
-  10 -> 50.50
-  12 -> 60.60
-  14 -> 70.80
-  16 -> 80.90
-  18 -> 91.30
-  20 -> 101.30
-  22 -> 111.40
-  28 -> 141.90
-  42 -> 213.00
-  _  -> fromIntegral hp * 5.08 - 0.3
+eurorackPanelWidth hp =
+  maybe (fromIntegral hp * 5.08 - 0.3) id (lookup hp eurorackPanelWidths)
+
+-- | The widths Doepfer's table lists explicitly, in order. Which widths are
+-- tabulated is a separate fact from what a given width measures, and it
+-- cannot be recovered from 'eurorackPanelWidth', so it lives here once: the
+-- sketch checks warn about a width off this table and the browser is given
+-- the same list rather than a second copy of these numbers.
+eurorackPanelWidths :: [(Int, Double)]
+eurorackPanelWidths =
+  [ (1, 5.00), (2, 9.80), (4, 20.00), (6, 30.00), (8, 40.30), (10, 50.50)
+  , (12, 60.60), (14, 70.80), (16, 80.90), (18, 91.30), (20, 101.30)
+  , (22, 111.40), (28, 141.90), (42, 213.00) ]
 
 -- | Doepfer 3U front panel height.
 eurorackPanelHeight :: Double

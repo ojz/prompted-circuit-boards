@@ -8,18 +8,30 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-15 by Claude Code (home laptop), after processing the user's
-logic-module notes into the R5 draft plan and one architecture decision.
+Updated 2026-09-16 by Claude Code (home laptop), after implementing the shared
+panel model and the browser module sketcher (roadmap S1 and S2).
 Use [README.md](README.md) as the document register and short code map. This
 handoff holds current evidence and next actions, not a session history.
 
 ## Current Position
 
-- **Next coding task: S1, then S2 at its gate.** The user requested programming
-  work for the next token window, the evening of 2026-09-16. The shared panel
-  model, local HTML sketcher and later generator bridge are queued in
-  [ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-queued), not implemented
-  or scheduled to run automatically. The editor requires no backend.
+- **The module sketcher exists and is tested.** Roadmap S1 and S2 landed on
+  2026-09-16. `sketcher/index.html` opens in a browser with no backend and
+  edits a sketchbook of module panels; the `pcbgen-sketch` v1 format, hardware
+  catalogue and geometry checks live in `toolkit/src/Sketch/`.
+  [SKETCHER.md](SKETCHER.md) is the guide. Evidence: `cabal test` covers the
+  Haskell, and 26 browser tests pass under node and in `sketcher/tests.html`,
+  checked against vectors the generator writes, so the JavaScript geometry is
+  held to the Haskell numbers rather than a second hand-kept copy of the panel
+  dimensions. A placement test compares a sketched pot with where
+  `Attenuverter.hs` actually put `RV1`.
+  **Open:** the rendered desktop and mobile screenshots in S2's gate were not
+  captured, because the browser extension in that session could not open a
+  local page or a localhost server.
+  **What it does not do:** no KiCad file, circuit, netlist or cutting file.
+  The generator bridge is S3 and is not started. The grid pitches it offers
+  are candidates, and most front-of-panel envelopes it checks are estimates;
+  the editor reports both as notes on every sketch.
 - **R5 Boolean + Clock has a draft plan.** The user's 2026-09-15 inbox note
   is integrated into [modules/boolean-clock/SPEC.md](modules/boolean-clock/SPEC.md):
   `A AND NOT B` defined and provided in both orders, a proposed behavior table
@@ -60,14 +72,31 @@ handoff holds current evidence and next actions, not a session history.
 
 ## Latest Change
 
-- Processed the inbox note `2026-09-15-thoughts.md` (its text is quoted
-  verbatim in the R5 plan) and deleted it. Created the R5 draft specification
-  and the architecture decision file; added the R5 row's links and the
-  fixed-pattern sequencer entry to [ROADMAP.md](ROADMAP.md); recorded the
-  provisional diagonally-offset LED convention in
-  [MECHANICAL.md](MECHANICAL.md#panel-layout-language); registered both new
-  files in [README.md](README.md). Documentation only: no code, CAD, model or
-  deck changed, so no regeneration or test run was owed.
+- **Built the shared panel model and the module sketcher (roadmap S1 and S2).**
+  New: `toolkit/src/Sketch/` (the `pcbgen-sketch` v1 format with a strict JSON
+  reader written rather than added as a dependency, the hardware and grid
+  catalogue, the geometry checks, the fixtures and the browser export),
+  `toolkit/test/SketchTests.hs`, the editor under `sketcher/`, generated
+  fixtures under `sketches/_fixtures/`, and [SKETCHER.md](SKETCHER.md).
+  Two new commands: `pcbgen sketcher` regenerates what the browser reads, and
+  `pcbgen sketch <file>` validates sketches and fails closed.
+- On the user's 2026-09-16 direction the editor holds a **sketchbook of
+  several modules** rather than one, so a session can move between ideas, and
+  the generator emits a single-file bundle for the fast-ui channel. That
+  exchange was tested end to end: a page wrote a sketch into its storage, the
+  agent read it back through `get_state`, and the recovered text is byte for
+  byte the file the generator writes.
+- Two defects found and fixed while checking, both about the exchange rather
+  than the drawing. The generator wrote CRLF on Windows while the browser
+  writes LF, so the same sketch was two different files on disk; `pcbgen`
+  now writes these outputs through an explicit LF handle and a test refuses a
+  carriage return in encoded text. And `pcbgen sketch` crashed on a missing
+  file instead of reporting it and moving to the next one.
+- Documentation reconciled in the same task: the roadmap's S1/S2 sections and
+  next work item, [MECHANICAL.md](MECHANICAL.md#panel-layout-language) (the
+  diagonal LED offset can now be checked but is still not a chosen number, and
+  the sketcher does not close the fit gate), [README.md](README.md), the root
+  README and the toolchain section of [AGENTS.md](../AGENTS.md).
 - The earlier 2026-09-15 work-laptop checkpoint recorded the no-menu,
   visible persistent-control rule and the S1-S3 gates in
   [AGENTS.md](../AGENTS.md#rules) and the roadmap; the hardware inbox's stale
@@ -101,6 +130,18 @@ and its same-day readiness review, not a new run after documentation edits:
 | `toolkit/test-scripts.sh` | 79 passed, 0 failed; native checks, scratch export/refusals, simulator stubs and report checks |
 | Mult native check during readiness review | board ERC/DRC/parity and renders passed |
 | 2026-09-15 documentation checks | YAML lifecycle fields, local links/anchors, register coverage, retained pending answers and whitespace checked; no code/CAD change requiring regeneration |
+
+Home laptop, 2026-09-16, GHC 9.6.7 / cabal 3.18.1.0, for the sketcher work:
+
+| Check | Result |
+|---|---|
+| `cabal test --test-show-details=direct` | 103/103 passed; the sketch suite adds format, geometry, catalogue and export cases to the existing 102 |
+| `node sketcher/tests.js` | 27/27 passed, covering the format, the geometry against generator-written vectors, sparse placement, editing, undo/redo, width-change conflicts, save/reopen, malformed input and storage failure |
+| `node sketcher/smoke.js` | 11/11 passed; starts the editor against a DOM stub and places a control, changes the width, undoes, refuses a bad paste and switches to the rear view, so the editor's own 35 kB of code runs at least once |
+| `sketcher/tests.html` in a browser | not run; the browser extension in this session could not open a local page or a localhost server, so the page-rendered run and S2's screenshots are still owed |
+| `pcbgen sketch` on the three fixtures | clean fixture exits 0 with notes only, the conflict fixture exits 2 with nine conflicts, a malformed file and a missing file each exit 1 with a diagnostic |
+| fast-ui exchange | a page's stored sketch returned through `get_state` is byte-identical to the generator's file |
+| Board designs, simulation, pipeline and benchmark | not rerun; no design, model, deck or router code was touched |
 
 The full mult pipeline/panel, benchmark, field-solver and node-budget checks were
 not rerun for the readiness review. Its analyzers, PDF evidence, skipped thermal

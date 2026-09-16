@@ -44,6 +44,12 @@ library
         Route.Check
         Route.Router
         Route.Extract
+        Sketch.Json
+        Sketch.Catalogue
+        Sketch.Model
+        Sketch.Check
+        Sketch.Fixtures
+        Sketch.Export
         Attenuverter
         AttenuverterPanel
         Mult
@@ -69,4 +75,5 @@ test-suite pcbgen-test
                       ValidateTests
                       RouteTests
                       BenchTests
+                      SketchTests
     build-depends:    pcbgen
