@@ -1,12 +1,10 @@
-// smoke.js: run the editor itself against a minimal DOM stub, so the code in
+// smoke.js: run the page itself against a minimal DOM stub, so the code in
 // sketcher.js executes outside a browser. `node sketcher/smoke.js`
 //
-// tests.js covers the format, the geometry and the sketchbook, none of which
-// touch the DOM. This covers the rest: that the page's ids and the script
-// agree, that startup renders, and that the first things a user does do not
-// throw. It is not a rendering test and says nothing about how the page looks;
-// the browser test page (tests.html) and a human eye are still what confirm
-// that. It exists because a browser is not always available to the agent.
+// tests.js covers the format and the sketchbook, neither of which touches the
+// DOM. This covers the rest: that the page's ids and the script agree, that
+// it renders, and that the first things a user does do not throw. It is not a
+// rendering test and says nothing about how the page looks.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -22,7 +20,6 @@ function parseIds(html) {
   return ids;
 }
 
-// The smallest element that the editor's DOM and SVG calls can run against.
 class El {
   constructor(tag, ns) {
     this.tagName = (tag || 'div').toUpperCase();
@@ -33,12 +30,12 @@ class El {
     this.value = '';
     this.checked = false;
     this.disabled = false;
+    this.draggable = false;
     this.style = {};
     this.dataset = {};
     this.listeners = {};
     this.className = '';
     this.files = null;
-    this.open = false;
     const self = this;
     this.classList = {
       add(c) { if (!self.className.split(' ').includes(c)) self.className = (self.className + ' ' + c).trim(); },
@@ -56,18 +53,21 @@ class El {
   removeChild(c) { this.children = this.children.filter(x => x !== c); return c; }
   addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); }
   removeEventListener(t, f) { if (this.listeners[t]) this.listeners[t] = this.listeners[t].filter(x => x !== f); }
-  dispatch(t, ev) { (this.listeners[t] || []).forEach(f => f.call(this, ev || {})); }
+  // `onclick = fn` is how sketcher.js wires most buttons; dispatch honours both.
+  dispatch(t, ev) {
+    const inline = this['on' + t];
+    if (typeof inline === 'function') inline.call(this, ev || {});
+    (this.listeners[t] || []).forEach(f => f.call(this, ev || {}));
+  }
   focus() { doc.activeElement = this; }
   blur() { doc.activeElement = null; }
-  setPointerCapture() {}
-  createSVGPoint() { return { x: 0, y: 0, matrixTransform() { return { x: 0, y: 0 }; } }; }
-  getScreenCTM() { return { inverse() { return {}; } }; }
+  select() { /* a real input selects its text; nothing to do here */ }
+  setSelectionRange() {}
   querySelector(sel) {
-    const m = /^\[data-id="(.*)"\]$/.exec(sel);
-    const want = m ? m[1] : null;
+    const m = /^\[data-col="(\d+)"\]\[data-row="(\d+)"\]$/.exec(sel);
     const walk = (n) => {
       for (const c of n.children) {
-        if (want !== null && c.attrs['data-id'] === want) return c;
+        if (m && c.attrs['data-col'] === m[1] && c.attrs['data-row'] === m[2]) return c;
         const r = walk(c);
         if (r) return r;
       }
@@ -139,10 +139,18 @@ function check(name, fn) {
   try { fn(); console.log('PASS  ' + name); }
   catch (e) { failures++; console.log('FAIL  ' + name + '\n      ' + (e && e.stack || e)); }
 }
+function cellNode(col, row) {
+  return doc.getElementById('grid').querySelector('[data-col="' + col + '"][data-row="' + row + '"]');
+}
 
-check('startup created a sketch and rendered without throwing', () => {
+check('startup made an empty sketch and drew the grid', () => {
   if (api.store.ids().length !== 1) throw new Error('ids ' + JSON.stringify(api.store.ids()));
-  if (!api.store.get()) throw new Error('no current sketch');
+  const s = api.store.get();
+  if (s.cells.length !== 0) throw new Error('not empty');
+  const cells = s.columns * s.rows;
+  if (doc.getElementById('grid').children.length !== cells) {
+    throw new Error('drew ' + doc.getElementById('grid').children.length + ' of ' + cells + ' cells');
+  }
 });
 
 check('startup mirrored the sketchbook into storage', () => {
@@ -151,69 +159,95 @@ check('startup mirrored the sketchbook into storage', () => {
   if (!backing['sketch:' + ids[0]]) throw new Error('no sketch written');
 });
 
-check('the palette rendered one button per catalogue part', () => {
-  const pal = doc.getElementById('palette');
-  const n = sandbox.PCBGEN_CATALOGUE.hardware.length;
-  if (pal.children.length !== n) throw new Error('palette has ' + pal.children.length + ' of ' + n);
+check('the palette has one button per kind', () => {
+  const n = sandbox.SKETCH_CATALOGUE.kinds.length;
+  const got = doc.getElementById('palette').children.length;
+  if (got !== n) throw new Error('palette has ' + got + ' of ' + n);
 });
 
-check('the canvas drew the panel', () => {
-  const c = doc.getElementById('canvas');
-  if (!c.getAttribute('viewBox')) throw new Error('no viewBox');
-  if (c.children.length === 0) throw new Error('nothing drawn');
+check('clicking a cell places the armed kind', () => {
+  cellNode(0, 0).dispatch('click');
+  const s = api.store.get();
+  if (s.cells.length !== 1) throw new Error('cells ' + s.cells.length);
+  if (api.core.at(s, 0, 0).kind !== sandbox.SKETCH_CATALOGUE.kinds[0].id) throw new Error('wrong kind');
 });
 
-check('arming a palette part and clicking a cell places a control', () => {
-  doc.getElementById('palette').children[0].dispatch('click');
-  const root = doc.getElementById('canvas').children[0];
-  const cell = root.children.find(x => x.className && x.className.includes('cell'));
-  if (!cell) throw new Error('no cell drawn to click');
-  cell.dispatch('pointerdown', { stopPropagation() {}, preventDefault() {} });
-  if (api.store.get().controls.length !== 1) throw new Error('controls ' + api.store.get().controls.length);
+check('choosing another part in the palette changes what gets placed', () => {
+  const jack = sandbox.SKETCH_CATALOGUE.kinds.findIndex(k => k.id === 'jack');
+  doc.getElementById('palette').children[jack].dispatch('click');
+  cellNode(1, 0).dispatch('click');
+  if (api.core.at(api.store.get(), 1, 0).kind !== 'jack') throw new Error('kind not switched');
 });
 
-check('the findings list rendered for the placed control', () => {
-  if (doc.getElementById('findings').children.length === 0) throw new Error('no findings rendered');
-  if (!doc.getElementById('findings-summary').textContent.includes('conflicts')) throw new Error('no summary');
+check('a second click on a filled cell opens its label field', () => {
+  cellNode(1, 0).dispatch('click');   // selects
+  cellNode(1, 0).dispatch('click');   // opens the label
+  if (!api.ui.editingLabel) throw new Error('label editing did not open');
+  const input = cellNode(1, 0).children.find(c => c.tagName === 'INPUT');
+  if (!input) throw new Error('no input rendered');
+  input.value = 'IN 1';
+  input.dispatch('keydown', { key: 'Enter', preventDefault() {} });
+  if (api.core.at(api.store.get(), 1, 0).label !== 'IN 1') throw new Error('label not saved');
 });
 
-check('changing the width keeps the control and is undoable', () => {
-  const sel = doc.getElementById('sketch-hp');
-  sel.value = '4';
-  sel.dispatch('change');
-  if (api.store.get().hp !== 4) throw new Error('hp ' + api.store.get().hp);
-  if (api.store.get().controls.length !== 1) throw new Error('control lost');
+check('the note reports the grid and the width it implies', () => {
+  const t = doc.getElementById('note').textContent;
+  if (!/\d+ x \d+ grid/.test(t)) throw new Error('no grid size: ' + t);
+  if (!/HP/.test(t)) throw new Error('no implied width: ' + t);
+});
+
+check('the steppers grow the grid and stop at the derived maximum', () => {
+  const before = api.store.get().columns;
+  doc.getElementById('col-more').dispatch('click');
+  if (api.store.get().columns !== before + 1) throw new Error('columns did not grow');
+  for (let i = 0; i < 10; i++) doc.getElementById('col-more').dispatch('click');
+  if (api.store.get().columns !== api.core.maxColumns) throw new Error('columns ' + api.store.get().columns);
+  if (!doc.getElementById('col-more').disabled) throw new Error('the + button is still enabled at the maximum');
+});
+
+check('shrinking over a component is refused and says which one', () => {
+  const s = api.store.get();
+  api.store.edit(x => api.edits.put(x, s.columns - 1, 0, 'knob', 'EDGE'));
+  api.render();
+  const before = JSON.stringify(api.store.get());
+  doc.getElementById('col-less').dispatch('click');
+  if (JSON.stringify(api.store.get()) !== before) throw new Error('the grid shrank anyway');
+  if (!/EDGE/.test(doc.getElementById('status').textContent)) {
+    throw new Error('the message does not name it: ' + doc.getElementById('status').textContent);
+  }
+});
+
+check('backspace on a cell clears it', () => {
+  cellNode(0, 0).dispatch('keydown', { key: 'Backspace', preventDefault() {} });
+  if (api.core.at(api.store.get(), 0, 0)) throw new Error('still there');
+});
+
+check('undo restores it', () => {
   doc.getElementById('undo').dispatch('click');
-  if (api.store.get().hp === 4) throw new Error('undo did nothing');
+  if (!api.core.at(api.store.get(), 0, 0)) throw new Error('undo did nothing');
 });
 
-check('new module adds a second sketch and selects it', () => {
-  doc.getElementById('new-sketch').dispatch('click');
+check('New adds a second module and Copy a third', () => {
+  doc.getElementById('new').dispatch('click');
   if (api.store.ids().length !== 2) throw new Error('ids ' + JSON.stringify(api.store.ids()));
+  doc.getElementById('dup').dispatch('click');
+  if (api.store.ids().length !== 3) throw new Error('copy did not add one');
 });
 
 check('pasting a malformed sketch reports and changes nothing', () => {
   const before = JSON.stringify(api.store.get());
-  doc.getElementById('paste-json').value = '{"format": "pcbgen-sketch", "version": 9}';
+  doc.getElementById('paste').value = '{"format": "module-sketch", "version": 9}';
   doc.getElementById('import-replace').dispatch('click');
   if (JSON.stringify(api.store.get()) !== before) throw new Error('sketch changed');
-  if (!doc.getElementById('import-result').textContent.startsWith('Not imported')) {
-    throw new Error('no refusal message: ' + doc.getElementById('import-result').textContent);
+  if (!/Not imported/.test(doc.getElementById('status').textContent)) {
+    throw new Error('no refusal message: ' + doc.getElementById('status').textContent);
   }
 });
 
 check('pasting a good sketch replaces the current module', () => {
-  doc.getElementById('paste-json').value = api.core.stringify(api.core.newSketch('Pasted', 6, 'candidate-15'));
+  doc.getElementById('paste').value = api.core.stringify(api.core.emptySketch('Pasted', 2, 2));
   doc.getElementById('import-replace').dispatch('click');
   if (api.store.get().name !== 'Pasted') throw new Error('name ' + api.store.get().name);
-});
-
-check('the rear view redraws mirrored', () => {
-  const v = doc.getElementById('view-rear');
-  v.checked = true;
-  v.dispatch('change');
-  const root = doc.getElementById('canvas').children[0];
-  if (!/scale\(-1,1\)/.test(root.getAttribute('transform') || '')) throw new Error('not mirrored');
 });
 
 console.log('');

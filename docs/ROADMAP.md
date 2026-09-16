@@ -241,8 +241,8 @@ Equipment and reviewed procedures must exist before the tests that require them.
 CI (M3) proceeds in parallel and is owed before the first order.
 
 Independent software track, approved 2026-09-15:
-S1 Shared panel model and checks [DONE 2026-09-16]
-  -> S2 Browser-only module sketcher [DONE 2026-09-16, one gate item open]
+S1 Shared panel model [DONE 2026-09-16]
+  -> S2 Browser module sketcher [DONE 2026-09-16, one gate item open]
   -> S3 Generator bridge and panel exports [PLANNED; after S1/S2]
 S1/S2 may use explicitly provisional geometry; physical fit gates real layouts and cutting.
 ```
@@ -278,71 +278,53 @@ Open: **CI on a runner with KiCad 10 and its libraries.** This is owed before
 the first order, because an order is the first time a stale local pass would
 cost money. Local test passes do not close this gate.
 
-### S1: Shared Panel Model And Checks [DONE 2026-09-16]
+### S1: Shared Panel Model [DONE 2026-09-16]
 
-Gate met. The `pcbgen-sketch` version 1 format, the hardware and grid
-catalogue and the geometry checks live in `toolkit/src/Sketch/`, with their
-tests in `toolkit/test/SketchTests.hs`. Use [SKETCHER.md](SKETCHER.md) for
-what the format holds and how to regenerate what the browser reads.
+Gate met, then simplified the same day on the user's direction. The first
+version modelled millimetres, grid profiles and clearance conflicts; the user
+judged it far too much for what a sketch is for. What remains is the part that
+earns its keep: a strict `module-sketch` v2 format, four component kinds, and
+**limits derived from the hardware instead of chosen** — at most six columns
+and six rows, computed in
+[Sketch/Catalogue.hs](../toolkit/src/Sketch/Catalogue.hs) from the footprint
+courtyards and the 100 mm board.
 
-What the gate asked for and what answers it:
+That derivation answered the open question about grid height. **Eight rows is
+not possible**: it forces 11.5 mm spacing and two 3.5 mm jacks cannot stack
+closer than 13.6 mm. Seven forces 13.44 mm and is also out. Six is the
+ceiling, and six columns already needs the full 20 HP.
 
-- **Round-trip without losing intent.** The sparse mixed-control fixture keeps
-  its empty cells, its two-cell span, the offset that puts an LED beside its
-  jack, a rotation and a group through encode and decode, and printing is
-  deterministic.
-- **Invalid input fails clearly.** Twenty-four rejection cases cover wrong
-  version and format, a width that is not a panel, duplicate and malformed
-  ids, unknown hardware, non-finite and NaN coordinates, zero and negative
-  pitch, zero spans, fractional cells, disallowed rotations, unknown fields at
-  every level, a dangling group, an invented status and malformed JSON. Every
-  problem is reported at once, each naming its path.
-- **Geometry agrees with the skeleton and the existing transforms.** Placement
-  goes through `Block.Eurorack`'s `skeleton`, `toBoard` and `originFor`; a test
-  places a pot through the sketch model and compares the result with where
-  `Attenuverter.hs` actually put `RV1`.
-- **Shared, not duplicated.** `cabal run pcbgen -- sketcher` writes the
-  catalogue, the form-factor numbers and the test vectors as JavaScript, so
-  the browser is held to the Haskell numbers instead of keeping a second set
-  of panel dimensions.
+Invalid input still fails clearly: twenty-three rejection cases, every problem
+reported at once, each naming its path. What is gone is the class of check
+that a better data structure removed — a cell holds one component or nothing,
+so overlaps cannot be expressed.
 
-Hardware records carry hole, front envelope, courtyard, footprint anchor and
-an evidence status; unverified envelopes drive notes and warnings and never a
-fit claim. Blank cells create nothing. The format describes a panel idea and
-carries no netlist.
+### S2: Browser Module Sketcher [DONE 2026-09-16, one gate item open]
 
-### S2: Browser-Only Module Sketcher [DONE 2026-09-16, one gate item open]
+`sketcher/index.html` opens in a browser with no backend, login, cloud
+storage, CDN or development server. [SKETCHER.md](SKETCHER.md) is its guide.
 
-`sketcher/index.html` opens in a browser with no backend, login, cloud storage,
-CDN or development server. [SKETCHER.md](SKETCHER.md) is its guide.
+It is a grid of cells and a palette of four kinds. Place, rename, drag to
+move, Backspace to clear, plus and minus for the grid size, undo and redo per
+module, several modules in a list. There is no panel drawing, no size picker
+and no millimetre anywhere in the interface; the only physical fact it shows
+is the minimum panel width a column count implies, as a note.
 
-Gate items met: sparse placement, editing, undo/redo, width-change conflicts
-and save/reopen equivalence are covered by 27 tests that run both under node
-(`node sketcher/tests.js`) and in the browser (`sketcher/tests.html`), against
-the vectors the generator wrote. Malformed input and a cancelled file open
-leave the current work intact, and a malformed stored sketch is reported
-rather than deleted. Changing the width moves and drops nothing; what no
-longer fits is listed. Pointer, keyboard and touch all reach every control.
+Gate items met: placement, editing, undo/redo, resize conflicts and
+save/reopen equivalence are covered by 21 tests that run under node
+(`node sketcher/tests.js`) and in the browser (`sketcher/tests.html`) against
+vectors the generator wrote. Malformed input and a cancelled file open leave
+the current work intact, and a malformed stored sketch is reported rather than
+deleted. Shrinking the grid over a component is refused with the component
+named, so nothing is dropped silently. Those tests never touch the DOM, so
+`node sketcher/smoke.js` runs the page itself against a minimal DOM stub,
+fourteen checks.
 
-Those tests never touch the DOM, so `node sketcher/smoke.js` runs the editor
-itself against a minimal DOM stub: startup, placing a control, a width change,
-an undo, a refused paste and the rear view, eleven checks. It exists because
-the agent could not open a browser in this session, and it is why the editor's
-own code is known to run at all.
-
-Beyond the gate, on the user's 2026-09-16 direction: the editor holds a
-**sketchbook of several modules**, each with its own undo history and storage
-key, so a session can move between module ideas; and the generator emits a
-single-file bundle for the fast-ui channel, so the agent can put a panel on
-screen and read every sketch back.
-
-**Open gate item: the rendered screenshots.** Desktop and mobile screenshots
-of the editor were not captured. The browser extension available in the
-2026-09-16 session could not open a local page or a localhost server, and the
-check was stopped rather than worked around after three attempts. The layout
-has a phone breakpoint and the runs above cover the logic and the code paths,
-but nothing has confirmed how the page looks. Close this by opening
-`sketcher/index.html`, at a window width and at a phone width, and looking.
+**Open gate item: the rendered screenshots.** The browser extension available
+in the 2026-09-16 session could not open a local page or a localhost server,
+and the check was stopped after three attempts rather than worked around.
+Close it by opening `sketcher/index.html`, at a window width and at a phone
+width, and looking.
 
 ### S3: Generator Bridge And Panel Exports [PLANNED]
 

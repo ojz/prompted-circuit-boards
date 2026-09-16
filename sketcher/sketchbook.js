@@ -1,15 +1,11 @@
-// sketchbook.js: the editor's state, without a DOM. A sketchbook is a set of
-// module sketches (docs/ROADMAP.md S2, extended 2026-09-16 to hold several
-// modules so the agent and the user can work on more than one idea). Every
-// edit is a pure function from a sketch to a sketch; the store keeps an undo
-// and redo stack per sketch and mirrors each sketch into storage under its
-// own key, so the fast-ui page and a plain file:// page share the code.
+// sketchbook.js: the editor's state, without a DOM. A sketchbook holds
+// several module sketches; every edit is a pure function from a sketch to a
+// sketch, each sketch has its own undo stack, and each is mirrored into
+// storage under its own key.
 //
-// Storage layout (localStorage, or fast-ui's server-backed shim of it):
-//   sketchbook.index  -> JSON {"version": 1, "order": [id, ...], "current": id}
-//   sketch:<id>       -> the sketch's JSON text, exactly as it would be saved
-// The index is the only key that says which sketches exist; a sketch key
-// without an index entry is recovered on load rather than lost.
+// Storage (localStorage, or fast-ui's server-backed shim of it):
+//   sketchbook.index  -> {"version": 2, "order": [id, ...], "current": id}
+//   sketch:<id>       -> the sketch's JSON text, as it would be saved
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) { module.exports = factory(); }
   else { root.Sketchbook = factory(); }
@@ -19,114 +15,66 @@
   var INDEX_KEY = 'sketchbook.index';
   var SKETCH_PREFIX = 'sketch:';
   var HISTORY_LIMIT = 200;
+  var ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
 
-  // Sketch edits ----------------------------------------------------------------
-  // Each takes a canonical sketch (core.canonical) and returns a new one.
-  // They never move or drop other controls: a narrower panel leaves controls
-  // where they are and the checks report them outside.
+  // Edits. Shrinking the grid is refused while a component sits outside the
+  // new size, so nothing disappears behind the user's back.
   function edits(core) {
-    function withControls(s, controls) {
-      var t = clone(s); t.controls = controls; return core.canonical(t);
-    }
-    function findIndex(s, id) {
-      for (var i = 0; i < s.controls.length; i++) if (s.controls[i].id === id) return i;
-      return -1;
-    }
-    function uniqueId(s, base) {
-      var ids = Object.create(null);
-      s.controls.forEach(function (c) { ids[c.id] = true; });
-      var stem = (base || 'ctl').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 30) || 'ctl';
-      if (!ids[stem]) return stem;
-      for (var n = 2; ; n++) { var cand = stem + '-' + n; if (!ids[cand]) return cand; }
+    function withCells(s, cells) {
+      var t = clone(s); t.cells = cells; return core.canonical(t);
     }
     return {
-      uniqueId: uniqueId,
-      findIndex: findIndex,
-      get: function (s, id) { var i = findIndex(s, id); return i < 0 ? null : core.expand(s.controls[i]); },
-      setHP: function (s, hp) { var t = clone(s); t.hp = hp; return core.canonical(t); },
       setName: function (s, name) { var t = clone(s); t.name = name; return core.canonical(t); },
-      setStatus: function (s, status) { var t = clone(s); t.status = status; return core.canonical(t); },
-      setNotes: function (s, notes) { var t = clone(s); t.notes = notes; return core.canonical(t); },
-      setGrid: function (s, grid) { var t = clone(s); t.grid = clone(grid); return core.canonical(t); },
-      // Re-derive the default origin for the current width and a profile.
-      applyProfile: function (s, profileId) { var t = clone(s); t.grid = core.defaultGrid(s.hp, profileId); return core.canonical(t); },
-      addControl: function (s, hardwareId, cell, props) {
-        var hw = core.hardware(hardwareId);
-        if (!hw) throw new Error('unknown hardware ' + hardwareId);
-        var c = { id: uniqueId(s, (props && props.id) || hw.role), hardware: hardwareId, cell: { col: cell.col, row: cell.row },
-                  span: { cols: 1, rows: 1 }, offset: { x: 0, y: 0 }, rotation: 0, label: '', group: null };
-        if (props) Object.keys(props).forEach(function (k) { if (k !== 'id') c[k] = clone(props[k]); });
-        return withControls(s, s.controls.concat([c]));
+      resize: function (s, columns, rows) {
+        if (columns < 1 || columns > core.maxColumns) throw new Error('columns must be 1 to ' + core.maxColumns);
+        if (rows < 1 || rows > core.maxRows) throw new Error('rows must be 1 to ' + core.maxRows);
+        var stranded = s.cells.filter(function (c) { return c.col >= columns || c.row >= rows; });
+        if (stranded.length) {
+          throw new Error('clear ' + stranded.map(function (c) {
+            return (c.label || c.kind) + ' at ' + (c.col + 1) + ',' + (c.row + 1);
+          }).join(' and ') + ' first');
+        }
+        var t = clone(s); t.columns = columns; t.rows = rows; return core.canonical(t);
       },
-      updateControl: function (s, id, changes) {
-        var i = findIndex(s, id);
-        if (i < 0) return s;
-        var c = core.expand(s.controls[i]);
-        Object.keys(changes).forEach(function (k) { c[k] = clone(changes[k]); });
-        var controls = s.controls.slice(); controls[i] = c;
-        return withControls(s, controls);
+      put: function (s, col, row, kindId, label) {
+        if (!core.kind(kindId)) throw new Error('unknown kind ' + kindId);
+        var rest = s.cells.filter(function (c) { return !(c.col === col && c.row === row); });
+        return withCells(s, rest.concat([{ col: col, row: row, kind: kindId, label: label || '' }]));
       },
-      renameControl: function (s, id, newId) {
-        if (!core.validIdentifier(newId)) throw new Error('not an identifier: ' + newId);
-        if (newId !== id && findIndex(s, newId) >= 0) throw new Error('id already used: ' + newId);
-        return this.updateControl(s, id, { id: newId });
+      clear: function (s, col, row) {
+        return withCells(s, s.cells.filter(function (c) { return !(c.col === col && c.row === row); }));
       },
-      moveControl: function (s, id, cell) { return this.updateControl(s, id, { cell: { col: cell.col, row: cell.row } }); },
-      nudgeControl: function (s, id, dcol, drow) {
-        var c = this.get(s, id); if (!c) return s;
-        return this.moveControl(s, id, { col: c.cell.col + dcol, row: c.cell.row + drow });
+      setLabel: function (s, col, row, label) {
+        var c = core.at(s, col, row);
+        return c ? this.put(s, col, row, c.kind, label) : s;
       },
-      rotateControl: function (s, id, steps) {
-        var c = this.get(s, id); if (!c) return s;
-        var hw = core.hardware(c.hardware);
-        var i = hw.rotations.indexOf(c.rotation);
-        var next = hw.rotations[(((i < 0 ? 0 : i) + steps) % hw.rotations.length + hw.rotations.length) % hw.rotations.length];
-        return this.updateControl(s, id, { rotation: next });
+      setKind: function (s, col, row, kindId) {
+        var c = core.at(s, col, row);
+        return c ? this.put(s, col, row, kindId, c.label) : s;
       },
-      duplicateControl: function (s, id) {
-        var c = this.get(s, id); if (!c) return s;
-        var d = clone(c);
-        d.id = uniqueId(s, c.id);
-        d.cell = { col: c.cell.col + c.span.cols, row: c.cell.row };
-        return withControls(s, s.controls.concat([d]));
-      },
-      deleteControl: function (s, id) {
-        return withControls(s, s.controls.filter(function (c) { return c.id !== id; }));
-      },
-      setGroups: function (s, groups) {
-        var t = clone(s);
-        t.groups = groups;
-        var keep = Object.create(null);
-        groups.forEach(function (g) { keep[g.id] = true; });
-        t.controls = t.controls.map(function (c) { if (c.group && !keep[c.group]) { var d = clone(c); delete d.group; return d; } return c; });
-        return core.canonical(t);
-      },
-      addGroup: function (s, id, label) {
-        if (!core.validIdentifier(id)) throw new Error('not an identifier: ' + id);
-        var groups = (s.groups || []).slice();
-        if (groups.some(function (g) { return g.id === id; })) return s;
-        groups.push({ id: id, label: label || '' });
-        return this.setGroups(s, groups);
-      },
-      removeGroup: function (s, id) {
-        return this.setGroups(s, (s.groups || []).filter(function (g) { return g.id !== id; }));
+      // Move a component to another cell, swapping with whatever is there.
+      move: function (s, fromCol, fromRow, toCol, toRow) {
+        var a = core.at(s, fromCol, fromRow);
+        if (!a) return s;
+        if (toCol < 0 || toCol >= s.columns || toRow < 0 || toRow >= s.rows) return s;
+        var b = core.at(s, toCol, toRow);
+        var rest = s.cells.filter(function (c) {
+          return !(c.col === fromCol && c.row === fromRow) && !(c.col === toCol && c.row === toRow);
+        });
+        var moved = [{ col: toCol, row: toRow, kind: a.kind, label: a.label }];
+        if (b) moved.push({ col: fromCol, row: fromRow, kind: b.kind, label: b.label });
+        return withCells(s, rest.concat(moved));
       }
     };
   }
 
-  // Store ---------------------------------------------------------------------------
-  // Holds the sketchbook, per-sketch history, and the storage mirror. `storage`
-  // has getItem/setItem/removeItem; pass null to keep everything in memory.
-  function createStore(core, storage, options) {
-    var opts = options || {};
+  function createStore(core, storage) {
     var listeners = [];
-    var order = [];        // sketch ids in display order
-    // Null prototypes: sketch ids come from the user, and a plain object
-    // would answer get("constructor") with an inherited function.
-    var sketches = Object.create(null);     // id -> canonical sketch
-    var history = Object.create(null);      // id -> {undo: [sketch], redo: [sketch]}
+    var order = [];
+    var sketches = Object.create(null);
+    var history = Object.create(null);
     var current = null;
     var storageErrors = [];
 
@@ -135,31 +83,24 @@
     function safeRemove(k) { try { if (storage) storage.removeItem(k); } catch (e) { storageErrors.push(String(e)); } }
 
     function emit(what) { listeners.forEach(function (l) { l(what); }); }
-
     function hist(id) { return history[id] || (history[id] = { undo: [], redo: [] }); }
-
-    function writeIndex() {
-      safeSet(INDEX_KEY, JSON.stringify({ version: 1, order: order.slice(), current: current }));
-    }
+    function writeIndex() { safeSet(INDEX_KEY, JSON.stringify({ version: 2, order: order.slice(), current: current })); }
     function writeSketch(id) { safeSet(SKETCH_PREFIX + id, core.stringify(sketches[id])); }
 
-    // Load from storage. Malformed entries are reported, never deleted: the
-    // user may want to fix a hand-edited file. Returns the list of problems.
+    // Malformed entries are reported, never deleted: a hand-edited file is
+    // the user's to fix.
     function load() {
       var problems = [];
-      var idx = safeGet(INDEX_KEY);
-      var parsedIndex = null;
-      if (idx) {
-        try { parsedIndex = JSON.parse(idx); } catch (e) { problems.push('sketchbook index is not JSON: ' + e.message); }
-      }
-      var ids = [];
-      if (parsedIndex && Array.isArray(parsedIndex.order)) ids = parsedIndex.order.filter(function (x) { return typeof x === 'string'; });
-      // recover sketch keys the index does not list
+      var idx = safeGet(INDEX_KEY), parsed = null;
+      if (idx) { try { parsed = JSON.parse(idx); } catch (e) { problems.push('sketchbook index is not JSON: ' + e.message); } }
+      var ids = (parsed && Array.isArray(parsed.order)) ? parsed.order.filter(function (x) { return typeof x === 'string'; }) : [];
       if (storage && typeof storage.length === 'number' && typeof storage.key === 'function') {
         try {
           for (var i = 0; i < storage.length; i++) {
             var k = storage.key(i);
-            if (k && k.indexOf(SKETCH_PREFIX) === 0 && ids.indexOf(k.slice(SKETCH_PREFIX.length)) < 0) ids.push(k.slice(SKETCH_PREFIX.length));
+            if (k && k.indexOf(SKETCH_PREFIX) === 0 && ids.indexOf(k.slice(SKETCH_PREFIX.length)) < 0) {
+              ids.push(k.slice(SKETCH_PREFIX.length));
+            }
           }
         } catch (e) { storageErrors.push(String(e)); }
       }
@@ -171,15 +112,13 @@
         if (!r.ok) { problems.push('sketch ' + id + ' is not valid: ' + r.errors.join('; ')); return; }
         order.push(id); sketches[id] = r.sketch;
       });
-      current = (parsedIndex && typeof parsedIndex.current === 'string' && sketches[parsedIndex.current]) ? parsedIndex.current : (order[0] || null);
+      current = (parsed && typeof parsed.current === 'string' && sketches[parsed.current]) ? parsed.current : (order[0] || null);
       emit({ type: 'load', problems: problems });
       return problems;
     }
 
-    function validId(id) { return core.validIdentifier(id); }
-
     function add(id, sketch) {
-      if (!validId(id)) throw new Error('sketch id must be an identifier: ' + id);
+      if (!ID_RE.test(id)) throw new Error('a sketch id uses letters, digits, - and _');
       if (sketches[id]) throw new Error('a sketch named ' + id + ' already exists');
       sketches[id] = core.canonical(sketch);
       order.push(id);
@@ -198,7 +137,7 @@
     }
     function rename(id, newId) {
       if (!sketches[id] || id === newId) return;
-      if (!validId(newId)) throw new Error('sketch id must be an identifier: ' + newId);
+      if (!ID_RE.test(newId)) throw new Error('a sketch id uses letters, digits, - and _');
       if (sketches[newId]) throw new Error('a sketch named ' + newId + ' already exists');
       sketches[newId] = sketches[id]; delete sketches[id];
       history[newId] = history[id]; delete history[id];
@@ -214,8 +153,7 @@
     }
     function get(id) { return sketches[id || current] || null; }
 
-    // Apply an edit to the current sketch, recording history. `fn` gets the
-    // sketch and returns the new one; an exception leaves everything intact.
+    // An exception inside fn leaves everything as it was.
     function edit(fn, id) {
       var target = id || current;
       if (!sketches[target]) return null;
@@ -236,28 +174,28 @@
       return after;
     }
     function undo(id) {
-      var target = id || current, h = hist(target);
+      var t = id || current, h = hist(t);
       if (!h.undo.length) return false;
-      h.redo.push(sketches[target]);
-      sketches[target] = h.undo.pop();
-      writeSketch(target);
-      emit({ type: 'undo', id: target });
+      h.redo.push(sketches[t]);
+      sketches[t] = h.undo.pop();
+      writeSketch(t);
+      emit({ type: 'undo', id: t });
       return true;
     }
     function redo(id) {
-      var target = id || current, h = hist(target);
+      var t = id || current, h = hist(t);
       if (!h.redo.length) return false;
-      h.undo.push(sketches[target]);
-      sketches[target] = h.redo.pop();
-      writeSketch(target);
-      emit({ type: 'redo', id: target });
+      h.undo.push(sketches[t]);
+      sketches[t] = h.redo.pop();
+      writeSketch(t);
+      emit({ type: 'redo', id: t });
       return true;
     }
     function canUndo(id) { return hist(id || current).undo.length > 0; }
     function canRedo(id) { return hist(id || current).redo.length > 0; }
 
-    // Replace a sketch from outside (a file, or the agent through storage).
-    // The previous version goes on the undo stack so nothing is lost.
+    // Replace from outside (a file, or the agent). The previous version goes
+    // on the undo stack, so an import is never a loss.
     function replace(id, sketch) {
       var r = core.validate(sketch);
       if (!r.ok) throw new Error('not a valid sketch: ' + r.errors.join('; '));
@@ -270,8 +208,6 @@
       return id;
     }
 
-    // A storage event from another tab or from the agent's set_state. Only the
-    // key named is touched; nothing else in the editor changes.
     function onStorage(key, newValue) {
       if (key === INDEX_KEY) {
         var idx; try { idx = JSON.parse(newValue); } catch (e) { return; }
@@ -302,19 +238,16 @@
 
     return {
       load: load, add: add, remove: remove, rename: rename, select: select, get: get, edit: edit,
-      undo: undo, redo: redo, canUndo: canUndo, canRedo: canRedo, replace: replace, onStorage: onStorage,
-      exportAll: exportAll,
+      undo: undo, redo: redo, canUndo: canUndo, canRedo: canRedo, replace: replace,
+      onStorage: onStorage, exportAll: exportAll,
       ids: function () { return order.slice(); },
       current: function () { return current; },
       subscribe: function (l) { listeners.push(l); return function () { listeners = listeners.filter(function (x) { return x !== l; }); }; },
       storageErrors: function () { return storageErrors.slice(); },
-      INDEX_KEY: INDEX_KEY, SKETCH_PREFIX: SKETCH_PREFIX,
-      options: opts
+      INDEX_KEY: INDEX_KEY, SKETCH_PREFIX: SKETCH_PREFIX
     };
   }
 
-  // A minimal in-memory storage with the localStorage interface, for tests
-  // and for a browser that blocks storage.
   function memoryStorage() {
     var m = {};
     return {
@@ -322,8 +255,7 @@
       setItem: function (k, v) { m[k] = String(v); },
       removeItem: function (k) { delete m[k]; },
       key: function (i) { return Object.keys(m)[i] || null; },
-      get length() { return Object.keys(m).length; },
-      dump: function () { return JSON.parse(JSON.stringify(m)); }
+      get length() { return Object.keys(m).length; }
     };
   }
 

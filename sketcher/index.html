@@ -4,152 +4,78 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Module Sketcher</title>
-<meta name="description" content="Sketch Eurorack module panels on a shared grid: knobs, jacks, switches and LEDs, checked against the project's panel and PCB geometry. Local file, no backend.">
+<meta name="description" content="Sketch a module by putting knobs, jacks, switches and LEDs on a grid. Local file, no backend.">
 <link rel="stylesheet" href="style.css">
 <script src="catalogue.js"></script>
 <script src="sketch-core.js"></script>
 <script src="sketchbook.js"></script>
 </head>
 <body>
-<div id="app" class="app">
-  <header class="topbar">
-    <h1>Module Sketcher</h1>
-    <div class="status" id="status" role="status" aria-live="polite"></div>
-    <div class="topbar-actions">
-      <button type="button" id="undo" title="Undo (Ctrl+Z)">Undo</button>
-      <button type="button" id="redo" title="Redo (Ctrl+Y)">Redo</button>
-      <button type="button" id="handback" class="primary hidden" title="Send every sketch back to the agent">Hand back to agent</button>
-    </div>
-  </header>
+<header>
+  <input type="text" id="name" placeholder="Untitled module" aria-label="Module name" autocomplete="off">
+  <div class="spacer"></div>
+  <button type="button" id="undo" title="Undo (Ctrl+Z)">Undo</button>
+  <button type="button" id="redo" title="Redo (Ctrl+Y)">Redo</button>
+</header>
 
-  <aside class="sidebar left">
-    <section class="card">
-      <h2>Sketchbook</h2>
-      <ul id="sketch-list" class="sketch-list"></ul>
-      <div class="row">
-        <button type="button" id="new-sketch">New module</button>
-        <button type="button" id="rename-sketch">Rename</button>
-        <button type="button" id="delete-sketch">Delete</button>
-      </div>
-    </section>
+<main>
+  <section id="stage">
+    <div id="grid" role="grid" aria-label="Module grid"></div>
+    <p id="note"></p>
+  </section>
 
-    <section class="card">
-      <h2>Module</h2>
-      <label>Name <input type="text" id="sketch-name" placeholder="What it does"></label>
-      <label>Width
-        <select id="sketch-hp"></select>
-      </label>
-      <label>Status
-        <select id="sketch-status">
-          <option value="provisional">provisional</option>
-          <option value="reviewed">reviewed</option>
-        </select>
-      </label>
-      <label>Notes <textarea id="sketch-notes" rows="3" placeholder="One note per line"></textarea></label>
-    </section>
-
-    <section class="card">
-      <h2>Grid <span class="tag" id="grid-status">candidate</span></h2>
-      <label>Profile <select id="grid-profile"></select></label>
-      <div class="row four">
-        <label>Origin x <input type="number" id="grid-ox" step="0.05"></label>
-        <label>Origin y <input type="number" id="grid-oy" step="0.05"></label>
-        <label>Pitch x <input type="number" id="grid-px" step="0.01" min="0.1"></label>
-        <label>Pitch y <input type="number" id="grid-py" step="0.01" min="0.1"></label>
-      </div>
-      <p class="hint" id="grid-hint"></p>
-    </section>
-
-    <section class="card">
-      <h2>Palette</h2>
-      <p class="hint">Pick a part, then click or tap a cell. Esc cancels.</p>
+  <aside>
+    <div class="block">
+      <h2>Place</h2>
       <div id="palette" class="palette"></div>
-    </section>
+      <p class="hint">Click a part, then click a cell. Click a filled cell to
+        rename it. Drag to move. Backspace clears.</p>
+    </div>
 
-    <section class="card">
-      <h2>View</h2>
-      <label class="check"><input type="checkbox" id="view-rear"> Rear view (behind the panel)</label>
-      <label class="check"><input type="checkbox" id="view-cells" checked> Grid cells</label>
-      <label class="check"><input type="checkbox" id="view-courtyards" checked> Footprint courtyards</label>
-      <label class="check"><input type="checkbox" id="view-access" checked> Finger and cable room</label>
-      <label class="check"><input type="checkbox" id="view-labels" checked> Labels</label>
-    </section>
-  </aside>
-
-  <main class="canvas-wrap" id="canvas-wrap">
-    <svg id="canvas" class="canvas" xmlns="http://www.w3.org/2000/svg" role="application" aria-label="Panel sketch"></svg>
-  </main>
-
-  <aside class="sidebar right">
-    <section class="card" id="control-card">
-      <h2>Control</h2>
-      <div id="control-none" class="hint">Select a control on the panel, or place one from the palette.</div>
-      <div id="control-form" class="hidden">
-        <label>Id <input type="text" id="ctl-id" pattern="[A-Za-z0-9_-]{1,40}"></label>
-        <label>Hardware <select id="ctl-hardware"></select></label>
-        <label>Label <input type="text" id="ctl-label"></label>
-        <label>Group <input type="text" id="ctl-group" list="group-list" placeholder="none"><datalist id="group-list"></datalist></label>
-        <div class="row four">
-          <label>Col <input type="number" id="ctl-col" step="1"></label>
-          <label>Row <input type="number" id="ctl-row" step="1"></label>
-          <label>Cols <input type="number" id="ctl-cols" step="1" min="1"></label>
-          <label>Rows <input type="number" id="ctl-rows" step="1" min="1"></label>
-        </div>
-        <div class="row four">
-          <label>Offset x <input type="number" id="ctl-dx" step="0.5"></label>
-          <label>Offset y <input type="number" id="ctl-dy" step="0.5"></label>
-          <label>Rotation <select id="ctl-rot"></select></label>
-          <label>&nbsp;<button type="button" id="ctl-rotate" title="Rotate (R)">Turn</button></label>
-        </div>
-        <div class="row">
-          <button type="button" id="ctl-duplicate" title="Duplicate (Ctrl+D)">Duplicate</button>
-          <button type="button" id="ctl-delete" title="Delete (Del)">Delete</button>
-        </div>
-        <p class="hint" id="ctl-geometry"></p>
-        <p class="hint" id="ctl-hardware-note"></p>
+    <div class="block">
+      <h2>Size</h2>
+      <div class="stepper">
+        <span>Columns</span>
+        <button type="button" id="col-less" aria-label="Fewer columns">&minus;</button>
+        <output id="col-count">1</output>
+        <button type="button" id="col-more" aria-label="More columns">+</button>
       </div>
-    </section>
+      <div class="stepper">
+        <span>Rows</span>
+        <button type="button" id="row-less" aria-label="Fewer rows">&minus;</button>
+        <output id="row-count">1</output>
+        <button type="button" id="row-more" aria-label="More rows">+</button>
+      </div>
+      <p class="hint" id="limits"></p>
+    </div>
 
-    <section class="card">
-      <h2>Groups</h2>
-      <ul id="group-ul" class="plain"></ul>
+    <div class="block">
+      <h2>Modules</h2>
+      <ul id="list"></ul>
       <div class="row">
-        <input type="text" id="group-new-id" placeholder="id" pattern="[A-Za-z0-9_-]{1,40}">
-        <input type="text" id="group-new-label" placeholder="label">
-        <button type="button" id="group-add">Add</button>
+        <button type="button" id="new">New</button>
+        <button type="button" id="dup">Copy</button>
+        <button type="button" id="del">Delete</button>
       </div>
-    </section>
+    </div>
 
-    <section class="card">
-      <h2>Findings <span class="tag" id="findings-summary"></span></h2>
-      <ul id="findings" class="findings"></ul>
-    </section>
-
-    <section class="card">
-      <h2>Exchange</h2>
+    <div class="block">
+      <h2>JSON</h2>
       <div class="row">
-        <button type="button" id="copy-json">Copy JSON</button>
-        <button type="button" id="download-json">Download .json</button>
-        <label class="file-button">Open .json<input type="file" id="open-json" accept=".json,application/json"></label>
+        <button type="button" id="copy">Copy</button>
+        <button type="button" id="download">Download</button>
+        <label class="file">Open<input type="file" id="open" accept=".json,application/json"></label>
       </div>
-      <details id="paste-details">
-        <summary>Paste JSON</summary>
-        <textarea id="paste-json" rows="6" placeholder='{"format": "pcbgen-sketch", ...}'></textarea>
-        <div class="row">
-          <button type="button" id="import-replace">Replace current</button>
-          <button type="button" id="import-add">Add as new</button>
-        </div>
-        <p class="hint" id="import-result"></p>
-      </details>
-      <p class="hint">Sketches autosave in this browser as a recovery copy. The file or the agent hand-back is the copy that counts.</p>
-    </section>
-
-    <section class="card">
-      <h2>Keys</h2>
-      <p class="hint">Arrows move a cell. R turns. Del deletes. Ctrl+D duplicates. Ctrl+Z / Ctrl+Y undo and redo. Tab cycles controls, Enter selects, Esc cancels.</p>
-    </section>
+      <textarea id="paste" rows="5" spellcheck="false" placeholder="Paste a sketch here"></textarea>
+      <div class="row">
+        <button type="button" id="import-replace">Replace</button>
+        <button type="button" id="import-add">Add</button>
+        <button type="button" id="handback" class="primary hidden">Send to agent</button>
+      </div>
+      <p class="hint" id="status"></p>
+    </div>
   </aside>
-</div>
+</main>
 <script src="sketcher.js"></script>
 </body>
 </html>

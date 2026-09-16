@@ -1,29 +1,26 @@
-// tests.js: the sketcher's tests. Runs under node (`node sketcher/tests.js`)
-// and in the browser (tests.html), so the same assertions cover the file://
-// case the roadmap asks for. The geometry and checks are compared with the
-// vectors the Haskell generator wrote (vectors.js); the editing, undo/redo,
-// width-change and save/reopen cases exercise sketchbook.js.
+// tests.js: the format and the sketchbook, in node (`node sketcher/tests.js`)
+// or in a browser (tests.html). Results come from vectors.js, which the
+// generator wrote, so the browser cannot drift from the Haskell.
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     var path = require('path');
     var here = __dirname;
-    var deps = {
+    var r = factory({
       catalogue: require(path.join(here, 'catalogue.js')),
       vectors: require(path.join(here, 'vectors.js')),
       SketchCore: require(path.join(here, 'sketch-core.js')),
       Sketchbook: require(path.join(here, 'sketchbook.js'))
-    };
-    var result = factory(deps);
-    result.results.forEach(function (r) {
-      console.log((r.ok ? 'PASS  ' : 'FAIL  ') + r.name);
-      r.failures.forEach(function (f) { console.log('      ' + f); });
+    });
+    r.results.forEach(function (t) {
+      console.log((t.ok ? 'PASS  ' : 'FAIL  ') + t.name);
+      t.failures.forEach(function (f) { console.log('      ' + f); });
     });
     console.log('');
-    console.log(result.passed + '/' + result.results.length + ' tests passed');
-    process.exit(result.passed === result.results.length ? 0 : 1);
+    console.log(r.passed + '/' + r.results.length + ' tests passed');
+    process.exit(r.passed === r.results.length ? 0 : 1);
   } else {
     root.runSketcherTests = function () {
-      return factory({ catalogue: root.PCBGEN_CATALOGUE, vectors: root.PCBGEN_VECTORS, SketchCore: root.SketchCore, Sketchbook: root.Sketchbook });
+      return factory({ catalogue: root.SKETCH_CATALOGUE, vectors: root.SKETCH_VECTORS, SketchCore: root.SketchCore, Sketchbook: root.Sketchbook });
     };
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (deps) {
@@ -40,63 +37,24 @@
     catch (e) { failures.push('exception: ' + (e && e.stack || e)); }
     results.push({ name: name, ok: failures.length === 0, failures: failures });
   }
-  function near(a, b, tol) { return Math.abs(a - b) <= (tol || 1e-9); }
-  function ptNear(a, b) { return near(a.x, b.x) && near(a.y, b.y); }
-  function boxNear(a, b) { return near(a.x1, b.x1) && near(a.y1, b.y1) && near(a.x2, b.x2) && near(a.y2, b.y2); }
-  function shapeEq(a, b) {
-    if (!a && !b) return true;
-    if (!a || !b || a.shape !== b.shape) return false;
-    return a.shape === 'circle' ? near(a.d, b.d) : (near(a.w, b.w) && near(a.h, b.h));
-  }
-  function findingKeys(fs) {
-    return fs.map(function (f) { return f.kind + '|' + f.severity + '|' + f.controls.slice().sort().join(','); }).sort();
-  }
-  function clone(v) { return JSON.parse(JSON.stringify(v)); }
+  function fresh() { var s = Sketchbook.createStore(core, Sketchbook.memoryStorage()); s.load(); return s; }
 
-  // Vectors ---------------------------------------------------------------------
+  // Against the generator ------------------------------------------------------
 
   vectors.valid.forEach(function (fx) {
-    test('vector ' + fx.name + ': text parses to the same sketch and prints the same text', function (expect) {
+    test('vector ' + fx.name + ': parses, matches and prints the generator\'s bytes', function (expect) {
       var r = core.parse(fx.text);
       expect(r.ok, 'parse failed: ' + (r.errors || []).join('; '));
       if (!r.ok) return;
       expect(JSON.stringify(r.sketch) === JSON.stringify(fx.sketch), 'parsed sketch differs from the exported value');
-      expect(core.stringify(r.sketch) === fx.text, 'stringify differs from the Haskell text:\n' + core.stringify(r.sketch) + '\n---\n' + fx.text);
+      expect(core.stringify(r.sketch) === fx.text, 'stringify differs:\n' + core.stringify(r.sketch) + '\n---\n' + fx.text);
       var again = core.parse(core.stringify(r.sketch));
       expect(again.ok && JSON.stringify(again.sketch) === JSON.stringify(r.sketch), 'second round trip differs');
-    });
-
-    test('vector ' + fx.name + ': placements match the Haskell geometry', function (expect) {
-      var sk = core.skeleton(fx.sketch.hp);
-      expect(near(sk.panelWidth, fx.expected.panelWidth), 'panel width ' + sk.panelWidth);
-      expect(ptNear(sk.boardOrigin, fx.expected.boardOrigin), 'board origin');
-      var rails = core.railHoles(sk);
-      expect(rails.length === fx.expected.railHoles.length && rails.every(function (r, i) { return ptNear(r, fx.expected.railHoles[i]); }), 'rail holes ' + JSON.stringify(rails));
-      var ps = core.place(fx.sketch);
-      expect(ps.length === fx.expected.controls.length, 'control count ' + ps.length);
-      fx.expected.controls.forEach(function (e, i) {
-        var p = ps[i];
-        if (!p) return;
-        expect(p.id === e.id, 'order: ' + p.id + ' vs ' + e.id);
-        expect(ptNear(p.centre, e.centre), e.id + ' centre ' + JSON.stringify(p.centre) + ' vs ' + JSON.stringify(e.centre));
-        expect(ptNear(p.board, e.board), e.id + ' board ' + JSON.stringify(p.board));
-        expect(ptNear(p.footprintOrigin, e.footprintOrigin), e.id + ' footprint origin ' + JSON.stringify(p.footprintOrigin) + ' vs ' + JSON.stringify(e.footprintOrigin));
-        expect(p.rotation === e.rotation, e.id + ' rotation');
-        expect(boxNear(p.courtyard, e.courtyard), e.id + ' courtyard ' + JSON.stringify(p.courtyard) + ' vs ' + JSON.stringify(e.courtyard));
-        expect(shapeEq(p.frontBody, e.frontBody), e.id + ' front body');
-        expect(shapeEq(p.frontAccess, e.frontAccess), e.id + ' front access');
-      });
-    });
-
-    test('vector ' + fx.name + ': findings match the Haskell checks', function (expect) {
-      var got = findingKeys(core.check(fx.sketch));
-      var want = findingKeys(fx.expected.findings);
-      expect(JSON.stringify(got) === JSON.stringify(want), 'findings\n  got    ' + JSON.stringify(got) + '\n  wanted ' + JSON.stringify(want));
-      core.check(fx.sketch).forEach(function (f) { expect(typeof f.message === 'string' && f.message.length > 0, 'empty message for ' + f.kind); });
+      expect(core.impliedWidth(r.sketch) === fx.hp, 'implied width ' + core.impliedWidth(r.sketch) + ' vs ' + fx.hp);
     });
   });
 
-  test('every invalid text is refused', function (expect) {
+  test('every invalid text is refused with a diagnostic', function (expect) {
     vectors.invalid.forEach(function (iv) {
       var r = core.parse(iv.text);
       expect(!r.ok, 'accepted: ' + iv.name);
@@ -104,248 +62,213 @@
     });
   });
 
+  test('the grid limits are the generator\'s', function (expect) {
+    expect(core.maxColumns === deps.catalogue.maxColumns, 'columns');
+    expect(core.maxRows === deps.catalogue.maxRows, 'rows');
+    expect(typeof core.why === 'string' && core.why.length > 40, 'the explanation is missing');
+    expect(!core.validate({ format: 'module-sketch', version: 2, columns: core.maxColumns + 1, rows: 1, cells: [] }).ok, 'a grid past the limit was accepted');
+    expect(core.validate({ format: 'module-sketch', version: 2, columns: core.maxColumns, rows: core.maxRows, cells: [] }).ok, 'the largest legal grid was refused');
+  });
+
   test('the strict parser refuses what JSON.parse would take', function (expect) {
-    expect(!core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "hp": 8, "grid": {"origin": {"x": 1, "y": 1}, "pitch": {"x": 1, "y": 1}}, "controls": []}').ok, 'duplicate key accepted');
-    var r = core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "grid": {"origin": {"x": 1e999, "y": 1}, "pitch": {"x": 1, "y": 1}}, "controls": []}');
+    expect(!core.parse('{"format":"module-sketch","version":2,"columns":2,"columns":3,"rows":2,"cells":[]}').ok, 'duplicate key accepted');
+    var r = core.parse('{"format":"module-sketch","version":2,"columns":1e999,"rows":2,"cells":[]}');
     expect(!r.ok && /finite/.test(r.errors[0]), 'infinity accepted: ' + JSON.stringify(r.errors));
-    var ok = core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "grid": {"origin": {"x": 7.5, "y": 20}, "pitch": {"x": 15, "y": 15}}, "controls": [], "name": "\\u00e9\\uD83D\\uDE00"}');
-    expect(ok.ok && ok.sketch.name === 'é😀', 'escapes: ' + JSON.stringify(ok));
   });
 
   test('diagnostics name their path and are all reported', function (expect) {
-    var r = core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "grid": {"origin": {"x": 7.5, "y": 20}, "pitch": {"x": 15, "y": 15}},'
-      + ' "controls": [{"id": "a", "hardware": "nope", "cell": {"col": 0, "row": 0}}, {"id": "b", "hardware": "pot-9mm", "cell": {"col": 0, "row": 0}, "rotation": 30}]}');
+    var r = core.parse('{"format":"module-sketch","version":2,"columns":2,"rows":2,"cells":['
+      + '{"col":0,"row":0,"kind":"banana"},{"col":9,"row":0,"kind":"knob"}]}');
     expect(!r.ok && r.errors.length === 2, 'expected two diagnostics: ' + JSON.stringify(r.errors));
     if (!r.ok) {
-      expect(r.errors.some(function (e) { return e.indexOf('controls[0].hardware') >= 0; }), 'first path');
-      expect(r.errors.some(function (e) { return e.indexOf('controls[1].rotation') >= 0; }), 'second path');
+      expect(r.errors.some(function (e) { return e.indexOf('cells[0].kind') >= 0; }), 'first path');
+      expect(r.errors.some(function (e) { return e.indexOf('cells[1].col') >= 0; }), 'second path');
     }
-  });
-
-  test('default grids agree with the generator for every width and profile', function (expect) {
-    vectors.gridDefaults.forEach(function (d) {
-      var g = core.defaultGrid(d.hp, d.profile);
-      expect(ptNear(g.origin, d.origin), d.hp + 'HP ' + d.profile + ' origin ' + JSON.stringify(g.origin) + ' vs ' + JSON.stringify(d.origin));
-      expect(core.columnsFor(d.hp, core.profile(d.profile).pitch.x) === d.columns, d.hp + 'HP ' + d.profile + ' columns');
-      expect(core.rowsFor(core.profile(d.profile)) === d.rows, d.profile + ' rows');
-    });
-  });
-
-  test('the rotation convention is the generator\'s', function (expect) {
-    vectors.rotations.forEach(function (r) {
-      expect(ptNear(core.rotatePt(r.rotation, r.in), r.out), 'rotation ' + r.rotation + ': ' + JSON.stringify(core.rotatePt(r.rotation, r.in)) + ' vs ' + JSON.stringify(r.out));
-    });
   });
 
   // Editing ---------------------------------------------------------------------
 
-  var sparse = vectors.valid.filter(function (f) { return f.name === 'sparse-mixed'; })[0].sketch;
+  var mixer = vectors.valid.filter(function (f) { return f.name === 'mixer'; })[0].sketch;
 
-  function freshStore(storage) {
-    var st = Sketchbook.createStore(core, storage || Sketchbook.memoryStorage());
-    st.load();
-    return st;
-  }
-
-  test('a new sketch starts empty with a centred default grid', function (expect) {
-    var s = core.newSketch('Test', 8, 'candidate-15');
-    expect(s.controls.length === 0, 'not empty');
-    expect(s.hp === 8 && near(s.grid.origin.x, 12.65) && s.grid.origin.y === 20, 'grid ' + JSON.stringify(s.grid));
-    var fs = core.check(s);
-    expect(fs.every(function (f) { return f.severity === 'note'; }), 'a blank panel has findings: ' + JSON.stringify(fs));
-  });
-
-  test('sparse placement: adding controls one by one reproduces the fixture, with cells left empty', function (expect) {
-    var st = freshStore();
-    st.add('m', core.newSketch(sparse.name, 8, 'candidate-15'));
-    st.edit(function (s) { return ed.addControl(s, 'pot-9mm', { col: 0, row: 0 }, { id: 'level', rotation: 90, label: 'LEVEL' }); });
-    st.edit(function (s) { return ed.addGroup(s, 'ch1', 'Channel 1'); });
-    st.edit(function (s) { return ed.updateControl(s, 'level', { group: 'ch1' }); });
-    st.edit(function (s) { return ed.addControl(s, 'jack-ts', { col: 0, row: 1 }, { id: 'in', label: 'IN', group: 'ch1' }); });
-    st.edit(function (s) { return ed.addControl(s, 'jack-ts', { col: 1, row: 1 }, { id: 'out', label: 'OUT', group: 'ch1' }); });
-    st.edit(function (s) { return ed.addControl(s, 'led-3mm', { col: 1, row: 1 }, { id: 'out-led', offset: { x: 6, y: -6 }, group: 'ch1' }); });
-    st.edit(function (s) { return ed.addControl(s, 'toggle-spdt', { col: 1, row: 3 }, { id: 'cycle', label: 'CYCLE' }); });
-    st.edit(function (s) { return ed.addControl(s, 'pot-9mm', { col: 0, row: 5 }, { id: 'freq', span: { cols: 2, rows: 1 }, label: 'FREQ' }); });
-    st.edit(function (s) { return ed.setNotes(s, sparse.notes); });
+  test('placing components one by one reproduces the mixer fixture', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('Mixer', 3, 6));
+    var put = [
+      [0, 0, 'knob', 'CH1'], [1, 0, 'jack', 'IN 1'],
+      [0, 1, 'knob', 'CH2'], [1, 1, 'jack', 'IN 2'],
+      [0, 2, 'knob', 'CH3'], [1, 2, 'jack', 'IN 3'],
+      [0, 3, 'knob', 'CH4'], [1, 3, 'jack', 'IN 4'],
+      [0, 5, 'switch', 'AC/DC'], [1, 5, 'jack', 'OUT'], [2, 5, 'led', 'CLIP']
+    ];
+    put.forEach(function (p) {
+      st.edit(function (s) { return ed.put(s, p[0], p[1], p[2], p[3]); });
+    });
     var got = st.get('m');
-    expect(JSON.stringify(got) === JSON.stringify(sparse), 'built sketch differs:\n' + core.stringify(got) + '\n---\n' + core.stringify(sparse));
-    expect(core.check(got).every(function (f) { return f.severity === 'note'; }), 'fixture built by hand has conflicts');
-    var occupied = {};
-    got.controls.forEach(function (c) { core.cells(c).forEach(function (x) { occupied[x.col + ',' + x.row] = true; }); });
-    expect(!occupied['0,2'] && !occupied['1,0'] && !occupied['0,3'], 'empty cells filled');
+    expect(JSON.stringify(got) === JSON.stringify(mixer), 'differs:\n' + core.stringify(got) + '\n---\n' + core.stringify(mixer));
+    expect(core.at(got, 2, 0) === null && core.at(got, 0, 4) === null, 'empty cells are not empty');
   });
 
-  test('move, rotate, duplicate, rename, relabel and delete', function (expect) {
-    var st = freshStore();
-    st.add('m', sparse);
-    st.edit(function (s) { return ed.moveControl(s, 'cycle', { col: 0, row: 3 }); });
-    expect(ed.get(st.get(), 'cycle').cell.col === 0, 'move');
-    st.edit(function (s) { return ed.rotateControl(s, 'cycle', 1); });
-    expect(ed.get(st.get(), 'cycle').rotation === 90, 'rotate');
-    st.edit(function (s) { return ed.rotateControl(s, 'cycle', -1); });
-    expect(ed.get(st.get(), 'cycle').rotation === 0, 'rotate back');
-    st.edit(function (s) { return ed.duplicateControl(s, 'in'); });
-    var dup = ed.get(st.get(), 'in-2');
-    expect(dup && dup.cell.col === 1 && dup.cell.row === 1 && dup.label === 'IN', 'duplicate: ' + JSON.stringify(dup));
-    expect(core.check(st.get()).some(function (f) { return f.kind === 'cell-overlap' && f.controls.indexOf('in-2') >= 0; }), 'duplicate onto an occupied cell must be reported, not relocated');
-    st.edit(function (s) { return ed.renameControl(s, 'in-2', 'in-b'); });
-    expect(ed.get(st.get(), 'in-b') && !ed.get(st.get(), 'in-2'), 'rename');
+  test('a cell holds one component: placing on it replaces', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 0, 0, 'knob', 'A'); });
+    st.edit(function (s) { return ed.put(s, 0, 0, 'jack', 'B'); });
+    expect(st.get().cells.length === 1, 'cells ' + st.get().cells.length);
+    expect(core.at(st.get(), 0, 0).kind === 'jack', 'kind not replaced');
+  });
+
+  test('clear, relabel, change kind', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 1, 1, 'knob', 'GAIN'); });
+    st.edit(function (s) { return ed.setLabel(s, 1, 1, 'LEVEL'); });
+    expect(core.at(st.get(), 1, 1).label === 'LEVEL', 'relabel');
+    st.edit(function (s) { return ed.setKind(s, 1, 1, 'switch'); });
+    expect(core.at(st.get(), 1, 1).kind === 'switch' && core.at(st.get(), 1, 1).label === 'LEVEL', 'kind change kept the label');
+    st.edit(function (s) { return ed.clear(s, 1, 1); });
+    expect(st.get().cells.length === 0, 'clear');
+  });
+
+  test('moving swaps with whatever is in the way and never duplicates', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 0, 0, 'knob', 'A'); });
+    st.edit(function (s) { return ed.put(s, 1, 0, 'jack', 'B'); });
+    st.edit(function (s) { return ed.move(s, 0, 0, 1, 0); });
+    expect(st.get().cells.length === 2, 'count ' + st.get().cells.length);
+    expect(core.at(st.get(), 1, 0).label === 'A' && core.at(st.get(), 0, 0).label === 'B', 'not swapped');
+    st.edit(function (s) { return ed.move(s, 1, 0, 1, 1); });
+    expect(core.at(st.get(), 1, 1).label === 'A' && core.at(st.get(), 1, 0) === null, 'move into an empty cell');
+  });
+
+  test('a move off the grid does nothing', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 0, 0, 'knob', 'A'); });
+    var before = JSON.stringify(st.get());
+    st.edit(function (s) { return ed.move(s, 0, 0, 5, 0); });
+    expect(JSON.stringify(st.get()) === before, 'sketch changed');
+  });
+
+  test('growing the grid is free; shrinking over a component is refused', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 1, 1, 'knob', 'EDGE'); });
+    st.edit(function (s) { return ed.resize(s, 4, 4); });
+    expect(st.get().columns === 4 && st.get().rows === 4, 'grew');
+    expect(core.at(st.get(), 1, 1).label === 'EDGE', 'component moved when the grid grew');
+    var before = JSON.stringify(st.get());
     var threw = false;
-    try { st.edit(function (s) { return ed.renameControl(s, 'in-b', 'in'); }); } catch (e) { threw = true; }
-    expect(threw && ed.get(st.get(), 'in-b'), 'renaming onto an existing id must fail and change nothing');
-    st.edit(function (s) { return ed.updateControl(s, 'in-b', { label: 'IN B' }); });
-    expect(ed.get(st.get(), 'in-b').label === 'IN B', 'relabel');
-    st.edit(function (s) { return ed.deleteControl(s, 'in-b'); });
-    expect(!ed.get(st.get(), 'in-b') && st.get().controls.length === sparse.controls.length, 'delete');
+    try { st.edit(function (s) { return ed.resize(s, 1, 4); }); } catch (e) { threw = /EDGE/.test(e.message); }
+    expect(threw, 'shrinking over a component was allowed, or the message did not name it');
+    expect(JSON.stringify(st.get()) === before, 'the refused resize still changed the sketch');
+    st.edit(function (s) { return ed.clear(s, 1, 1); });
+    st.edit(function (s) { return ed.resize(s, 1, 4); });
+    expect(st.get().columns === 1, 'shrinking after clearing');
+  });
+
+  test('the grid cannot exceed the derived limits', function (expect) {
+    var st = fresh();
+    st.add('m', core.emptySketch('', core.maxColumns, core.maxRows));
+    var threw = false;
+    try { st.edit(function (s) { return ed.resize(s, core.maxColumns + 1, core.maxRows); }); } catch (e) { threw = true; }
+    expect(threw, 'went past the column limit');
+    threw = false;
+    try { st.edit(function (s) { return ed.resize(s, core.maxColumns, core.maxRows + 1); }); } catch (e) { threw = true; }
+    expect(threw, 'went past the row limit');
   });
 
   test('undo and redo walk the history and stop at its ends', function (expect) {
-    var st = freshStore();
-    st.add('m', sparse);
-    expect(!st.canUndo() && !st.canRedo(), 'fresh sketch has history');
-    st.edit(function (s) { return ed.deleteControl(s, 'freq'); });
-    st.edit(function (s) { return ed.setHP(s, 10); });
-    expect(st.get().hp === 10 && st.get().controls.length === 5, 'edits applied');
-    expect(st.undo() && st.get().hp === 8, 'undo hp');
-    expect(st.undo() && st.get().controls.length === 6, 'undo delete');
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    expect(!st.canUndo(), 'fresh sketch has history');
+    st.edit(function (s) { return ed.put(s, 0, 0, 'knob', 'A'); });
+    st.edit(function (s) { return ed.put(s, 1, 1, 'jack', 'B'); });
+    expect(st.undo() && st.get().cells.length === 1, 'undo');
+    expect(st.undo() && st.get().cells.length === 0, 'undo again');
     expect(!st.undo(), 'undo past the start');
-    expect(st.redo() && st.get().controls.length === 5, 'redo delete');
+    expect(st.redo() && st.get().cells.length === 1, 'redo');
     st.edit(function (s) { return ed.setName(s, 'Branch'); });
     expect(!st.canRedo(), 'a new edit must clear the redo stack');
-    expect(JSON.stringify(st.get()) !== JSON.stringify(sparse) && st.undo() && st.undo() && JSON.stringify(st.get()) === JSON.stringify(sparse), 'back to the start');
   });
 
   test('an edit that changes nothing leaves no history entry', function (expect) {
-    var st = freshStore();
-    st.add('m', sparse);
-    st.edit(function (s) { return ed.setHP(s, 8); });
+    var st = fresh();
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.clear(s, 0, 0); });
     expect(!st.canUndo(), 'no-op recorded');
-  });
-
-  test('narrowing the panel keeps every control and reports the ones outside', function (expect) {
-    var st = freshStore();
-    st.add('m', sparse);
-    st.edit(function (s) { return ed.setHP(s, 4); });
-    var s = st.get();
-    expect(s.controls.length === sparse.controls.length, 'controls dropped');
-    expect(JSON.stringify(s.controls) === JSON.stringify(sparse.controls), 'controls moved');
-    var outside = {};
-    core.check(s).forEach(function (f) { if (f.kind === 'outside-panel' || f.kind === 'outside-board-zone') f.controls.forEach(function (c) { outside[c] = true; }); });
-    expect(outside.out && outside.cycle, 'right-hand column not reported: ' + JSON.stringify(Object.keys(outside)));
-    st.undo();
-    expect(core.check(st.get()).every(function (f) { return f.severity === 'note'; }), 'undo did not restore a clean sketch');
   });
 
   test('save and reopen: the sketchbook survives a round trip through storage', function (expect) {
     var storage = Sketchbook.memoryStorage();
-    var st = freshStore(storage);
-    st.add('alpha', sparse);
-    st.add('beta', core.newSketch('Beta', 6, 'candidate-15.24'));
-    st.edit(function (s) { return ed.addControl(s, 'jack-ts', { col: 0, row: 0 }); }, 'beta');
+    var st = Sketchbook.createStore(core, storage); st.load();
+    st.add('alpha', mixer);
+    st.add('beta', core.emptySketch('Beta', 2, 3));
     st.select('alpha');
     var exported = st.exportAll();
-    var st2 = freshStore(storage);
+    var st2 = Sketchbook.createStore(core, storage); st2.load();
     expect(JSON.stringify(st2.ids()) === JSON.stringify(['alpha', 'beta']), 'ids ' + JSON.stringify(st2.ids()));
     expect(st2.current() === 'alpha', 'current ' + st2.current());
     expect(JSON.stringify(st2.exportAll()) === JSON.stringify(exported), 'sketches differ after reopen');
-    expect(exported.alpha === core.stringify(sparse), 'export text is not the canonical text');
-    // and through a file: text -> parse -> replace
-    var st3 = freshStore();
-    var r = core.parse(exported.alpha);
-    expect(r.ok, 'exported text does not parse');
-    st3.add('alpha', r.sketch);
-    expect(core.stringify(st3.get('alpha')) === exported.alpha, 'file round trip differs');
+    expect(exported.alpha === core.stringify(mixer), 'export is not the canonical text');
   });
 
   test('a malformed stored sketch is reported and the others load', function (expect) {
     var storage = Sketchbook.memoryStorage();
-    var st = freshStore(storage);
-    st.add('good', sparse);
-    st.add('bad', core.newSketch('Bad', 6, 'candidate-15'));
-    storage.setItem('sketch:bad', '{"format": "pcbgen-sketch", "version": 1, "hp": 6,');
-    storage.setItem('sketch:orphan', core.stringify(core.newSketch('Orphan', 4, 'candidate-15')));
-    var st2 = freshStore(storage);
+    var st = Sketchbook.createStore(core, storage); st.load();
+    st.add('good', mixer);
+    st.add('bad', core.emptySketch('', 2, 2));
+    storage.setItem('sketch:bad', '{"format":"module-sketch","version":2,');
+    storage.setItem('sketch:orphan', core.stringify(core.emptySketch('Orphan', 1, 1)));
+    var st2 = Sketchbook.createStore(core, storage);
     var problems = st2.load();
     expect(problems.length === 1 && /bad/.test(problems[0]), 'problems ' + JSON.stringify(problems));
-    expect(st2.get('good') && !st2.get('bad'), 'good sketch lost or bad sketch loaded');
+    expect(st2.get('good') && !st2.get('bad'), 'good lost or bad loaded');
     expect(st2.get('orphan'), 'an unindexed sketch key was not recovered');
     expect(storage.getItem('sketch:bad') !== null, 'the malformed entry was deleted');
   });
 
   test('a failed import leaves the current work intact', function (expect) {
-    var st = freshStore();
-    st.add('m', sparse);
+    var st = fresh();
+    st.add('m', mixer);
     var before = JSON.stringify(st.get());
-    var r = core.parse('{"format": "pcbgen-sketch", "version": 3}');
-    expect(!r.ok, 'accepted a bad import');
+    expect(!core.parse('{"format":"module-sketch","version":9}').ok, 'accepted a bad import');
     var threw = false;
-    try { st.replace('m', { format: 'pcbgen-sketch', version: 1 }); } catch (e) { threw = true; }
+    try { st.replace('m', { format: 'module-sketch', version: 2 }); } catch (e) { threw = true; }
     expect(threw, 'replace with an invalid sketch did not fail');
     expect(JSON.stringify(st.get()) === before && !st.canUndo(), 'work changed after a failed import');
   });
 
-  test('an external update through storage replaces one sketch and is undoable', function (expect) {
-    var storage = Sketchbook.memoryStorage();
-    var st = freshStore(storage);
-    st.add('m', sparse);
-    st.add('other', core.newSketch('Other', 6, 'candidate-15'));
+  test('an external update replaces one sketch and is undoable', function (expect) {
+    var st = fresh();
+    st.add('m', mixer);
+    st.add('other', core.emptySketch('Other', 1, 1));
     var events = [];
     st.subscribe(function (e) { events.push(e.type); });
-    var incoming = ed.setName(sparse, 'From the agent');
-    st.onStorage('sketch:m', core.stringify(incoming));
+    st.onStorage('sketch:m', core.stringify(ed.setName(mixer, 'From the agent')));
     expect(st.get('m').name === 'From the agent', 'external update not applied');
     expect(st.get('other').name === 'Other', 'other sketch touched');
-    expect(st.canUndo('m') && st.undo('m') && st.get('m').name === sparse.name, 'external update not undoable');
-    st.onStorage('sketch:new', core.stringify(core.newSketch('New', 8, 'candidate-15')));
-    expect(st.ids().indexOf('new') >= 0, 'new external sketch not added');
+    expect(st.undo('m') && st.get('m').name === mixer.name, 'not undoable');
     st.onStorage('sketch:m', 'not json');
-    expect(st.get('m').name === sparse.name && events.indexOf('external-invalid') >= 0, 'invalid external text changed the sketch or went unreported');
-    st.onStorage('sketch:new', null);
-    expect(st.ids().indexOf('new') < 0, 'external removal ignored');
+    expect(st.get('m').name === mixer.name && events.indexOf('external-invalid') >= 0, 'invalid external text was applied or unreported');
   });
 
   test('storage failures never break editing', function (expect) {
     var broken = { getItem: function () { throw new Error('blocked'); }, setItem: function () { throw new Error('blocked'); }, removeItem: function () { throw new Error('blocked'); } };
     var st = Sketchbook.createStore(core, broken);
     st.load();
-    st.add('m', sparse);
-    st.edit(function (s) { return ed.setHP(s, 10); });
-    expect(st.get().hp === 10, 'edit lost');
+    st.add('m', core.emptySketch('', 2, 2));
+    st.edit(function (s) { return ed.put(s, 0, 0, 'knob', 'A'); });
+    expect(st.get().cells.length === 1, 'edit lost');
     expect(st.storageErrors().length > 0, 'storage errors not recorded');
   });
 
   test('ids that name Object.prototype members are ordinary ids', function (expect) {
-    // "constructor" and "toString" match the identifier pattern, so every map
-    // keyed by user text must have a null prototype or these throw or lie.
-    expect(core.hardware('constructor') === null, 'hardware lookup returned an inherited member');
-    expect(core.profile('toString') === null, 'profile lookup returned an inherited member');
-    var bad = core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "grid": {"origin": {"x": 7.5, "y": 20}, "pitch": {"x": 15, "y": 15}},'
-      + ' "controls": [{"id": "constructor", "hardware": "constructor", "cell": {"col": 0, "row": 0}}]}');
-    expect(!bad.ok, 'a control with hardware "constructor" was accepted');
-    if (!bad.ok) expect(bad.errors.some(function (e) { return e.indexOf('unknown hardware') >= 0; }), 'wrong diagnostic: ' + JSON.stringify(bad.errors));
-
-    var ok = core.parse('{"format": "pcbgen-sketch", "version": 1, "hp": 6, "grid": {"origin": {"x": 7.5, "y": 20}, "pitch": {"x": 15, "y": 15}},'
-      + ' "controls": [{"id": "constructor", "hardware": "jack-ts", "cell": {"col": 0, "row": 0}},'
-      + ' {"id": "toString", "hardware": "jack-ts", "cell": {"col": 0, "row": 2}}]}');
-    expect(ok.ok, 'controls named after prototype members were refused: ' + JSON.stringify(ok.errors || []));
-    if (ok.ok) {
-      expect(core.check(ok.sketch).every(function (f) { return f.severity === 'note'; }), 'false conflict for prototype-named controls');
-      var st = freshStore();
-      st.add('constructor', ok.sketch);
-      expect(st.get('constructor') !== null && st.ids().length === 1, 'a sketch named "constructor" did not round trip');
-      expect(st.get('toString') === null, 'an absent sketch resolved to an inherited member');
-      st.edit(function (x) { return ed.deleteControl(x, 'toString'); }, 'constructor');
-      expect(st.get('constructor').controls.length === 1, 'delete by a prototype-member id failed');
-    }
-  });
-
-  test('sketch ids and control ids are identifiers', function (expect) {
-    var st = freshStore();
-    var threw = false;
-    try { st.add('my module', sparse); } catch (e) { threw = true; }
-    expect(threw && st.ids().length === 0, 'a sketch id with a space was accepted');
-    st.add('m', sparse);
-    expect(ed.uniqueId(st.get(), 'jack') === 'jack' && ed.uniqueId(st.get(), 'in') === 'in-2', 'unique ids');
+    expect(core.kind('constructor') === null, 'kind lookup returned an inherited member');
+    var st = fresh();
+    st.add('constructor', core.emptySketch('', 2, 2));
+    expect(st.get('constructor') !== null && st.ids().length === 1, 'a sketch named "constructor" did not round trip');
+    expect(st.get('toString') === null, 'an absent sketch resolved to an inherited member');
   });
 
   var passed = results.filter(function (r) { return r.ok; }).length;

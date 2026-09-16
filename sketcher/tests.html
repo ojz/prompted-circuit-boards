@@ -32,9 +32,10 @@
 (function () {
   document.getElementById('env').textContent =
     'Loaded from ' + (location.protocol === 'file:' ? 'a local file (file://), which is how the sketcher is meant to be opened' : location.protocol)
-    + ' · format ' + PCBGEN_CATALOGUE.format + ' v' + PCBGEN_CATALOGUE.version
-    + ' · ' + PCBGEN_CATALOGUE.hardware.length + ' hardware records, ' + PCBGEN_VECTORS.valid.length + ' fixtures, '
-    + PCBGEN_VECTORS.invalid.length + ' rejection cases';
+    + ' · format ' + SKETCH_CATALOGUE.format + ' v' + SKETCH_CATALOGUE.version
+    + ' · grid up to ' + SKETCH_CATALOGUE.maxColumns + ' x ' + SKETCH_CATALOGUE.maxRows
+    + ', ' + SKETCH_CATALOGUE.kinds.length + ' kinds, ' + SKETCH_VECTORS.valid.length + ' fixtures, '
+    + SKETCH_VECTORS.invalid.length + ' rejection cases';
   var r = runSketcherTests();
   var ok = r.passed === r.results.length;
   var sum = document.getElementById('summary');

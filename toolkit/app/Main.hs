@@ -17,7 +17,7 @@ import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
 import           System.Directory   (createDirectoryIfMissing)
 import           System.Environment (getArgs)
-import           System.Exit        (ExitCode (..), exitFailure, exitWith)
+import           System.Exit        (exitFailure)
 import           System.FilePath    ((</>), (<.>), takeDirectory)
 import           System.IO          (IOMode (WriteMode), hPutStrLn, hSetEncoding, hSetNewlineMode,
                                      noNewlineTranslation, stderr, utf8, withFile)
@@ -36,9 +36,8 @@ import           Emit.Spice
 import           Emit.Schematic
 import           Kicad.Library
 import           Route.Router       (RouteConfig (..), RouteResult (..), RoutedNet (..), autoroute)
-import           Sketch.Check       (Finding (..), Severity (..), checkSketch)
 import           Sketch.Export
-import           Sketch.Model       (decodeSketchText, sxHP, sxName, sxControls)
+import           Sketch.Model       (Sketch (..), decodeSketchText, impliedWidth)
 import           Validate
 
 designs :: [(String, Module)]
@@ -328,37 +327,30 @@ writeTextLf path txt =
     hSetNewlineMode h noNewlineTranslation
     TIO.hPutStr h txt
 
--- | Validate sketch files and print their findings. Exit 1 if any file is
--- not a sketch, 2 if every file is a sketch but one has a conflict, 0 when
--- every sketch is clean apart from warnings and notes.
+-- | Validate sketch files and say what they hold. Exit 1 if any file is not
+-- a sketch. There is nothing else to report: a grid cell holds one component
+-- or nothing, so a sketch that parses is a sketch that could be built.
 checkSketches :: [FilePath] -> IO ()
 checkSketches files = do
   results <- mapM checkOne files
-  when (any (== Left ()) results) exitFailure
-  when (any (== Right True) results) (exitWith (ExitFailure 2))
+  when (or results) exitFailure
   where
     checkOne path = do
-      -- An unreadable file is a diagnostic like any other, not a crash: this
-      -- runs over a list, and one missing name must not lose the rest.
       r <- try (TIO.readFile path) :: IO (Either IOException Text)
       case r of
         Left e -> do
           hPutStrLn stderr (path ++ ": cannot be read (" ++ show e ++ ")")
-          pure (Left ())
+          pure True
         Right txt -> report path txt
     report path txt =
       case decodeSketchText txt of
         Left errs -> do
           hPutStrLn stderr (path ++ ": not a valid sketch (" ++ show (length errs) ++ " problems)")
           mapM_ (TIO.hPutStrLn stderr . ("  " <>)) errs
-          pure (Left ())
+          pure True
         Right s -> do
-          let fs = checkSketch s
-              conflicts = [ f | f <- fs, fnSeverity f == Conflict ]
-          putStrLn (path ++ ": " ++ T.unpack (sxName s) ++ ", " ++ show (sxHP s) ++ "HP, "
-                    ++ show (length (sxControls s)) ++ " controls, " ++ show (length conflicts) ++ " conflicts")
-          forM_ fs $ \f -> TIO.putStrLn ("  " <> sev (fnSeverity f) <> " " <> fnKind f <> ": " <> fnMessage f)
-          pure (Right (not (null conflicts)))
-    sev Conflict = "CONFLICT"
-    sev Warning  = "warning "
-    sev Note     = "note    "
+          putStrLn (path ++ ": " ++ T.unpack (sxName s) ++ ", "
+                    ++ show (sxColumns s) ++ " x " ++ show (sxRows s) ++ " grid, "
+                    ++ show (length (sxCells s)) ++ " components"
+                    ++ maybe ", width not in the policy range" (\hp -> ", at least " ++ show hp ++ " HP") (impliedWidth s))
+          pure False

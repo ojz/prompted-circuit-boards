@@ -1,0 +1,75 @@
+{
+  "format": "module-sketch",
+  "version": 2,
+  "name": "Mixer",
+  "columns": 3,
+  "rows": 6,
+  "cells": [
+    {
+      "col": 0,
+      "row": 0,
+      "kind": "knob",
+      "label": "CH1"
+    },
+    {
+      "col": 1,
+      "row": 0,
+      "kind": "jack",
+      "label": "IN 1"
+    },
+    {
+      "col": 0,
+      "row": 1,
+      "kind": "knob",
+      "label": "CH2"
+    },
+    {
+      "col": 1,
+      "row": 1,
+      "kind": "jack",
+      "label": "IN 2"
+    },
+    {
+      "col": 0,
+      "row": 2,
+      "kind": "knob",
+      "label": "CH3"
+    },
+    {
+      "col": 1,
+      "row": 2,
+      "kind": "jack",
+      "label": "IN 3"
+    },
+    {
+      "col": 0,
+      "row": 3,
+      "kind": "knob",
+      "label": "CH4"
+    },
+    {
+      "col": 1,
+      "row": 3,
+      "kind": "jack",
+      "label": "IN 4"
+    },
+    {
+      "col": 0,
+      "row": 5,
+      "kind": "switch",
+      "label": "AC/DC"
+    },
+    {
+      "col": 1,
+      "row": 5,
+      "kind": "jack",
+      "label": "OUT"
+    },
+    {
+      "col": 2,
+      "row": 5,
+      "kind": "led",
+      "label": "CLIP"
+    }
+  ]
+}

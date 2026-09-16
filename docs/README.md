@@ -16,7 +16,7 @@ follow the project. Each active track has one owning document:
 
 | Track | Open This | What You Decide |
 |---|---|---|
-| Sketch module ideas in a local HTML editor | [SKETCHER.md](SKETCHER.md) | Panel ideas and ergonomics. Open `sketcher/index.html`, place controls, exchange the JSON. The agent owns the format, catalogue and checks; the generator bridge (S3) is not built. |
+| Sketch module ideas in a local HTML editor | [SKETCHER.md](SKETCHER.md) | What goes where on a module. Open `sketcher/index.html`, put components on a grid, exchange the JSON. The agent owns the format and derives the grid limits; the generator bridge (S3) is not built. |
 | Finish the first module, R1 IO + Mixer | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | Musical behavior and meaningful scope/cost tradeoffs. The agent owns the circuit, parts, calculations and checks. |
 | Prepare the home lab for its first boards | [HOMELAB.md](HOMELAB.md) | Approve the exact purchase basket and confirm what arrived. The agent checks equipment capability, compatibility and the delivered total first. |
 
@@ -39,7 +39,7 @@ and deleted after the checkpoint, not kept as another set of notes.
 | [HOMELAB.md](HOMELAB.md) | Staged lab procurement: historical candidates, capability checks still needed, safety boundaries and the next exact purchase basket. Not an instruction to buy everything unchanged. |
 | [JLCPCB.md](JLCPCB.md) | What the fab actually charges for, and which routing objectives that justifies. |
 | [MECHANICAL.md](MECHANICAL.md) | Adopted sparse panel language, provisional grid and laser-material fit gate, panel-to-board stack, module depth and hardware catalogue; distinguishes in-use parts, proposals and unmeasured fit. |
-| [SKETCHER.md](SKETCHER.md) | The module sketcher: how to open and use it, the `pcbgen-sketch` format, how a sketch is exchanged, and what it deliberately does not approve. |
+| [SKETCHER.md](SKETCHER.md) | The module sketcher: how to use it, the `module-sketch` format, how a sketch is exchanged, and why the grid is at most six by six. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md) | Partly integrated hardware inbox: persistent-switch policy settled; R1 normalling and exact hardware variants still unanswered. |
 | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | R1's approved four-channel mono/DC behavior and 3.5 mm stereo consumer audio boundary; implementation requirements. |
@@ -79,14 +79,14 @@ These are laptop design tools, not firmware inside the analog modules.
 | [Main.hs](../toolkit/app/Main.hs#L1) | Runs the generator and selects the requested design. |
 | [Emit/Pcb.hs](../toolkit/src/Emit/Pcb.hs#L1) | Converts a circuit description into a KiCad board file. Other emitters produce schematics and simulation netlists. |
 | [Route/Router.hs](../toolkit/src/Route/Router.hs#L1) | Searches for copper connections between placed parts. |
-| [Sketch/Model.hs](../toolkit/src/Sketch/Model.hs#L1) | The sketch interchange format a panel idea is written in. Its checks and catalogue sit beside it in `toolkit/src/Sketch/`. |
-| [sketcher/index.html](../sketcher/index.html) | The browser panel editor. Open the file; there is no server or build step. |
+| [Sketch/Model.hs](../toolkit/src/Sketch/Model.hs#L1) | The sketch interchange format a module idea is written in. The grid limits are derived beside it in `Sketch/Catalogue.hs`. |
+| [sketcher/index.html](../sketcher/index.html) | The browser grid editor. Open the file; there is no server or build step. |
 | [pipeline.sh](../toolkit/pipeline.sh#L1) | Runs generation, native checks and optional export; simulation is run separately by [sim.sh](../toolkit/sim.sh#L1). |
 
 The sketcher is a local HTML page under `sketcher/`, two of whose files the
-generator writes. It edits panel ideas only: it produces no KiCad file, circuit
-or cutting file, and the bridge that would consume a reviewed sketch is
-[S3 in the roadmap](ROADMAP.md#s3-generator-bridge-and-panel-exports-planned).
+generator writes. It places components on a grid and nothing more: no KiCad
+file, no circuit, no cutting file. The bridge that would consume a reviewed
+sketch is [S3 in the roadmap](ROADMAP.md#s3-generator-bridge-and-panel-exports-planned).
 
 ## What Stays Outside Docs
 

@@ -88,10 +88,16 @@ every mounting stack. This gate does not block a sketcher using explicitly
 provisional hardware records.
 
 The programming sequence and acceptance checks live in
-[ROADMAP.md](ROADMAP.md#s1-shared-panel-model-and-checks-done-2026-09-16). The sketcher and the shared
-interchange format exist ([SKETCHER.md](SKETCHER.md)) and draw the candidate
-pitches as candidates; no laser export is implemented, and nothing the
-sketcher shows closes this gate.
+[ROADMAP.md](ROADMAP.md#s1-shared-panel-model-done-2026-09-16). The sketcher
+exists ([SKETCHER.md](SKETCHER.md)) and works in grid cells rather than
+millimetres, so nothing it draws depends on this gate being closed.
+
+**A first result from it, at the candidate 15 mm spacing:** a 100 mm board
+leaves 80.61 mm of vertical travel for control centres, which is **six rows**.
+Seven would space them 13.44 mm apart and two Thonkiconns need 13.6 mm, so the
+jack body is what caps the grid. Six columns already needs the full 20 HP.
+Those numbers move if the pitch does; they are derived in
+[Sketch/Catalogue.hs](../toolkit/src/Sketch/Catalogue.hs), not written down.
 
 ## The stack, front to back
 

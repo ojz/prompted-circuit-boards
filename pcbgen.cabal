@@ -47,7 +47,6 @@ library
         Sketch.Json
         Sketch.Catalogue
         Sketch.Model
-        Sketch.Check
         Sketch.Fixtures
         Sketch.Export
         Attenuverter
