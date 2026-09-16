@@ -28,7 +28,7 @@ if (!r.ok) {
 }
 
 const s = r.sketch;
-const glyph = { knob: '(o)', jack: '(=)', switch: '[/]', led: ' * ' };
+const glyph = { knob: '(o)', jack: '(=)', switch: '[/]', button: '[o]', led: ' * ' };
 const W = 11;
 
 function pad(t) {
@@ -56,4 +56,4 @@ for (let row = 0; row < s.rows; row++) {
   console.log(rule);
 }
 console.log('');
-console.log('(o) knob   (=) jack   [/] switch    *  led');
+console.log('(o) knob   (=) jack   [/] switch   [o] button    *  led');

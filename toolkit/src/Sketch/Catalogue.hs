@@ -16,6 +16,7 @@ module Sketch.Catalogue
   , kinds
   , kindId
   , kindLabel
+  , kindNote
   , lookupKind
   , Envelope (..)
   , envelopeOf
@@ -35,7 +36,7 @@ import           Design    (eurorackPcbHeight, eurorackPcbTop, eurorackPanelWidt
 
 -- | What a cell can hold. Deliberately conceptual: a "knob" is any rotary
 -- control, not the Alpha 9 mm pot that will probably realise it.
-data Kind = Knob | Jack | Switch | Led
+data Kind = Knob | Jack | Switch | Button | Led
   deriving (Eq, Show, Enum, Bounded)
 
 kinds :: [Kind]
@@ -46,6 +47,7 @@ kindId :: Kind -> Text
 kindId Knob   = "knob"
 kindId Jack   = "jack"
 kindId Switch = "switch"
+kindId Button = "button"
 kindId Led    = "led"
 
 -- | What it is, for a human reading the palette.
@@ -53,7 +55,19 @@ kindLabel :: Kind -> Text
 kindLabel Knob   = "Knob"
 kindLabel Jack   = "Jack"
 kindLabel Switch = "Switch"
+kindLabel Button = "Button"
 kindLabel Led    = "LED"
+
+-- | One line of guidance, shown on the palette. The switch and button entries
+-- carry the instrument's visible-control rule (AGENTS.md): a setting that has
+-- to survive the power being switched off needs a switch you can see the
+-- position of, not a button that toggles something invisible.
+kindNote :: Kind -> Text
+kindNote Knob   = "A rotary control. Its position is the setting."
+kindNote Jack   = "A patch point, in or out."
+kindNote Switch = "A maintained switch, for a setting that stays put. Use this for anything that must survive a power cycle."
+kindNote Button = "A momentary press, for something that happens while you hold it: a manual trigger, a tap. Not for a mode that has to stay set."
+kindNote Led    = "An indicator."
 
 lookupKind :: Text -> Maybe Kind
 lookupKind t = find ((== t) . kindId) kinds
@@ -77,6 +91,13 @@ envelopeOf Jack = Envelope 1.42 12.98 5.0
   "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles courtyard, origin at the barrel"
 envelopeOf Switch = Envelope 4.57 4.57 4.82
   "Dailywell 2M body 8.13 x 8.64 (9.14 for two poles) plus 0.25 mm, docs/MECHANICAL.md"
+-- No momentary part is chosen yet. This stands in with the sub-mini toggle's
+-- body, which is the nearest panel hardware the standard already describes.
+-- It is smaller than the knob and the jack in every direction, so it does not
+-- move the grid limits whatever the real part turns out to be; a test holds
+-- that. Choosing the part is docs/MECHANICAL.md's job.
+envelopeOf Button = Envelope 4.57 4.57 4.82
+  "placeholder: the sub-mini toggle's body, until a momentary part is chosen in docs/MECHANICAL.md"
 envelopeOf Led = Envelope 2.21 2.21 2.42
   "LED_D3.0mm courtyard, body centre at footprint (1.27, 0)"
 

@@ -9,8 +9,9 @@ retire_when: "the sketcher is replaced or folded into another tool"
 # Module sketcher
 
 Put components on a grid. Open `sketcher/index.html` in a browser: no server,
-no build step, no network. Pick a knob, a jack, a switch or an LED, click a
-cell, name it. Change how many columns and rows you want. That is the tool.
+no build step, no network. Pick a knob, a jack, a switch, a button or an LED,
+click a cell, name it. Change how many columns and rows you want. That is the
+tool.
 
 It is conceptual on purpose. A sketch says "a knob here, an input there"; it
 does not say which pot, on what panel, wired to what. Choosing the part and
@@ -116,9 +117,22 @@ JSON, you open it and move things around, you send it back.
 
 Columns and rows count from zero, left to right and top to bottom. A cell
 holds one component or nothing, so two components cannot overlap: the format
-cannot express it. The kinds are `knob`, `jack`, `switch` and `led`. A label
-is optional and at most 24 characters. Cells are written in reading order, so
-the same panel drawn in a different order is the same file.
+cannot express it. A label is optional and at most 24 characters. Cells are
+written in reading order, so the same panel drawn in a different order is the
+same file.
+
+The kinds, with the note the palette shows for each:
+
+| Kind | For |
+|---|---|
+| `knob` | A rotary control. Its position is the setting. |
+| `jack` | A patch point, in or out. |
+| `switch` | A maintained switch, for a setting that stays put. Anything that must survive a power cycle. |
+| `button` | A momentary press: a manual trigger, a tap. Not for a mode that has to stay set. |
+| `led` | An indicator. |
+
+The switch and button notes carry [the instrument's visible-control
+rule](../AGENTS.md#rules) to the place where the choice is actually made.
 
 Reading is strict. Unknown fields, a wrong version, a grid past the limits, a
 cell off the grid, two components in one cell, an unknown kind, a fractional
@@ -163,8 +177,15 @@ looks.
 - **The 15 mm spacing is a candidate**, so the column and row maxima move if
   the mockup settles on something else. The format stores counts, not
   millimetres, so a sketch survives that change.
-- **Four kinds.** No momentary button, no trimmer, no multi-cell component. A
-  component that needs two cells cannot be drawn; say so and one gets added.
+- **Five kinds, and one of them has no part yet.** No trimmer, and no
+  multi-cell component: something that needs two cells cannot be drawn. Say so
+  and it gets added.
+- **No momentary part is chosen.** `button` exists in the sketch and in the
+  palette, but [MECHANICAL.md](MECHANICAL.md#panel-hardware-standard) has no
+  push button in its hardware standard. The grid reckons its size with the
+  sub-mini toggle's body as a stand-in, which is smaller than the knob and the
+  jack in every direction, so the real part cannot change the six-by-six limit
+  whatever it turns out to be. A test holds that.
 - **No generator bridge.** Nothing here writes a KiCad file, a circuit or a
   cutting file, and the browser never touches a generated project. That is
   [S3](ROADMAP.md#s3-generator-bridge-and-panel-exports-planned) and it is not

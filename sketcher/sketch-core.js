@@ -251,9 +251,15 @@
       return validate(v);
     }
 
+    // Reading a cell always gives a label, even though an empty one is left
+    // out of the file. Without this every reader has to remember the
+    // difference, and one that forgets prints the word "undefined".
     function at(s, col, row) {
       for (var i = 0; i < s.cells.length; i++) {
-        if (s.cells[i].col === col && s.cells[i].row === row) return s.cells[i];
+        var c = s.cells[i];
+        if (c.col === col && c.row === row) {
+          return { col: c.col, row: c.row, kind: c.kind, label: c.label || '' };
+        }
       }
       return null;
     }

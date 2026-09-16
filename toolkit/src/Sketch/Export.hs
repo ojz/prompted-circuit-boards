@@ -43,7 +43,8 @@ catalogueJs :: Text
 catalogueJs = asScript "SKETCH_CATALOGUE" $ JObject
   [ ("format", JString formatName)
   , ("version", num formatVersion)
-  , ("kinds", JArray [ JObject [ ("id", JString (kindId k)), ("label", JString (kindLabel k)) ] | k <- kinds ])
+  , ("kinds", JArray [ JObject [ ("id", JString (kindId k)), ("label", JString (kindLabel k))
+                               , ("note", JString (kindNote k)) ] | k <- kinds ])
   , ("maxColumns", num maxColumns)
   , ("maxRows", num maxRows)
     -- What each column count would cost in panel width. The editor shows

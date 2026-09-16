@@ -26,7 +26,7 @@ handoff holds current evidence and next actions, not a session history.
   need 13.6 mm, so the jack body caps the grid; six columns already needs the
   full 20 HP. That answers the user's "8 rows seems fine" with a measurement:
   eight is not possible with these parts.
-  Evidence: `cabal test`, `node sketcher/tests.js` (21) against vectors the
+  Evidence: `cabal test`, `node sketcher/tests.js` (23) against vectors the
   generator writes, and `node sketcher/smoke.js` (14) which runs the page
   against a DOM stub because the other two never touch the DOM.
   **Open:** no rendered screenshot has been inspected; the browser extension
@@ -138,8 +138,8 @@ against the simplified version that is committed:
 
 | Check | Result |
 |---|---|
-| `cabal test --test-show-details=direct` | 100/100 passed; the sketch suite covers the format, the derived limits and the export |
-| `node sketcher/tests.js` | 21/21 passed: the format against generator-written vectors, placing, clearing, moving, resizing, undo/redo, save/reopen, malformed input and storage failure |
+| `cabal test --test-show-details=direct` | 102/102 passed; the sketch suite covers the format, the derived limits and the export |
+| `node sketcher/tests.js` | 23/23 passed: the format against generator-written vectors, placing, clearing, moving, resizing, undo/redo, save/reopen, malformed input and storage failure |
 | `node sketcher/smoke.js` | 14/14 passed; runs the page against a DOM stub, placing from the palette, renaming in the cell, the steppers stopping at the derived maximum, a refused shrink, backspace, undo and a refused paste |
 | `sketcher/tests.html` in a browser | not run; the browser extension in this session could not open a local page or a localhost server, so the rendered screenshots are still owed |
 | `pcbgen sketch` on the two fixtures | both report their grid, component count and implied width; a malformed file and a missing file each exit 1 with a diagnostic |

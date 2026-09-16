@@ -70,6 +70,21 @@
     expect(core.validate({ format: 'module-sketch', version: 2, columns: core.maxColumns, rows: core.maxRows, cells: [] }).ok, 'the largest legal grid was refused');
   });
 
+  test('every kind round-trips and carries its note', function (expect) {
+    var kinds = deps.catalogue.kinds;
+    expect(kinds.length >= 5, 'expected at least five kinds, got ' + kinds.length);
+    expect(kinds.some(function (k) { return k.id === 'button'; }), 'there is no button');
+    kinds.forEach(function (k) {
+      expect(typeof k.note === 'string' && k.note.length > 10, k.id + ' has no note');
+      expect(core.kind(k.id) !== null, k.id + ' is not a known kind');
+    });
+    var s = core.emptySketch('All kinds', kinds.length, 1);
+    kinds.forEach(function (k, i) { s = ed.put(s, i, 0, k.id, k.label); });
+    var r = core.parse(core.stringify(s));
+    expect(r.ok, 'a sketch using every kind was refused: ' + (r.errors || []).join('; '));
+    if (r.ok) expect(JSON.stringify(r.sketch) === JSON.stringify(core.canonical(s)), 'round trip differs');
+  });
+
   test('the strict parser refuses what JSON.parse would take', function (expect) {
     expect(!core.parse('{"format":"module-sketch","version":2,"columns":2,"columns":3,"rows":2,"cells":[]}').ok, 'duplicate key accepted');
     var r = core.parse('{"format":"module-sketch","version":2,"columns":1e999,"rows":2,"cells":[]}');
@@ -106,6 +121,17 @@
     var got = st.get('m');
     expect(JSON.stringify(got) === JSON.stringify(mixer), 'differs:\n' + core.stringify(got) + '\n---\n' + core.stringify(mixer));
     expect(core.at(got, 2, 0) === null && core.at(got, 0, 4) === null, 'empty cells are not empty');
+  });
+
+  test('reading a cell always gives a label, even when the file omits it', function (expect) {
+    // An empty label is left out of the JSON. A reader that took the raw cell
+    // got undefined back and printed the word "undefined".
+    var s = core.emptySketch('', 2, 2);
+    s = ed.put(s, 0, 0, 'led', '');
+    expect(!('label' in s.cells[0]), 'an empty label was written to the file');
+    expect(core.at(s, 0, 0).label === '', 'reading it back gave ' + JSON.stringify(core.at(s, 0, 0).label));
+    var r = core.parse(core.stringify(s));
+    expect(r.ok && core.at(r.sketch, 0, 0).label === '', 'after a round trip it gave ' + JSON.stringify(r.ok && core.at(r.sketch, 0, 0).label));
   });
 
   test('a cell holds one component: placing on it replaces', function (expect) {

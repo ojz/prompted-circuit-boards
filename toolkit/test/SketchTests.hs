@@ -120,11 +120,33 @@ tests =
            , (decodeSketchText (encodeSketchText s) == Right s, "round trip " ++ show (decodeSketchText (encodeSketchText s)))
            , (all (\k -> lookupKind (kindId k) == Just k) kinds, "a kind does not survive its own id") ]
 
+  , test "no kind's envelope exceeds the two that set the limits" $
+      -- The button's envelope is a placeholder until a momentary part is
+      -- chosen. This holds that a placeholder, or any kind added later,
+      -- cannot silently change how big the grid is: the knob still sets the
+      -- top and the sides, and the jack still sets the bottom.
+      expectAll
+        [ (all (\k -> envAbove (envelopeOf k) <= envAbove (envelopeOf Knob)) kinds
+          , "a kind reaches higher above its centre than the knob")
+        , (all (\k -> envBelow (envelopeOf k) <= envBelow (envelopeOf Jack)) kinds
+          , "a kind reaches deeper below its centre than the jack")
+        , (all (\k -> envSide (envelopeOf k) <= envSide (envelopeOf Knob)) kinds
+          , "a kind is wider than the knob") ]
+
+  , test "every kind carries a note, and the two that need it say so" $
+      expectAll
+        [ (all (\k -> T.length (kindNote k) > 10) kinds, "a kind has no note")
+        , ("power cycle" `T.isInfixOf` kindNote Switch, "the switch note does not mention surviving a power cycle")
+        , ("momentary" `T.isInfixOf` kindNote Button, "the button note does not say it is momentary")
+        , (kindNote Button `T.isInfixOf` catalogueJs, "the notes do not reach the browser") ]
+
   , test "the envelopes behind the limits come from real parts" $
       expectAll
         [ (all (\k -> let e = envelopeOf k in envAbove e > 0 && envBelow e > 0 && envSide e > 0) kinds
           , "an envelope is zero or negative")
         , (all (\k -> not (T.null (envSource (envelopeOf k)))) kinds, "an envelope has no source")
+        , ("placeholder" `T.isInfixOf` envSource (envelopeOf Button)
+          , "the button's envelope is a stand-in and must say so until a part is chosen")
         , (envBelow (envelopeOf Jack) > envBelow (envelopeOf Knob)
           , "the jack should be the deepest part; it is what limits the rows") ]
 

@@ -53,6 +53,10 @@
     } else if (kindId === 'switch') {
       add('line', { x1: 6, y1: 18, x2: 18, y2: 18 });
       add('line', { x1: 12, y1: 18, x2: 16, y2: 6, 'stroke-width': '2.5' });
+    } else if (kindId === 'button') {
+      // a square cap, so it does not read as another round hole
+      add('rect', { x: 5, y: 5, width: 14, height: 14, rx: 3 });
+      add('line', { x1: 9, y1: 12, x2: 15, y2: 12, 'stroke-width': '2.5' });
     } else if (kindId === 'led') {
       add('circle', { cx: 12, cy: 13, r: 4, fill: 'currentColor' });
       add('line', { x1: 12, y1: 5, x2: 12, y2: 2 });
@@ -83,7 +87,8 @@
     core.kinds.forEach(function (k) {
       var b = el('button', {
         type: 'button', 'aria-pressed': ui.armed === k.id ? 'true' : 'false',
-        onclick: function () { ui.armed = k.id; render(); }
+        title: k.note || k.label,
+        onclick: function () { ui.armed = k.id; say(k.note || ''); render(); }
       }, [icon(k.id), el('span', { text: k.label })]);
       p.appendChild(b);
     });

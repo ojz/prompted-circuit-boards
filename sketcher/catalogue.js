@@ -7,19 +7,28 @@
   "kinds": [
     {
       "id": "knob",
-      "label": "Knob"
+      "label": "Knob",
+      "note": "A rotary control. Its position is the setting."
     },
     {
       "id": "jack",
-      "label": "Jack"
+      "label": "Jack",
+      "note": "A patch point, in or out."
     },
     {
       "id": "switch",
-      "label": "Switch"
+      "label": "Switch",
+      "note": "A maintained switch, for a setting that stays put. Use this for anything that must survive a power cycle."
+    },
+    {
+      "id": "button",
+      "label": "Button",
+      "note": "A momentary press, for something that happens while you hold it: a manual trigger, a tap. Not for a mode that has to stay set."
     },
     {
       "id": "led",
-      "label": "LED"
+      "label": "LED",
+      "note": "An indicator."
     }
   ],
   "maxColumns": 6,
