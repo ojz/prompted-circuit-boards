@@ -3,61 +3,95 @@
 // It lives apart from QuadAmp.cpp so it can be tested without the Rack
 // runtime, which has no headless mode: rack/tests/dsp_test.cpp compiles this
 // header on its own and checks the four patch states, unity gain, the
-// normalled break and both saturation points. The module calls these
-// functions rather than repeating the arithmetic, so the tested behaviour and
-// the played behaviour cannot drift apart.
+// normalled break and the saturation curve. The module calls these functions
+// rather than repeating the arithmetic, so the tested behaviour and the played
+// behaviour cannot drift apart.
+//
+// One channel, revised 2026-09-21 from a level knob and a level trim to an
+// initial gain plus an attenuverted modulation:
+//
+//     gain = (BIAS + MOD * DEPTH / 10) / 10
+//     OUT  = saturate(SIG * gain)
+//
+// The bias is what makes it a VCA rather than a multiplier. With the previous
+// arrangement a patched CV at zero volts meant silence and nothing could be
+// done about it, so a channel could never sit half open with modulation on
+// top -- which is what a VCA is for most of the time.
 //
 // Everything here is ideal. See docs/modules/quad-amp/SPEC.md, "What this
 // prototype does not model": no multiplier error, offset, drift or noise.
 #pragma once
 
+#include <cmath>
+
 namespace quadamp {
 
-/** The voltage an empty SIG or CV jack is normalled to, and the multiplier's
-full-scale reference. */
-const float NORMAL_V = 10.f;
+/** The voltage an empty SIG jack is normalled to. This is what makes a channel
+with nothing patched into it a DC offset whose dial reads in volts, and a
+channel with only MOD patched a scale-and-shift utility.
 
-/** Two cascaded four-quadrant multiplications, each scaled by the reference.
-This is what puts unity gain at COARSE = +10 V with CV normalled, and what
-makes the knob read in volts with nothing patched at all. */
-const float SCALE = NORMAL_V * NORMAL_V;
+MOD deliberately has no normal: an unpatched MOD jack is 0 V, so DEPTH visibly
+does nothing without a cable rather than quietly becoming a second level knob. */
+const float SIG_NORMAL_V = 10.f;
 
-/** Where the hardware would saturate: a stand-in for op-amp output swing on
-+/-12 V rails, not a measured limit. It is modelled so the headroom question
-(four channels at 10 V is 40 V of sum) is audible rather than deferred. */
-const float CLIP_V = 11.f;
+/** Knob full scale. Both BIAS and DEPTH span +/-FULL_SCALE and read in volts;
+unity gain falls at BIAS = +10 V, and again at DEPTH = +10 V with a 10 V
+modulation. */
+const float FULL_SCALE = 10.f;
+
+/** Saturation. Below LINEAR_V the channel is exactly linear, which is what
+keeps the offset and scale-and-shift modes reading in volts across the whole
+knob range. Above it the curve is a tanh knee onto CEILING_V.
+
+CEILING_V is a rail-to-rail output stage on +/-12 V rails (the OPA2197 already
+used in Block.Precision swings to within a few hundred millivolts of its
+rails). That is what makes the knee 1.5 V wide and no wider: it is the room
+physics leaves between an honest linear range and the supply. A deliberately
+voiced soft clipper would lower LINEAR_V and colour everything below it too;
+that is a hardware voicing decision, and this is the one constant to change
+for it. Neither number is measured. */
+const float LINEAR_V = 10.f;
+const float CEILING_V = 11.5f;
 
 const int CHANNELS = 4;
 
-inline float clip(float v) {
-	if (v < -CLIP_V)
-		return -CLIP_V;
-	if (v > CLIP_V)
-		return CLIP_V;
-	return v;
+/** Linear to LINEAR_V, then a tanh knee asymptotic to CEILING_V. Continuous in
+value and in slope at the join, so there is no corner to hear. */
+inline float saturate(float v) {
+	float a = v < 0.f ? -v : v;
+	if (a <= LINEAR_V)
+		return v;
+	const float knee = CEILING_V - LINEAR_V;
+	float out = LINEAR_V + knee * std::tanh((a - LINEAR_V) / knee);
+	return v < 0.f ? -out : out;
 }
 
-/** One channel: OUT = SIG * CV * (COARSE + FINE) / 100, with an unpatched
-input standing in at the normal. `sig` and `cv` are ignored when their
-respective jack is not patched. */
-inline float channelOut(bool sigPatched, float sig,
-                        bool cvPatched, float cv,
-                        float coarse, float fine) {
-	float s = sigPatched ? sig : NORMAL_V;
-	float c = cvPatched ? cv : NORMAL_V;
-	return clip(s * c * (coarse + fine) / SCALE);
+/** The gain a channel is set to, before the signal is applied. Can exceed
+unity -- BIAS and DEPTH both at full with a 10 V modulation give a gain of two,
+which is the intended overdrive and is what the saturation above is for. */
+inline float gain(float bias, float mod, float depth) {
+	return (bias + mod * depth / FULL_SCALE) / FULL_SCALE;
+}
+
+/** One channel. `mod` is the MOD jack's voltage, already 0 when unpatched;
+`sig` is ignored and the normal used when SIG is unpatched. */
+inline float channelOut(bool sigPatched, float sig, float mod,
+                        float bias, float depth) {
+	float s = sigPatched ? sig : SIG_NORMAL_V;
+	return saturate(s * gain(bias, mod, depth));
 }
 
 /** The mix bus: the channels whose own output jack is empty, summed and
-saturated at the sum stage's own rails. `outPatched[i]` is whether channel i's
-individual output has a plug in it. */
+saturated by the sum stage, which has its own rails and so saturates
+independently of the channels feeding it. `outPatched[i]` is whether channel
+i's individual output has a plug in it. */
 inline float mix(const float* out, const bool* outPatched) {
 	float sum = 0.f;
 	for (int c = 0; c < CHANNELS; c++) {
 		if (!outPatched[c])
 			sum += out[c];
 	}
-	return clip(sum);
+	return saturate(sum);
 }
 
 } // namespace quadamp

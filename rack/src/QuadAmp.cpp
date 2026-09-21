@@ -1,30 +1,30 @@
-// QuadAmp: four four-quadrant amplifier channels summed on a normalled mix bus.
+// QuadAmp: four amplifier channels summed on a normalled mix bus.
 //
 // This is a V0 musical prototype under docs/ROADMAP.md, not a circuit. It
 // exists to answer questions a description cannot: does four channels feel
-// like enough, does the FINE knob earn its grid cell, and is the offset mode
-// (nothing patched) something you reach for or something you forget exists.
+// like enough, does the scale-and-shift mode get reached for or forgotten,
+// and is the overdrive worth having.
 //
-// One channel:
+// One channel, top to bottom on the panel: SIG IN, BIAS, MOD, DEPTH, OUT.
 //
-//     OUT = SIG * CV * (COARSE + FINE) / 100
+//     gain = (BIAS + MOD * DEPTH / 10) / 10
+//     OUT  = saturate(SIG * gain)
 //
-// with SIG and CV each normalled to +10 V when their jack is empty, and the
-// knobs calibrated in volts (COARSE +/-10, FINE +/-1). The /100 is two
-// four-quadrant multiplier scalings of /10 each, which is what makes the
-// arithmetic land where it should: at full COARSE with both jacks empty the
-// channel emits exactly the knob voltage, and with SIG patched and CV empty
-// it is a plain attenuverter at unity.
+// SIG is normalled to +10 V when its jack is empty, so a channel with nothing
+// patched is a DC offset whose dial reads in volts. MOD is deliberately not
+// normalled, so DEPTH visibly does nothing without a cable. Both knobs span
+// +/-10 V and read in volts, and the gain may exceed unity.
 //
 // SUM carries the channels whose own OUT jack is empty. Patching a channel's
 // OUT removes it from SUM and nothing else; the channel keeps working.
+//
+// The transfer function, its constants and the saturation curve live in
+// QuadAmpDsp.hpp so they can be tested without the Rack runtime.
 //
 // Deliberately NOT modelled here: the analog error of a real multiplier.
 // See docs/modules/quad-amp/SPEC.md, "What this prototype does not model".
 #include "plugin.hpp"
 
-// The transfer function itself, Rack-free so it can be tested without the
-// runtime: see QuadAmpDsp.hpp and rack/tests/dsp_test.cpp.
 #include "QuadAmpDsp.hpp"
 
 using quadamp::CHANNELS;
@@ -55,14 +55,14 @@ static math::Vec cell(int col, int row) {
 
 struct QuadAmp : Module {
 	enum ParamId {
-		COARSE_PARAM,
-		FINE_PARAM = COARSE_PARAM + CHANNELS,
-		PARAMS_LEN = FINE_PARAM + CHANNELS
+		BIAS_PARAM,
+		DEPTH_PARAM = BIAS_PARAM + CHANNELS,
+		PARAMS_LEN = DEPTH_PARAM + CHANNELS
 	};
 	enum InputId {
 		SIG_INPUT,
-		CV_INPUT = SIG_INPUT + CHANNELS,
-		INPUTS_LEN = CV_INPUT + CHANNELS
+		MOD_INPUT = SIG_INPUT + CHANNELS,
+		INPUTS_LEN = MOD_INPUT + CHANNELS
 	};
 	enum OutputId {
 		SIG_OUTPUT,
@@ -77,15 +77,17 @@ struct QuadAmp : Module {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		for (int c = 0; c < CHANNELS; c++) {
 			std::string n = string::f(" %d", c + 1);
-			configParam(COARSE_PARAM + c, -10.f, 10.f, 0.f, "Coarse amp" + n, " V");
-			configParam(FINE_PARAM + c, -1.f, 1.f, 0.f, "Fine amp" + n, " V");
+			configParam(BIAS_PARAM + c, -quadamp::FULL_SCALE, quadamp::FULL_SCALE,
+				0.f, "Bias" + n, " V");
+			configParam(DEPTH_PARAM + c, -quadamp::FULL_SCALE, quadamp::FULL_SCALE,
+				0.f, "Mod depth" + n, " V");
 			configInput(SIG_INPUT + c, "Signal" + n);
-			configInput(CV_INPUT + c, "Amp CV" + n);
+			configInput(MOD_INPUT + c, "Mod" + n);
 			configOutput(SIG_OUTPUT + c, "Signal" + n);
-			// Say the normal out loud, so the offset mode is discoverable from
-			// the tooltip rather than only from the specification.
+			// Say the normals out loud, so the offset and scale-and-shift modes
+			// are discoverable from the tooltip and not only from the spec.
 			inputInfos[SIG_INPUT + c]->description = "Normalled to +10 V when empty";
-			inputInfos[CV_INPUT + c]->description = "Normalled to +10 V when empty";
+			inputInfos[MOD_INPUT + c]->description = "Not normalled; depth does nothing without a cable";
 			outputInfos[SIG_OUTPUT + c]->description = "Patching this removes the channel from SUM";
 		}
 		configOutput(SUM_OUTPUT, "Sum");
@@ -98,14 +100,16 @@ struct QuadAmp : Module {
 
 		for (int c = 0; c < CHANNELS; c++) {
 			Input& sigIn = inputs[SIG_INPUT + c];
-			Input& cvIn = inputs[CV_INPUT + c];
+			Input& modIn = inputs[MOD_INPUT + c];
 			Output& sigOut = outputs[SIG_OUTPUT + c];
 
+			// An unconnected Rack input already reads 0 V, which is exactly
+			// MOD's unpatched behaviour, so it needs no test of its own.
 			out[c] = quadamp::channelOut(
 				sigIn.isConnected(), sigIn.getVoltage(),
-				cvIn.isConnected(), cvIn.getVoltage(),
-				params[COARSE_PARAM + c].getValue(),
-				params[FINE_PARAM + c].getValue());
+				modIn.getVoltage(),
+				params[BIAS_PARAM + c].getValue(),
+				params[DEPTH_PARAM + c].getValue());
 
 			sigOut.setVoltage(out[c]);
 			// The normalled break: an empty output jack leaves the channel on
@@ -150,7 +154,9 @@ struct QuadAmpLabels : Widget {
 		// instead of one per control, which is what the shared-grid panel
 		// language asks for. When real I/O fills these cells the legend needs
 		// another home; that is a panel decision, not a prototype one.
-		const char* legend[4] = {"SIG IN", "AMP CV", "COARSE", "FINE"};
+		// Two pairs and a result: the signal and how much of it, the
+		// modulation and how much of it, then the output.
+		const char* legend[4] = {"SIG IN", "BIAS", "MOD", "DEPTH"};
 		for (int r = 0; r < 4; r++)
 			text(args, cell(4, r).x, cell(4, r).y, legend[r], 7.f, muted);
 		text(args, cell(4, 3).x, cell(4, 3).y + 13.f, "RESERVED", 5.5f, faint);
@@ -179,12 +185,15 @@ struct QuadAmpWidget : ModuleWidget {
 		addChild(createWidget<ScrewSilver>(math::Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 		for (int c = 0; c < CHANNELS; c++) {
+			// Two pairs and a result: the signal and how much of it, the
+			// modulation and how much of it, then the output. Each knob sits
+			// under the jack it belongs to.
 			addInput(createInputCentered<PJ301MPort>(cell(c, 0), module, QuadAmp::SIG_INPUT + c));
-			addInput(createInputCentered<PJ301MPort>(cell(c, 1), module, QuadAmp::CV_INPUT + c));
 			// Two identical 9 mm pots on the board; the different caps are what
-			// separate coarse from fine in the hand.
-			addParam(createParamCentered<RoundBlackKnob>(cell(c, 2), module, QuadAmp::COARSE_PARAM + c));
-			addParam(createParamCentered<RoundSmallBlackKnob>(cell(c, 3), module, QuadAmp::FINE_PARAM + c));
+			// separate the two in the hand.
+			addParam(createParamCentered<RoundBlackKnob>(cell(c, 1), module, QuadAmp::BIAS_PARAM + c));
+			addInput(createInputCentered<PJ301MPort>(cell(c, 2), module, QuadAmp::MOD_INPUT + c));
+			addParam(createParamCentered<RoundSmallBlackKnob>(cell(c, 3), module, QuadAmp::DEPTH_PARAM + c));
 			addOutput(createOutputCentered<PJ301MPort>(cell(c, 4), module, QuadAmp::SIG_OUTPUT + c));
 		}
 		addOutput(createOutputCentered<PJ301MPort>(cell(4, 4), module, QuadAmp::SUM_OUTPUT));

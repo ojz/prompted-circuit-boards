@@ -23,10 +23,13 @@ handoff holds current evidence and next actions, not a session history.
   [ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)
   owns the sequence and musical acceptance gate.
 - **The first prototype is [Quad Amp](modules/quad-amp/SPEC.md):** four
-  four-quadrant amplifier channels on a normalled mix bus, from the user's
-  2026-09-21 description. Five columns by five rows, 16 HP, the fifth column
-  holding SUM and four cells reserved for I/O still to be decided. Built as a
-  Rack plugin in `rack/`, installed and confirmed loading; **not yet played.**
+  amplifier channels on a normalled mix bus, from the user's 2026-09-21
+  description and revised the same evening. Each channel is SIG IN, BIAS, MOD,
+  DEPTH, OUT: an initial gain plus an attenuverted modulation, replacing a
+  coarse/fine level pair that could never sit half open under a patched CV.
+  Five columns by five rows, 16 HP, the fifth column holding SUM and four cells
+  reserved for I/O. Built as a Rack plugin in `rack/`, installed and confirmed
+  loading; **not yet played.**
 - **Five rows is now a standing rule** ([AGENTS.md](../AGENTS.md#rules)). The
   derivation still owns the maximum (six rows, six columns); the rule fixes the
   project's choice inside it. Row pitch remains a candidate, not a verified fit.
@@ -57,9 +60,12 @@ handoff holds current evidence and next actions, not a session history.
   with it, including the three legal row pitches for five rows and which one the
   prototype uses.
 - Wrote [Quad Amp's specification](modules/quad-amp/SPEC.md) from the user's
-  description, including the regrouping that turns two four-quadrant
-  multiplications per channel into one multiplier plus one attenuverter, and the
-  pitch-CV boundary with its numbers.
+  description, including the one multiplier per channel the arithmetic actually
+  needs and the pitch-CV boundary with its numbers.
+- Revised it the same evening on the user's call: the fine level trim becomes a
+  bias on the gain, MOD loses its normal, gain may exceed unity and saturates
+  through a tanh knee rather than a hard corner. That removed a real defect --
+  with a CV patched, the first version could never sit half open.
 - Built the Rack plugin in `rack/`, set up the SDK and MSYS2 MINGW64 toolchain,
   and recorded both in [SETUP.md](SETUP.md#vcv-rack).
 - **One trap cost most of the session and is written down so it cannot recur:**
@@ -91,7 +97,7 @@ Fundamental 2.6.4, Rack SDK 2.6.6, MSYS2 MINGW64 g++ 16.2.0:
 | Check | Result |
 |---|---|
 | `rack/build.sh` panel SVG parse (NanoSVG, the one Rack uses) | 240.00 x 380.00 px, 26 shapes, matches the expected page size |
-| `rack/build.sh` transfer-function tests | 21 checked, 0 failed: four patch states, unity gain, knob reading in volts, both saturation points, the normalled break and the four-at-10 V headroom case |
+| `rack/build.sh` transfer-function tests | 30 checked, 0 failed: four patch states, unity gain, knobs reading in volts, gain above unity, the tanh saturation curve and its slope continuity, the normalled break and the four-at-10 V headroom case |
 | C runtime parity, plugin against Rack.exe | `Rack=msvcrt plugin=msvcrt`; the same check fails closed on a UCRT build |
 | Plugin loads in Rack | `Loaded plugin PromptedCircuitBoards 2.0.0` |
 | Module instantiates from a saved patch | module and widget created, all seven component SVGs loaded, window running, autosave written, **0 fatal signals** |
