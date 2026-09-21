@@ -36,10 +36,13 @@ Paperface panels. Final artwork and fabrication remain deferred under
   Do not pre-populate or cut every grid position. Large controls and functional
   groups may reserve several cells. Mounting holes and service connectors have
   their own geometry; they are not mandatory musical-control cells.
-- **Common rows across modules.** Choose one row origin and pitch once fit is
-  demonstrated. Do not restrict the approved module widths merely to obtain
-  uninterrupted columns across module boundaries. Functional grouping and
-  access take precedence over visual density.
+- **Common rows across modules: five, always.** The standing rule in
+  [AGENTS.md](../AGENTS.md#rules) fixes every module's grid at five rows, so
+  rows can line up from one module to the next. The row origin and pitch are
+  still open and wait on fit; the count no longer is. Do not restrict the
+  approved module widths merely to obtain uninterrupted columns across module
+  boundaries. Functional grouping and access take precedence over visual
+  density.
 - **Consistent meanings.** Use one convention for inputs versus outputs,
   synth TS versus consumer TRS ports, control direction and bipolar zero,
   ranges/units, switch positions and normalled connections. Colour reinforces
@@ -98,6 +101,23 @@ Seven would space them 13.44 mm apart and two Thonkiconns need 13.6 mm, so the
 jack body is what caps the grid. Six columns already needs the full 20 HP.
 Those numbers move if the pitch does; they are derived in
 [Sketch/Catalogue.hs](../toolkit/src/Sketch/Catalogue.hs), not written down.
+
+**Five rows is the chosen count inside that maximum**, one below it. Five rows
+need only 4 x 13.6 = 54.4 mm of the 80.61 mm band, so 26.21 mm is free to
+place them with. Three ways to spend it, all legal, none yet verified against
+a real panel:
+
+| Row pitch, mm | Row centres, panel y | Leaves |
+|---|---|---|
+| 20.15 (band fully spread) | 20.66, 40.81, 60.97, 81.12, 101.27 | nothing; a bottom-row jack body reaches the PCB's bottom edge, where the power shroud sits |
+| 15.24 (three nominal HP) | 33.77, 49.01, 64.25, 79.49, 94.73 | ~6.5 mm of board below the bottom jack, and the grid centred on the panel |
+| 13.60 (jack minimum) | 33.77, 47.37, 60.97, 74.56, 88.16 | the most board, the least finger room |
+
+The middle row is used by the first VCV Rack prototype
+([ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)),
+centred on the panel rather than on the band, because the band is asymmetric:
+the jack hangs 12.98 mm below its centre and the knob stands only 6.41 mm above
+its own. **That is a prototype's working assumption, not a closed fit gate.**
 
 ## The stack, front to back
 

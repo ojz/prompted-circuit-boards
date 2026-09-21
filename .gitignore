@@ -31,3 +31,9 @@ dist-newstyle/
 
 # Benchmark scratch (external routers write here)
 modules/_bench/.work/
+
+# VCV Rack plugin build output
+rack/build/
+rack/dist/
+rack/plugin.dll
+rack/.build-tools/

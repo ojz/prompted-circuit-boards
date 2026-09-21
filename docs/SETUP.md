@@ -34,11 +34,40 @@ At the first prototype session:
    in Rack's local autosave or a chat. Do not commit installed plugin binaries
    or account credentials.
 
-Custom Rack modules may need an SDK and a separate build toolchain. Select and
-document that setup when an identified behavioral gap requires custom code;
-the existing Haskell generator does not produce Rack plugins. Do not turn an
-SDK installation or a hardware toolchain rebuild into a prerequisite for a
-prototype that can be represented with existing modules.
+Custom Rack modules need an SDK and a separate build toolchain. Do not turn an
+SDK installation into a prerequisite for a prototype that existing modules can
+represent; the Haskell generator does not produce Rack plugins and never will.
+
+**Set up on the home laptop, 2026-09-21,** for the first identified gap: no
+stock module normals an output jack so that patching it removes that channel
+from a mix bus, which is [Quad Amp](modules/quad-amp/SPEC.md)'s defining
+behaviour. Verified with Rack Free 2.6.6, Windows x64, Fundamental 2.6.4 the
+only other plugin installed.
+
+- **Rack SDK** unpacked at `%LOCALAPPDATA%/Rack-SDK` (`RACK_SDK` overrides it).
+  Its version must match the installed Rack:
+  `https://vcvrack.com/downloads/Rack-SDK-<version>-win-x64.zip`.
+- **MSYS2** at `C:/msys64` (`MSYS2_ROOT` overrides it), with the **MINGW64**
+  toolchain: `pacman -S mingw-w64-x86_64-gcc`.
+- `rack/build.sh` builds, checks and installs into Rack's user plugin
+  directory. It re-executes itself inside MSYS2 when started from Git Bash,
+  because MSYS2's `make` cannot place its temporary files under Git Bash's
+  runtime and every recipe dies with exit 127.
+
+**MINGW64, not UCRT64, and this one is worth reading before it costs an hour.**
+Rack's Windows build links `msvcrt.dll`; MSYS2's UCRT64 toolchain links the
+UCRT. Those are two separate C runtime heaps. A plugin built against the wrong
+one compiles without a warning, links, loads, and logs its version correctly --
+and then segfaults in `RtlFreeHeap` the moment a module widget is constructed,
+because memory allocated inside `libRack` is released against the other heap.
+The module browser builds a widget for every installed module, so the symptom
+is that **right-clicking the rack closes Rack**, with a stack trace pointing at
+the plugin's constructor and nothing wrong there. `rack/build.sh` now compares
+the two binaries' CRT imports and refuses to install a mismatch.
+
+Rack also puts up a "Rack crashed last time, start over?" prompt after any
+unclean exit, which blocks startup before a patch is read. Answer it, or clear
+`skipLoadOnLaunch` in `%LOCALAPPDATA%/Rack2/settings.json`.
 
 The musical acceptance gate lives in
 [ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current).

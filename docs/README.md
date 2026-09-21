@@ -19,6 +19,7 @@ gate. Each current or retained track has one owning document:
 | Track | Open This | What You Decide |
 |---|---|---|
 | Play digital module prototypes and test the instrument balance | [ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current) | What works when played, which functions run short or go unused, and which composition should become hardware. The agent builds reproducible prototypes and accounts for shared resources. |
+| Play or change the first Rack prototype | [modules/quad-amp/SPEC.md](modules/quad-amp/SPEC.md) | The behaviour being tested and its open questions. Build it with `rack/build.sh`; toolchain in [SETUP.md](SETUP.md#vcv-rack). |
 | Sketch control ideas, when useful | [SKETCHER.md](SKETCHER.md) | What goes where on a module. The local grid editor is not an audio simulator; the generator bridge (S3) remains deferred. |
 | Retained R1 IO + Mixer requirements | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | Existing behavior informs virtual prototypes; physical connector, circuit and layout decisions resume after the musical gate. |
 | Equipment inventory and deferred lab procurement | [HOMELAB.md](HOMELAB.md) | Confirm owned equipment and approve any later spending. The inventory and payment readiness are recorded separately from unverified historical shopping candidates. |
@@ -45,6 +46,7 @@ and deleted after the checkpoint, not kept as another set of notes.
 | [SKETCHER.md](SKETCHER.md) | The module sketcher: how to use it, the `module-sketch` format, how a sketch is exchanged, and why the grid is at most six by six. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
 | [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md) | Retained, deferred hardware inbox: persistent-switch policy settled; R1 normalling and exact hardware variants still unanswered. Does not block V0. |
+| [modules/quad-amp/SPEC.md](modules/quad-amp/SPEC.md) | Quad Amp: four four-quadrant amplifier channels on a normalled mix bus, the five-by-five panel, why the multiplication regroups, why pitch CV should not pass through it, and what the Rack prototype does not model. |
 | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | R1's approved four-channel mono/DC behavior and 3.5 mm stereo consumer audio boundary; implementation requirements. |
 | [modules/boolean-clock/SPEC.md](modules/boolean-clock/SPEC.md) | R5's draft plan from the user's 2026-09-15 notes: `A AND NOT B`, proposed behavior table, budget items to derive, and the staged plan. Not approved behavior. |
 | [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md) | Unanswered hardware architecture choice, deferred during V0; desktop prototypes do not select CMOS, ROM, programmable logic or firmware for the board. |

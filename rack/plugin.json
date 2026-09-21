@@ -1,0 +1,26 @@
+{
+  "slug": "PromptedCircuitBoards",
+  "name": "Prompted Circuit Boards",
+  "version": "2.0.0",
+  "license": "GPL-3.0-or-later",
+  "brand": "Prompted Circuit Boards",
+  "author": "Olmo",
+  "sourceUrl": "https://github.com/olmoz/prompted-circuit-boards",
+  "description": "V0 musical prototypes of candidate Eurorack modules, laid out on the same panel grid the hardware would use.",
+  "modules": [
+    {
+      "slug": "QuadAmp",
+      "name": "Quad Amp",
+      "description": "Four four-quadrant amplifier channels on a normalled mix bus. Each channel is a VCA, an attenuverter, a ring modulator and a DC offset depending on what is patched.",
+      "manualUrl": "https://github.com/olmoz/prompted-circuit-boards/blob/main/docs/modules/quad-amp/SPEC.md",
+      "tags": [
+        "VCA",
+        "Mixer",
+        "Ring modulator",
+        "Attenuator",
+        "Utility",
+        "Quad"
+      ]
+    }
+  ]
+}

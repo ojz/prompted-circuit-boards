@@ -276,6 +276,12 @@ The user has installed VCV Rack to learn by playing before committing to
 physical modules. Installation is not evidence that project prototypes exist
 or that their musical behavior has been accepted.
 
+**Progress, 2026-09-21:** the first prototype, [Quad Amp](modules/quad-amp/SPEC.md),
+is built and loading in Rack. It is a custom Rack module rather than a stand-in
+because no stock module normals an output jack so that patching it removes that
+channel from a mix bus, which is the behaviour being tested. **It has not been
+played.** Step 1 is therefore begun, not met; steps 2 and 3 are untouched.
+
 1. **Build digital versions of the intended modules.** Start with one playable
    voice and its modulation, gain control and mix/output path, then cover the
    remaining candidate functions. Map each prototype to the intended controls,

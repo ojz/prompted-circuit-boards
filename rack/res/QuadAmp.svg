@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Panel graphics for the QuadAmp prototype. 16 HP = 240 px at Rack's 75 DPI.
+     Control centres are the hardware grid from docs/modules/quad-amp/SPEC.md:
+     5 columns at 15 mm and 5 rows at 15.24 mm, both centred on the panel.
+     NanoSVG renders no <text>, so every label is drawn in QuadAmp.cpp. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="380" viewBox="0 0 240 380">
+  <rect width="240" height="380" fill="#14151a"/>
+
+  <!-- the rail bands, so the usable panel reads correctly at true scale -->
+  <rect x="0" y="0" width="240" height="42" fill="#101116"/>
+  <rect x="0" y="338" width="240" height="42" fill="#101116"/>
+  <line x1="0" y1="42" x2="240" y2="42" stroke="#2a2d38" stroke-width="1"/>
+  <line x1="0" y1="338" x2="240" y2="338" stroke="#2a2d38" stroke-width="1"/>
+
+  <!-- four channel strips, 40 px wide on the 44.29 px column pitch -->
+  <rect x="10.86"  y="76" width="40" height="226" rx="5" fill="#1c1e26"/>
+  <rect x="55.15"  y="76" width="40" height="226" rx="5" fill="#1c1e26"/>
+  <rect x="99.44"  y="76" width="40" height="226" rx="5" fill="#1c1e26"/>
+  <rect x="143.73" y="76" width="40" height="226" rx="5" fill="#1c1e26"/>
+
+  <!-- the fifth column: four cells reserved for later I/O, SUM at the bottom -->
+  <rect x="188.02" y="76" width="40" height="226" rx="5" fill="#191b22"/>
+  <rect x="190" y="80" width="36" height="176" rx="4" fill="none"
+        stroke="#3a3f4e" stroke-width="1" stroke-dasharray="3 3" opacity="0.7"/>
+  <rect x="188.02" y="258" width="40" height="44" rx="5" fill="#2b1d14"/>
+  <circle cx="208.02" cy="279.71" r="19" fill="none" stroke="#e8833a" stroke-width="1.1" opacity="0.55"/>
+
+  <!-- signal-flow spine down each channel: in, cv, gain, gain, out -->
+  <g stroke="#2f3442" stroke-width="1.2" stroke-linecap="round">
+    <line x1="30.86"  y1="117" x2="30.86"  y2="128"/>
+    <line x1="75.15"  y1="117" x2="75.15"  y2="128"/>
+    <line x1="119.44" y1="117" x2="119.44" y2="128"/>
+    <line x1="163.73" y1="117" x2="163.73" y2="128"/>
+    <line x1="30.86"  y1="251" x2="30.86"  y2="262"/>
+    <line x1="75.15"  y1="251" x2="75.15"  y2="262"/>
+    <line x1="119.44" y1="251" x2="119.44" y2="262"/>
+    <line x1="163.73" y1="251" x2="163.73" y2="262"/>
+  </g>
+
+  <!-- the mix bus: every channel out feeds SUM until a plug breaks it -->
+  <g stroke="#e8833a" stroke-width="1.2" fill="none" opacity="0.38">
+    <path d="M 30.86 302 L 30.86 320 L 208.02 320 L 208.02 302"/>
+    <path d="M 75.15 302 L 75.15 320"/>
+    <path d="M 119.44 302 L 119.44 320"/>
+    <path d="M 163.73 302 L 163.73 320"/>
+  </g>
+
+  <line x1="14" y1="60" x2="226" y2="60" stroke="#2a2d38" stroke-width="1"/>
+</svg>
