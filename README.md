@@ -8,10 +8,16 @@ retire_when: "the repository is retired or a replacement entry point is delibera
 
 # prompted-circuit-boards
 
-Prompt-driven design of Eurorack modules. Each module is described in code, the
-KiCad project is generated from that description, and KiCad's command-line
-tools verify it and produce the files JLCPCB needs. The KiCad GUI is a viewer,
-not an editor.
+Prompt-driven design of a Eurorack instrument, **played in VCV Rack before
+it is built in hardware**. Build digital versions of the proposed modules,
+try real patches, and learn whether the instrument has a useful balance of
+VCAs, LFOs, envelopes, voices and utilities before committing to physical designs.
+
+The existing hardware toolchain is retained: modules are described in Haskell,
+KiCad projects are generated from those descriptions, and KiCad's command-line
+tools verify them and produce the files JLCPCB needs. The KiCad GUI is a viewer,
+not an editor. Hardware work resumes after the musical prototype gate, with
+electrical verification, physical measurements and purchase approval still required.
 
 [docs/README.md](docs/README.md) is the document index. Start with
 [docs/HANDOFF.md](docs/HANDOFF.md) for the current evidence and next action,
@@ -21,7 +27,8 @@ in [AGENTS.md](AGENTS.md).
 
 For a short explanation of the code, use the
 [code map](docs/README.md#where-the-code-lives). These are tools that design and
-check analog hardware on the laptop, not software running inside the modules.
+check hardware on the laptop, plus the panel sketcher. VCV Rack adds playable
+desktop prototypes; it does not choose firmware for the eventual modules.
 
 The design direction is to reuse proven circuit approaches and validate them
 to explicit precision requirements, not invent new circuitry for novelty.
@@ -49,6 +56,7 @@ been removed.
 
 | Tool | Role | Why |
 |------|------|-----|
+| **VCV Rack** | Playable digital versions of candidate modules and representative instrument patches. | Learn the musical behavior and simultaneous demand for VCAs, LFOs and other functions before hardware design; a virtual patch is not electrical or safety evidence. |
 | **KiCad 10** | Symbol and footprint libraries, ERC/DRC, zone filling, exports and renders. | Headless native checks provide independent design-consistency evidence. Library agreement is not manufacturer-datasheet verification. |
 | **pcbgen** (`toolkit/`, Haskell) | Turns a design description into a complete KiCad project. | Structured circuit definitions, design validation and deterministic identifiers make changes reviewable. Types, tests and native checks address different failure modes; none alone proves electrical correctness. |
 | **pcbgen router** (`toolkit/src/Route/`) | Routes the declared nets on a two-layer grid, with negotiated congestion and any-angle simplification. | Generates per-design reports under `docs/modules/`. Native KiCad checks remain a separate gate; the benchmark's selected geometry checks are not full DRC. |
@@ -59,6 +67,19 @@ been removed.
 | **Freerouting** | External comparison baseline for the routing benchmark. | Compared through KiCad's DSN/SES interface; not the generator's production routing path. |
 
 ## Workflow
+
+1. Build playable digital versions of the candidate modules in VCV Rack,
+   recording the intended behavior, any approximations and plugin dependencies.
+2. Play representative patches and count the functions needed at the same time.
+   Revise module behavior, grouping and quantities from the user's experience.
+3. Agree the musical composition before resuming hardware design. The
+   [V0 gate](docs/ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)
+   owns acceptance; [setup](docs/SETUP.md#vcv-rack) owns the prototype environment.
+
+### Hardware Workflow (Deferred)
+
+This existing pipeline remains available for the hardware stage; it does not
+generate or verify the VCV Rack prototypes.
 
 1. Describe or change a module in `modules/<name>/<Name>.hs` and write or
    update `docs/modules/<name>/SPEC.md` with the operating limits, geometry and
@@ -119,6 +140,10 @@ CLAUDE.md          imports AGENTS.md
 ```
 
 ## Modules
+
+These are retained hardware designs and requirements, not implemented VCV Rack
+modules. The broader candidate composition and current prototype work belong
+in the roadmap and handoff.
 
 | Module | HP | Scope |
 |--------|----|--------|

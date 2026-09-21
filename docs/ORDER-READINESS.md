@@ -1,8 +1,8 @@
 ---
-status: "hold; partial order-readiness review of checkpoint 6f1d417 on 2026-09-14"
+status: "hold; hardware deferred behind V0; partial review of checkpoint 6f1d417 on 2026-09-14"
 owner: "collaborating agents; user approves scope and purchases"
 read_when: "considering a prototype order or using the current blocks and first-power-up procedure"
-update_when: "a finding is closed with evidence, the design changes, or a reviewed quote and release package are available"
+update_when: "a finding is closed with evidence, design or ordering direction changes, or a reviewed quote and release package are available"
 retire_when: "all findings are integrated into their owning requirements and a newer reviewed prototype checkpoint supersedes this assessment"
 ---
 
@@ -13,26 +13,36 @@ module, and R1 is not yet an orderable design.** This is a partial engineering
 assessment, not a completed fabrication sign-off or a claim of measured behavior.
 No design files, part choices or acceptance thresholds were changed by this review.
 
+**Direction update, 2026-09-21:** playable digital prototypes in VCV Rack and
+user evaluation of the instrument's function balance now precede new hardware
+work. The [V0 gate](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)
+is additional to, not a replacement for, the findings below. Hardware orders
+are deferred; credit-card availability is recorded in
+[HOMELAB.md](HOMELAB.md#payment-readiness) and grants no purchase approval.
+This documentation update adds no circuit-review or physical evidence.
+
 Decision update, 2026-09-14: the R1 connector and mixer answers are now adopted
 in [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md), and their inbox files are
-retired. This closes the behavior-question prerequisite, not the engineering or
-release findings below. The original review's circuit evidence remains unchanged.
+retired. The later normalling/jack implementation conflict remains in the
+[hardware inbox](decisions/2026-09-14-panel-hardware.md); the approved behavior
+does not close engineering or release findings. The original review's circuit
+evidence remains unchanged.
 
 ## What Exists
 
-| Area | Actual state at 6f1d417 |
+| Area | Retained hardware baseline, with current planning status |
 |---|---|
 | Toolchain | Haskell generation, independent native checks, gated local exports and real failure-injection tests work. Haskell dependencies are pinned; CI is still missing. |
 | Reusable blocks | Module geometry, protected power entry and buffered attenuverter channel exist. They are not bench-tested blocks. |
 | Attenuverter | 28 x 100 mm, 31 components, 24 SMD placements, eight passing characterization decks. Reference-capacitor margin, input protection and loaded pitch performance remain open. |
 | Passive mult | 28 x 100 mm, 12 hand-installed jacks plus a solder jumper. Native checks pass. It provides no gain or buffering and cannot establish active-circuit precision. |
-| Planned instrument | R1 IO + Mixer, R2 Slope + VCA, R3 Filter + VCA, R4 SSG + Noise, R5 Boolean + Clock are roadmap stages, not five finished PCB designs. |
-| First planned order | R1, not five attenuverters. Behavior specification now approved; power architecture, circuit, models and board are not implemented. |
+| Planned instrument | R1 IO + Mixer, R2 Slope + VCA, R3 Filter + VCA, R4 SSG + Noise, R5 Boolean + Clock are the starting composition for V0, not five finished PCB designs. |
+| First order | Deferred behind V0. The earlier plan starts with R1, not five attenuverters; confirm the composition before resuming it. R1's power architecture, circuit, models and board are not implemented. |
 | Physical evidence | No board has been built or measured. A lab plan and first-power-up guide exist, but equipment capability and procedures are not fully validated. |
 
-See [ROADMAP.md](ROADMAP.md) for the agreed sequence. A separate rehearsal order
-could be considered after its findings are closed and its cost/scope is approved;
-it is not automatically authorized by the arrival of a payment card.
+See [ROADMAP.md](ROADMAP.md) for the agreed sequence. No rehearsal order is an
+automatic alternative to V0; changing that scope would require an explicit
+decision as well as closing its findings and approving its quote.
 
 ## Findings Before Ordering
 
@@ -144,8 +154,9 @@ deferred; lack of final panel art or a case need not block a bench-only PCB.
 ### OR-06: Release And Commercial Gates Are Still Open
 
 **Priority: before payment. Confidence: high, repository/artifact inventory.**
-- R1's behavior questions are answered; its engineering specification and full
-  design/check cycle still need completion.
+- R1's requested behavior is recorded, but the jack/normalling tradeoff remains
+  unanswered; its engineering specification and full design/check cycle still
+  need completion after V0.
 - The roadmap explicitly requires CI before the first order; it is absent.
 - No current retained Gerber/BOM/CPL release, assembly-preview review or delivered
   quote is present. The earlier scratch export is not an approved release.
@@ -157,8 +168,9 @@ JLCPCB's [assembly capabilities](https://jlcpcb.com/capabilities/pcb-assembly-ca
 page, consulted 2026-09-14, lists Economic order volume **2-50** and Standard
 **2-80000**. Thus five bare PCBs must not be treated as necessarily five fully
 assembled units. The selected service and live quote must confirm the actual
-quantities. The existing five-board instrument composition remains the user's
-design choice; this finding does not silently change it.
+quantities. This quantity finding did not change the instrument composition;
+the separate 2026-09-21 direction now makes that composition a starting point
+to evaluate in VCV Rack.
 
 ## Evidence And Review Limits
 
@@ -208,14 +220,18 @@ artifacts under `modules/<name>/build/`; they are not portable release evidence.
 
 ## Path To A First Order
 
-1. Develop R1 from its approved [specification](modules/io-mixer/SPEC.md) as
-  the planned first board; do not wait for unrelated router optimisation or
-  reopen the answered connector and mixer questions.
-2. Close the reusable-block findings, especially capacitor margin, input faults
+This is a deferred hardware path, not the current task queue.
+
+1. Complete V0's musical evaluation and agree the composition that should become
+  hardware. Then confirm the first board; R1 is the retained starting plan.
+2. Develop that board from its specification. For R1, preserve its approved
+  [behavior](modules/io-mixer/SPEC.md), resolve the retained jack/normalling
+  tradeoff and derive its engineering limits. Do not reopen settled answers.
+3. Close the reusable-block findings, especially capacitor margin, input faults
    and complete interface accuracy, before relying on them in another board.
-3. Establish the first-power and measurement procedure with supported equipment
+4. Establish the first-power and measurement procedure with supported equipment
    and uncertainty; implement CI as required by the roadmap.
-4. Freeze a reviewed candidate, generate/check its release bundle, inspect the
+5. Freeze a reviewed candidate, generate/check its release bundle, inspect the
    supplier preview and obtain an all-in quote. The user approves that exact order.
 
 A prototype order is allowed to precede measurement of that prototype. What

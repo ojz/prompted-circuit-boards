@@ -1,17 +1,26 @@
 ---
-status: "user-facing behavior approved 2026-09-14; circuit, parts, simulations and layout not implemented"
+status: "behavior approved 2026-09-14; virtual prototype pending; hardware deferred behind V0 and not implemented"
 owner: "collaborating design agents; user owns musical behavior and purchase decisions"
-read_when: "designing R1, checking phone/laptop compatibility, or preparing its prototype review"
+read_when: "prototyping R1 digitally, resuming its hardware design, checking consumer compatibility, or preparing review"
 update_when: "implementation evidence, operating limits or an explicit user decision changes; do not duplicate run results"
 retire_when: "R1 is removed or a replacement specification takes ownership; preserve approved decisions and build-revision evidence"
 ---
 
 # R1: IO + Mixer
 
-The first planned instrument module: a four-channel mono mixer and an interface
+The earlier hardware plan's first module: a four-channel mono mixer and an interface
 between the synthesizer and consumer audio devices, with the system's USB-C
 Power Delivery supply. This is the authoritative behavior specification, not
 an orderable circuit or a claim that the design is finished.
+
+**Current phase, 2026-09-21:** use this behavior as an input to playable VCV Rack
+prototypes under [V0](../../ROADMAP.md#v0-playable-digital-modules-and-function-balance-current).
+Test channel count, audio/CV mixing, level controls and patch-controlled mix
+removal as part of the instrument. Document any Rack stand-in that cannot
+represent those behaviors. Host audio can represent the world interface;
+the PD supply and physical jack choice are not prerequisites for virtual use.
+Circuit, connector and layout work are deferred until the musical composition
+is accepted. This changes the sequence, not the approved behavior below.
 
 ## Approved Decisions
 
@@ -91,6 +100,9 @@ about mono/stereo, connector size, coupling or normalling. A material change
 to the approved behavior or hardware cost still needs an explained decision.
 
 ## Design Work And Acceptance
+
+The following requirements apply when hardware work resumes; digital playback
+does not satisfy them.
 
 Start from proven input, summing, output and PD supply circuits. Reuse the
 existing Haskell blocks only within the limits established by

@@ -1,5 +1,5 @@
 ---
-status: "partly integrated 2026-09-15; R1 normalling and hardware variants pending"
+status: "partly integrated; unanswered R1 normalling and hardware variants deferred during V0"
 owner: "user answer; agent research and integration"
 read_when: "choosing or placing any panel-mounted part, designing R1's jack layout, or after the user edits this file"
 update_when: "the user answers, evidence changes, or the agent records the outcome"
@@ -7,6 +7,13 @@ retire_when: "the answers are recorded in docs/MECHANICAL.md (hardware standard)
 ---
 
 # Panel hardware: the choices only you can make
+
+**Deferred, 2026-09-21:** the project is prototyping and playing digital modules
+in VCV Rack first, under
+[V0](../ROADMAP.md#v0-playable-digital-modules-and-function-balance-current).
+These physical-hardware choices do not block virtual behavior prototypes.
+Retain the unanswered fields; revisit when hardware work resumes or the user
+explicitly supplies answers. The new direction selects none of the options.
 
 ## Decision Needed
 
@@ -18,8 +25,8 @@ outputs; section 2 retains hardware preferences, not permission to buy anything.
 The shared panel language and visible-control policy were adopted on 2026-09-15
 and are recorded in their owning documents, not left as unanswered questions.
 
-R1's final jack allocation waits on section 1 and its engineering checks.
-Provisional sketches and the S1/S2 software milestones can proceed independently.
+R1's eventual physical jack allocation waits on section 1 and its engineering checks.
+VCV Rack prototypes and conceptual sketches can proceed independently.
 A sketch is not an orderable design. Prototype board orders still need the
 applicable review and explicit purchase approval; final panel cutting needs
 the mechanical fit gate. Buying samples for that gate remains a separate,
@@ -170,5 +177,9 @@ Question 13 is therefore integrated, with no universal position count selected.
 
 No answer selected A/B/C for R1 or the remaining exact hardware variants. Their
 answer fields are unchanged. Retain this file until those choices and resulting
-engineering work are integrated; the next trigger is an explicit answer or new
-fit evidence, not a token reset. S1/S2 can proceed without those answers.
+engineering work are integrated.
+
+2026-09-21: deferred under the user's VCV Rack-first direction. The next trigger
+is resuming hardware after V0 or an explicit answer, not a token reset. New fit
+evidence may inform that later choice; researching hardware is not the current
+task. Digital normalling can be evaluated without choosing a physical jack.

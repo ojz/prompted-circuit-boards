@@ -188,7 +188,7 @@ looks.
   whatever it turns out to be. A test holds that.
 - **No generator bridge.** Nothing here writes a KiCad file, a circuit or a
   cutting file, and the browser never touches a generated project. That is
-  [S3](ROADMAP.md#s3-generator-bridge-and-panel-exports-planned) and it is not
+  [S3](ROADMAP.md#s3-generator-bridge-and-panel-exports-deferred) and it is not
   started.
 - **No rendered screenshot has been inspected.** The tests cover the logic and
   the code paths; how the page looks has not been checked on a desktop or a

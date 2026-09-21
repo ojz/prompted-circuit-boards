@@ -8,47 +8,54 @@ retire_when: "the project direction is replaced; merge lasting decisions and rem
 
 # Roadmap: From A Musical Idea To A Playable Row
 
-Updated: 2026-09-15. Status: M1-M2 complete; M3 lacks CI; M4 is the method
-rehearsal on the attenuverter (option B implemented, characterized in simulation
-and factored into three library blocks). The order-readiness review found open
-reference-capacitor, input-protection, loaded-accuracy and bring-up/measurement
-issues; documents being written does not close those gates. See
-[ORDER-READINESS.md](ORDER-READINESS.md). No board has been built or measured.
-The plan below replaces the earlier per-module milestones (DUSG, SSG) with the
-user's five-board instrument composition. Fabricated and populated quantities
-must be confirmed separately in each quote; the composition is not a claim that
-five populated copies of each board are mandatory.
+Updated: 2026-09-21. **Current phase: VCV Rack prototypes before hardware.**
+The user wants to play digital versions of the proposed modules before taking
+the risk of designing and building an unfamiliar instrument. Establish the
+musical behavior and balance of VCAs, LFOs, envelopes and other functions through
+patching first. The five-board composition below is the starting point to test,
+not a finished allocation that the virtual instrument must vindicate.
+
+Existing hardware work is retained, not abandoned: M1-M2 complete; M3 lacks CI;
+M4's option B attenuverter is implemented, characterized in simulation and
+factored into three library blocks. Its open electrical and bring-up findings
+remain in [ORDER-READINESS.md](ORDER-READINESS.md). No board has been built or
+measured. New circuit/layout work, hardware procurement preparation and
+fabrication are deferred while V0 is the priority. Virtual success will not
+close physical verification or purchase gates.
 
 ## Goal And Constraints
 
 Make it practical for a non-technical musician to describe a Eurorack module,
-have an agent maintain its design and generate manufacturing files, then
-assemble and test it using detailed instructions. Success is a working
+play a digital version in VCV Rack, and refine an instrument's function balance
+before committing to hardware. Once the musical design is accepted, have an
+agent maintain its circuit design and generate manufacturing files, then
+assemble and test it using detailed instructions. Success is a useful, playable
 instrument and a repeatable process, not a more elaborate CAD framework.
 
 | Decision | Direction |
 |---|---|
-| First priority | A reliable agent-driven design, verification, and export workflow |
-| The instrument | A five-board system that is roughly one 84 HP row: IO + Mixer (power and world interface), Slope + VCA, Resonant Filter + VCA, Stepped/Smooth Generator + Noise, Boolean + Clock. Serge-style: the slope and the filter are the oscillators |
+| First priority | Playable digital module prototypes in VCV Rack; learn through patching and establish a useful balance of functions before hardware design resumes |
+| The instrument | Starting hypothesis: roughly one 84 HP row with IO + Mixer, Slope + VCA, Resonant Filter + VCA, Stepped/Smooth Generator + Noise, Boolean + Clock. Serge-style: the slope and filter can be oscillators. V0 tests the grouping and counts, including the functions lost when a shared resource takes one of those roles. |
 | Fidelity | Musical behavior matters more than historical circuitry; modern components are acceptable |
 | Circuit approach | Reuse established circuit topologies and documented reference designs; improve precision and validation rather than inventing circuitry for novelty |
 | Precision | Precision-first, confirmed 2026-09-11: accuracy, stability and channel independence are default requirements, including pitch CV; invest extra agent effort before fabrication |
-| Human role | Describe features, choose between explained alternatives, approve purchases, install larger parts, and perform guided measurements and calibration |
-| Agent role | Own design code, tooling, sourcing research, calculations, checks, documentation, measurement scripts, and troubleshooting |
+| Human role | Play the prototypes and report what is useful or missing; describe features, choose between explained alternatives, approve purchases, and later assemble and perform guided measurements and calibration |
+| Agent role | Own digital prototypes, reproducible patches, behavior checks and resource accounting; later own circuit design code, tooling, sourcing research, calculations, checks, documentation and guided measurement |
 | Assembly | Prefer factory-installed SMD; hand-install jacks, pots, headers, trimmers and other suitable large parts |
 | Work cadence | Approximately one session per week, using a variable remaining token budget; progress must survive gaps and model changes |
 | Prototype budget | EUR 150-300 per round, including boards, assembly, parts, VAT, shipping, and applicable fees; each round requires approval |
-| Home lab | Start from an empty bench within the agreed EUR 500-1000 envelope. Prefer economical, verified tools and staged purchases; exact equipment, prices and owned items belong in [HOMELAB.md](HOMELAB.md). No extractor purchase is added. Both equipment spending and fabrication orders require the user's approval. |
+| Home lab | Retain the agreed EUR 500-1000 envelope and existing purchases; [HOMELAB.md](HOMELAB.md) owns inventory, payment readiness and remaining capability gaps. Further lab procurement is deferred, not a prerequisite for VCV Rack. No extractor purchase is added. Equipment spending and fabrication orders still require approval. |
 | System power | The IO board supplies the system from USB-C Power Delivery; a current-limited bench supply is still required to test that board itself and for every first power-up |
 | Instrument interaction | Follow the visible, persistent control rules in [AGENTS.md](../AGENTS.md#rules): the panel and cables describe the musical setup. No separate power-loss state-saving project. |
 | Panel standard | Paperface-inspired sparse grid and original printed/laser-cut faceplates; adopted principles and provisional dimensions live in [MECHANICAL.md](MECHANICAL.md#panel-layout-language). |
 | Front panels | Final artwork and fabrication remain deferred; the shared layout model, ergonomic mockups and browser-only sketcher are authorized now (2026-09-15). |
 | Eurorack case | Deferred and budgeted separately; needed when the row is assembled as an instrument |
 | Release intent | Personal instrument; a public repository is acceptable, but commercial readiness is not a current goal |
-| Stack policy | Code-first and headless; retain working pieces and replace weak ones on evidence |
+| Stack policy | VCV Rack for interactive musical prototypes; keep the code-first, headless hardware workflow for eventual circuits and fabrication. Retain working pieces and replace weak ones on evidence. |
 
-The user should not need to learn Haskell, manually repair KiCad files, resolve
-Python installations, interpret a DRC report unaided, or invent a test plan.
+The user should not need to learn DSP programming or Haskell, manually repair
+KiCad files, resolve Python installations, interpret a DRC report unaided, or
+invent a test plan.
 The agent must explain choices in terms of musical behavior, cost, risk, and
 work required from the user. It must not invent measurements or treat its own
 confidence as evidence that a circuit works.
@@ -80,10 +87,10 @@ for more simulated decimal places.
 filter are the oscillators. **Limit, confirmed by the user on 2026-09-13**
 (answered on the session's planning page, not in a decision file): within
 ±2 cents over 5 octaves and ±5 cents over 8 octaves, from 15 to 35 °C. It is
-met by one exponential-converter block (matched transistor pair, temperature
+to be met by a planned exponential-converter block (matched transistor pair, temperature
 compensating resistor, scale and high-frequency trimmers) designed once and
-calibrated per board on the bench; the temperature-sweep deck of P1 asserts
-it in cents.
+calibrated per board on the bench; P1 must supply a temperature-sweep deck that
+asserts it in cents. A digital oscillator's tracking does not prove that block.
 
 ### Cost Is Not An Optimisation Target
 
@@ -109,7 +116,10 @@ integrity, not a better via price.
 
 ### Module Form Factor And Composition
 
-Stated by the user on 2026-09-11. These are decisions, not proposals.
+The physical constraints below were set on 2026-09-11 and remain requirements
+for eventual hardware. The earlier grouping and quantity assumptions are now
+inputs to V0's musical evaluation; do not select a replacement hardware
+architecture without the user's agreement.
 
 **Width: no module narrower than 4 HP, none wider than 20 HP.** The intent is
 to stay inside JLCPCB's standard tier, which is 100 x 100 mm. The upper bound
@@ -128,13 +138,14 @@ regardless of width. The panel controls did not move; the attenuverter's SMD
 strips were re-laid into the pad-free zones between them, and the mult
 regenerated unchanged in placement. Required of every module.
 
-**No doubling up.** The five-copy planning assumption means a dual VCA would
-yield ten VCAs if all five PCBs were populated.
-Instead, one board combines *different* functions: a slope generator with a
+**Combined-function baseline.** The earlier "no doubling up" decision assumed
+five populated copies, so a dual VCA would yield ten VCAs. The starting plan
+therefore combines *different* functions on one board: a slope generator with a
 VCA, a filter with a drive VCA, a random generator with its own noise source,
 a power supply with a world interface and a mixer -- small analog computers.
-Five identical filters is acceptable because five filters are useful; ten
-attenuverters are not.
+V0 must test whether this actually supplies enough independently usable
+functions. Do not forbid an extra virtual VCA or LFO to preserve the old count;
+record why it was needed and use that evidence in the composition decision.
 
 **Quantity clarification, 2026-09-14:** PCB fabrication quantity and assembly
 quantity are not necessarily identical. JLCPCB currently advertises assembly
@@ -176,14 +187,17 @@ Precision remains the goal for either existing or adapted circuitry.
 
 ## Stack Decision
 
-Keep the current foundation provisionally. A language rewrite would not, by
-itself, fix the missing electrical and manufacturing guarantees.
+Add the playable VCV Rack phase while retaining the existing hardware
+foundation. This is not a pcbgen language rewrite, a commitment to firmware in
+the physical modules, or the later embedded digital control plane. Those
+choices would not, by themselves, fix electrical and manufacturing guarantees.
 
 | Layer | Decision | Evidence required to retain it |
 |---|---|---|
 | Conversation and intent | User-facing plain-language specifications and acceptance examples | A new session can identify what is wanted, what is approved, and what remains unknown without replaying old chats |
-| Haskell / pcbgen | Keep as an agent-maintained source of truth; add validation and reusable circuit blocks | Invalid designs are rejected, useful diagnostics are produced, and changes remain small and testable |
-| Module sketcher [planned] | Local HTML/CSS/JavaScript for panel ideas; no backend, account or hosted service | Opens locally without a server or network; portable sketch files round-trip; the eventual generator bridge shares layout data rather than copying coordinates |
+| VCV Rack | Current musical prototyping environment; installed per user report, with exact setup still to record in [SETUP.md](SETUP.md) | Saved patches reopen with recorded Rack/plugin versions; digital behaviors and approximations are explicit; the user can play and evaluate the proposed instrument |
+| Haskell / pcbgen | Keep as the hardware design source of truth; digital prototypes do not replace circuit validation | Invalid designs are rejected, useful diagnostics are produced, and changes remain small and testable |
+| Module sketcher | Existing local HTML/CSS/JavaScript for panel ideas, not an audio simulator; the generator bridge remains deferred | Opens locally without a server or network; portable sketch files round-trip; the eventual bridge shares layout data rather than copying coordinates |
 | KiCad 10 libraries and CLI | Keep as the CAD target and independent native checker; no GUI dependency | Supported versions and library inputs are recorded; clean-checkout generation and checks reproduce |
 | Custom grid router | Keep on probation for simple routing, not as an analog design authority | No silent incomplete routing, accidental SMD via-in-pad, or disconnected pre-route assumptions; critical analog constraints are respected |
 | KiKit | Keep for fabrication and assembly exports behind an enforced release gate | Generated layers, drills, BOM, placement coordinates, sides, and part rotations survive end-to-end checks |
@@ -222,38 +236,83 @@ simulator false-pass cases live in [../toolkit/test-scripts.sh](../toolkit/test-
 ## Delivery Sequence
 
 ```text
-M0 Direction recorded [DONE]
-  -> M1 Explicit design intent and rejection tests [DONE 2026-09-09]
-  -> M2 Routing and assembly correctness [DONE 2026-09-09]
-  -> M3 Reproducible, fail-closed pipeline [PART DONE; dependencies pinned 2026-09-11; CI open]
-  -> R0 Routing benchmark [DONE 2026-09-10]
-  -> M4 Method rehearsal: option B characterization and first three blocks exist; order-readiness findings [OPEN; see ORDER-READINESS.md]
-  -> P2 Five rounds, one board each, in dependency order:
+Current work:
+V0 Play before building [CURRENT; prototypes not yet built]
+  -> Digital versions of the candidate modules in VCV Rack
+  -> Representative patches; record concurrent VCA/LFO/envelope/utility use
+  -> User playtesting and revision of behavior, grouping and counts
+  -> User accepts the musical composition before hardware work resumes
+
+Retained hardware path [DEFERRED behind V0]:
+M0/M1/M2/R0 complete; M3 partially complete (CI open)
+  -> M4 Close method-rehearsal and order-readiness gaps
+  -> P2 Hardware rounds, rechecked against the accepted virtual instrument:
        R1 IO + Mixer -> R2 Slope + VCA -> R3 Filter + VCA -> R4 SSG + Noise -> R5 Boolean + Clock
        every round: models -> error budget -> decks -> board -> checks -> approval -> order
                     -> build -> first power-up -> calibrate -> MEASURE against predictions (M5 gate)
   -> P4 One row: case, panels, the calibration and first-power-up guide
-  -> P5 Compounding: block library, first one-shot candidate, then the digital control plane
+  -> P5 Compounding: block library, first one-shot candidate, then the embedded digital control plane
 
-P1 Shared blocks (exponential converter, gain element) are needed for R2/R3, not to start R1.
-L1 Home lab (HOMELAB.md): prepare purchases alongside R1; verify capability before buying.
-Equipment and reviewed procedures must exist before the tests that require them.
-CI (M3) proceeds in parallel and is owed before the first order.
+P1 Shared blocks and L1 further lab procurement are deferred with hardware.
+Equipment and reviewed procedures must exist before physical tests, not virtual patching.
+CI (M3) remains owed before the first order, not before V0.
 
-Independent software track, approved 2026-09-15:
+Retained panel software:
 S1 Shared panel model [DONE 2026-09-16]
   -> S2 Browser module sketcher [DONE 2026-09-16, one gate item open]
-  -> S3 Generator bridge and panel exports [PLANNED; after S1/S2]
-S1/S2 may use explicitly provisional geometry; physical fit gates real layouts and cutting.
+  -> S3 Generator bridge and panel exports [DEFERRED]
+Sketches may support virtual control planning; physical fit still gates layouts and cutting.
 ```
 
 Milestones and rounds are acceptance gates, not weekly deadlines. Split each
 into work items that fit the available session budget. A later stage must not
-assume that an earlier stage's artifacts, equipment, or approvals exist. Rounds
-overlap in practice: the next board is designed while the previous one is at
-the fab. At roughly one session a week, with two to three sessions per board
-plus fabrication lead time, P2 is on the order of six to nine months. That is
-a shape, not a promise.
+assume that an earlier stage's artifacts, equipment, or approvals exist. There
+is no hardware schedule while the musical composition is under evaluation;
+the earlier six-to-nine-month estimate is not a current delivery plan.
+
+### V0: Playable Digital Modules And Function Balance [CURRENT]
+
+The user has installed VCV Rack to learn by playing before committing to
+physical modules. Installation is not evidence that project prototypes exist
+or that their musical behavior has been accepted.
+
+1. **Build digital versions of the intended modules.** Start with one playable
+   voice and its modulation, gain control and mix/output path, then cover the
+   remaining candidate functions. Map each prototype to the intended controls,
+   ports, normalled routes and operating modes. Reuse suitable Rack modules or
+   patches where they represent the behavior; implement custom Rack DSP when
+   a specific behavioral gap needs it. Record substitutions and approximations,
+   and respect source and licensing constraints. A convenient stand-in is not
+   automatically a validated digital version of the proposed module.
+2. **Play an instrument, not isolated demonstrations.** Save representative
+   patches for a voice, independently modulated voices and clocked/random
+   modulation. Start within the candidate function counts, then record what
+   must be added or reassigned to make the patches musically useful. Count
+   VCAs for both audio and CV, LFOs, envelopes, mixers/attenuverters, clocks,
+   logic and distribution utilities. A slope used as an oscillator cannot
+   simultaneously count as an independent LFO, envelope and master clock;
+   apply the same rule to a filter used as an oscillator.
+3. **Revise from playing evidence.** The user plays the patches and reports
+   missing functions, awkward controls, useful combinations and unused
+   capacity. Preserve patch files, exact plugin dependencies and observations;
+   update the owning specifications and this roadmap when a resulting change
+   is agreed. Do not silently add unlimited duplicates, polyphonic channels
+   or hidden plugin functions and claim the original hardware row is balanced.
+
+Gate: the prototypes and representative patches reopen and run with recorded
+versions; intended behaviors and known differences are documented; concurrent
+resource use is accounted for; the user has played them and accepts a revised
+or retained composition as the basis for hardware. Until then, no new hardware
+round becomes the default next task. Hardware-only inbox choices can wait.
+
+Keep the instrument's visible, persistent controls policy in the digital
+design. Rack's host menus and patch saving are software conveniences, not
+permission to depend on hidden modes in the eventual module. Virtual audio and
+I/O can stand in for the world interface; do not simulate a USB-C power supply
+just to make the row playable. A successful patch establishes musical utility,
+not analog accuracy, loading, noise, protection, mechanical fit or safety.
+SPICE, ERC/DRC, review, physical measurement and purchase approval remain
+separate later gates.
 
 ### M1: Make Invalid Designs Fail [DONE]
 
@@ -283,7 +342,7 @@ cost money. Local test passes do not close this gate.
 Gate met, then simplified the same day on the user's direction. The first
 version modelled millimetres, grid profiles and clearance conflicts; the user
 judged it far too much for what a sketch is for. What remains is the part that
-earns its keep: a strict `module-sketch` v2 format, four component kinds, and
+earns its keep: a strict `module-sketch` v2 format, a catalogue of control kinds, and
 **limits derived from the hardware instead of chosen** — at most six columns
 and six rows, computed in
 [Sketch/Catalogue.hs](../toolkit/src/Sketch/Catalogue.hs) from the footprint
@@ -304,7 +363,7 @@ so overlaps cannot be expressed.
 `sketcher/index.html` opens in a browser with no backend, login, cloud
 storage, CDN or development server. [SKETCHER.md](SKETCHER.md) is its guide.
 
-It is a grid of cells and a palette of four kinds. Place, rename, drag to
+It is a grid of cells and a palette of control kinds. Place, rename, drag to
 move, Backspace to clear, plus and minus for the grid size, undo and redo per
 module, several modules in a list. There is no panel drawing, no size picker
 and no millimetre anywhere in the interface; the only physical fact it shows
@@ -326,9 +385,10 @@ and the check was stopped after three attempts rather than worked around.
 Close it by opening `sketcher/index.html`, at a window width and at a phone
 width, and looking.
 
-### S3: Generator Bridge And Panel Exports [PLANNED]
+### S3: Generator Bridge And Panel Exports [DEFERRED]
 
-Prerequisites: S1/S2 and a reviewed mapping from sketch control IDs to a real
+Not the current software task; V0 takes priority. Prerequisites: S1/S2 and a
+reviewed mapping from sketch control IDs to a real
 design's parts. Consume the reviewed layout as mechanical input to `pcbgen`;
 Haskell remains authoritative for circuits, connections and assembly intent.
 Do not leave independently editable coordinates in both the sketch and the
@@ -350,7 +410,7 @@ fixture without snapping existing boards to a candidate grid. Any actual
 design migration must pass focused regressions, schematic ERC, then layout
 DRC with parity. The browser must not directly edit generated KiCad files.
 
-### M4: Method Rehearsal On The Attenuverter [IN FLIGHT]
+### M4: Method Rehearsal On The Attenuverter [DEFERRED]
 
 The attenuverter is no longer a module the system would order five of; it is
 the **end-to-end rehearsal of the method** every later board repeats, and its
@@ -395,11 +455,12 @@ assumption has evidence or an explicit bounded experiment; the human receives
 a plain-language preview and an all-in quote. A reviewed prototype candidate
 is allowed to be unbuilt; it must not be labeled bench-tested.
 
-### P1: The Two Blocks The System Stands On
+### P1: The Two Blocks The System Stands On [DEFERRED]
 
-Prerequisites: M4's method and skeleton, met on 2026-09-13 (`Block.Eurorack`,
-`Block.Power`, `Block.Precision`; models, error budget, decks, provenance,
-mechanical stack, power-up guide as the pattern each block repeats).
+Resume only after V0 and with a consumer in the accepted hardware composition.
+M4 supplies a method and skeleton (`Block.Eurorack`, `Block.Power`,
+`Block.Precision`; models, error budget, decks and provenance), but its open
+review findings and unperformed power-up guide are not a completed safety gate.
 
 1. **The exponential converter.** Matched transistor pair, temperature
    compensating resistor, scale and high-frequency trimmers; coarse and fine
@@ -414,9 +475,11 @@ mechanical stack, power-up guide as the pattern each block repeats).
 Gate: both blocks have models, decks with stated limits, and a written
 calibration or characterisation step; neither has yet been on a board.
 
-### P2: Five Rounds
+### P2: Hardware Rounds [DEFERRED]
 
-Each round is the same sequence and the same gate. **The gate is a
+The five rounds below retain the earlier dependency order, to be revised if
+V0 changes the accepted composition. Each round is the same sequence and the
+same gate. **The gate is a
 measurement**, not a passing deck: the board is built, powered through a
 current-limited supply, calibrated, and measured against the numbers its decks
 predicted. Discrepancies are explained and the cheapest informative next
@@ -442,16 +505,18 @@ assertions and their physical measurements within the chosen cost and space;
 calibration is documented and repeatable; evidence is recorded against the
 board revision and installed parts. Budget and approve each round separately.
 
-### L1: Build The Home Lab In Stages
+### L1: Build The Home Lab In Stages [FURTHER PROCUREMENT DEFERRED]
 
-Prerequisites: the agreed budget and an empty bench. Procurement preparation can
-proceed alongside R1, and the necessary equipment **must exist before its boards
-are powered.** [HOMELAB.md](HOMELAB.md) owns the candidates, prices and purchase
-record; do not duplicate a shopping total here. The agent verifies the exact
+Use the agreed budget and the confirmed inventory, not an empty-bench
+assumption. No additional bench equipment is required to begin V0. Resume
+procurement against the accepted hardware's needs; necessary equipment **must
+exist before its boards are powered.** [HOMELAB.md](HOMELAB.md) owns the
+candidates, prices and purchase record; do not duplicate a shopping total here.
+The agent verifies the exact
 equipment, supported setup and delivered price before recommending a basket.
 The user confirms purchases and receipt.
 
-Assembly essentials can proceed before R1 is designed. Supply series operation,
+Any additional assembly purchase still needs approval. Supply series operation,
 precision DC measurement and R1's switching/stability tests need verified methods
 before instrument selection is final. Scriptability is a bonus, not a requirement.
 No extractor is added against the user's direction; the proposed window/fan
@@ -499,8 +564,9 @@ blocks promoted to bench-tested. A hobby prototype pass is not certification.
 
 ### P4: One Row
 
-After R5: five boards, about 70 HP, powered by their own IO board. Calibrate
-all five; write the calibration and first-power-up guide as the durable
+After the accepted hardware rounds: assemble the composition agreed through V0,
+using its measured boards and reviewed power arrangement. Write the calibration
+and first-power-up guide as the durable
 deliverable; then the deferred items in order — case, then panels. The parked
 sequencer is reconsidered here, by which time the control plane may be its
 better home.
@@ -514,8 +580,8 @@ and error-budget templates, calibration procedures and scripts.
 
 - **First one-shot candidate:** a new combined board built from existing
   blocks with no new device model — specification in, verified project out.
-- **Digital control plane:** years away by the user's statement; the analog
-  boards carry nothing for it now.
+- **Embedded digital control plane:** still deferred; desktop VCV Rack
+  prototypes do not bring firmware or a processor into the hardware by default.
 
 ### Toolkit Obligations Along The Way
 
@@ -573,8 +639,9 @@ retune them merely because this wishlist exists.
 
 ### Parked And Dissolved Ideas
 
-- **Fixed-pattern trigger sequencer in R5:** raised by the user on 2026-09-15
-  and under decision, not parked. It has no pots per step and selects patterns
+- **Fixed-pattern trigger sequencer in R5:** raised by the user on 2026-09-15;
+  explore its musical behavior in V0 while its hardware architecture decision
+  is deferred. It has no pots per step and selects patterns
   with a maintained switch; see the [R5 plan](modules/boolean-clock/SPEC.md).
   It does not un-park the item below.
 - **4-step chainable sequencer:** parked 2026-09-11. Five boards chaining into
@@ -590,11 +657,15 @@ an owned module specification and acceptance gate rather than a parallel list.
 
 ## What Can Stop It
 
-- **Money:** fabrication orders wait on the user; the lab has its own budget
-  and can start now.
+- **Musical evidence:** installation and an agent's proposed patch are not a
+  playtest. Function balance and the user's playing experience gate hardware.
+- **Money:** payment readiness is recorded in [HOMELAB.md](HOMELAB.md), not an
+  outstanding card-acquisition task. Paid software, lab purchases and board
+  orders still need approval; a card does not establish design readiness.
 - **Remaining decisions:** R1's approved normalled consumer outputs conflict
   with the proposed unswitched stereo jack; the alternative is still unanswered
-  in [the hardware inbox](decisions/2026-09-14-panel-hardware.md). Do not change
+  in [the hardware inbox](decisions/2026-09-14-panel-hardware.md). This and R5's
+  hardware architecture are deferred, not blockers to virtual prototypes. Do not change
   its behaviour by treating a recommendation as approval. Later SSG details may
   need a choice when that round starts; the two-pole filter and tracking limit
   are already settled. Electrical budgets are agent design work. Option B is
@@ -637,11 +708,12 @@ scaffolding.
 
 | Artifact | Purpose / owner |
 |---|---|
-| This roadmap | Agreed priorities, constraints, hardware rounds and S1-S3 software gates; the agent updates it at every material change |
+| This roadmap | Agreed priorities, V0 musical gate, deferred hardware rounds and S1-S3 panel gates; update at every material change |
 | [HANDOFF.md](HANDOFF.md) | Agent-maintained compact current/blocked/next state and evidence; Git retains past checkpoints |
 | [HOMELAB.md](HOMELAB.md) | Staged lab shopping list with prices, reasons and laptop connectivity; agent-maintained, user-confirmed |
 | Stack decision and toolchain record | Agent-maintained versions, installation checks, tested library inputs, and reasons for any migration; build on [SETUP.md](SETUP.md) |
 | Per-module specification and tests | `docs/modules/<name>/SPEC.md` owns intent and limits; executable simulations and tests stay with the design/code |
+| VCV Rack prototypes and playtest evidence | Reopenable patches, recorded Rack/plugin versions, behavior mappings and limitations, concurrent function counts and user observations; create with the first actual prototype, not as empty scaffolding |
 | Block library | Reusable circuit blocks in the generator with their models, decks and limits; the asset P5 is measured by |
 | `docs/decisions/` inbox | Concrete researched user choices; answers are integrated into their authoritative documents, then inbox files are deleted |
 | Part evidence and manufacturing recipe | Exact identities/ratings, sourcing checks, assembly intent, approved process options, and complete order list |
@@ -658,39 +730,19 @@ datasheet and model redistribution terms.
 
 ## Next Work Item
 
-**Before any order:** close the findings and release gates in
-[ORDER-READINESS.md](ORDER-READINESS.md). R1 remains the planned first order and
-now has an approved [behavior specification](modules/io-mixer/SPEC.md), but no
-circuit implementation or PCB yet. An earlier small rehearsal order would need
-its own reviewed candidate and explicit scope/quote approval. Card availability
-does not substitute for either review.
+**Begin V0 with a playable voice in VCV Rack.** Record the installed Rack
+version and available plugins, map the first candidate module behaviors to
+digital implementations, and build a saved patch with a voice, VCA, envelope,
+independent LFO and mix/output path. Label any stand-ins and count resources
+against the starting composition. The immediate result must be something the
+user can play, not a new hardware circuit or another planning framework.
 
-**S1 and S2 are done (2026-09-16); S3 is not started and is not scheduled.**
-The format, catalogue, checks and the browser editor are implemented and
-tested; [SKETCHER.md](SKETCHER.md) is their guide, and the one open gate item
-is the rendered screenshots. A sketch is still a panel idea: it approves no
-circuit, no part and no cutting file. S3 needs a reviewed sketch and a
-reviewed mapping from control ids to a real design's parts before it starts,
-and the grid pitch it would bake in is still a candidate.
+Extend that patch into the representative instrument tests in V0, collect the
+user's observations, and agree any changes to module grouping or counts before
+hardware resumes. Neither the existing hardware inbox nor additional lab
+purchases block this work. Use the current specs and compact handoff; add
+prototype artifacts only when they contain real work.
 
-The two hardware tracks confirmed on 2026-09-14 remain active:
-
-1. **Finish R1.** The jack/mixer decisions are adopted in its specification.
-  Resolve the unswitched-jack behaviour tradeoff in the existing inbox before
-  fixing its jack allocation; derive the connection diagram, source/load and
-  power budgets, protection and proven circuit choices. Then implement models,
-  assertions, Haskell design and layout. Close relevant reusable-block findings
-  before reuse. The agent owns the engineering, not the user.
-2. **Prepare and buy the home lab in stages.** Finalize Stage A's exact basket,
-  links and delivered total in [HOMELAB.md](HOMELAB.md). Confirm supply series
-  capability and the measurement method before recommending those instruments.
-  Purchase intent is not confirmation that equipment has been bought, and the
-  existing candidate list is not an instruction to buy everything unchanged.
-
-P1's exponential converter and gain element remain work for R2/R3; they are not
-prerequisites for starting R1. Router research, final panel art and a final case
-need not delay these tracks or the independent sketcher. Use the existing
-working documents and compact handoff rather than create additional task plans
-or status files.
-
-CI remains a parallel M3 obligation owed before the first order.
+The sketcher remains available for control ideas; S3, circuit/layout work and
+further lab procurement are deferred. CI and all findings and release gates in
+[ORDER-READINESS.md](ORDER-READINESS.md) remain owed before any future order.

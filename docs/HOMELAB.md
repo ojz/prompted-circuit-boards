@@ -1,7 +1,7 @@
 ---
-status: "candidate shopping list; purchase-critical capability checks open"
+status: "maintained inventory; further procurement deferred; candidate capability checks open"
 owner: "the agent keeps it current; the user buys and confirms"
-read_when: "buying lab equipment, or planning a measurement or calibration session"
+read_when: "checking owned equipment or payment readiness, buying lab equipment, or planning measurements"
 update_when: "a purchase is made, a price or listing changes, or a measurement need appears"
 retire_when: "the lab exists and its inventory is recorded elsewhere"
 prices_checked: "2026-09-13"
@@ -9,11 +9,21 @@ prices_checked: "2026-09-13"
 
 # Home Lab
 
+Updated: 2026-09-21. Purchases and payment readiness below are user-reported;
+historical candidate prices have not been refreshed.
+
 The single shopping and equipment record for assembling and testing the modules
 in Belgium. The user buys and confirms delivery; the agent checks capabilities,
-compatibility and an itemized delivered total. No purchase is recorded yet.
+compatibility and an itemized delivered total. The bench is no longer empty;
+the confirmed purchases below must be accounted for before recommending more.
 The number of populated PCBs is a separate fabrication quote decision, not a
 reason to assume five assembly jobs; see [ORDER-READINESS.md](ORDER-READINESS.md).
+
+**Further procurement is deferred while VCV Rack prototypes are the priority.**
+Bench equipment is not a prerequisite for virtual patching. Resume shopping
+against the needs of the accepted hardware design, under
+[the roadmap](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current),
+not by completing the old empty-bench basket automatically.
 
 **Do not buy this entire list unchanged.** Prices below are historical candidates,
 not a current checkout basket. The 2026-09-14 review found unsupported supply and
@@ -26,19 +36,45 @@ does the required job. Scriptability is a bonus, not a requirement. No extractor
 has been added against the user's direction; that does not establish that the
 proposed room ventilation is adequate. See Safety.
 
+## Confirmed Purchases
+
+| Item | Status | Still Unknown |
+|---|---|---|
+| Soldering iron | Already bought, confirmed by the user on 2026-09-21 | Model, temperature control, tips, stand and accessories; do not assume it is the station candidate below |
+| Solder | Already bought, confirmed by the user on 2026-09-21 | Alloy, diameter, flux/core specification and quantity |
+| Desolder wick | Already bought, confirmed by the user on 2026-09-21 | Width, flux specification and quantity; this does not imply ownership of a desoldering pump |
+
+Purchase prices and suitability for a particular assembly task are not yet
+recorded. No other lab equipment is confirmed owned here. These purchases do
+not establish a complete assembly bench or a safe first-power/measurement setup.
+Identify the actual tools when preparing a relevant hardware task; no need to
+delay VCV Rack work to fill those details in now.
+
+## Payment Readiness
+
+The user confirmed on 2026-09-21 that a credit card is now available. Obtaining
+a card is no longer a blocker, and supplier selection need not be restricted
+to Bancontact-only options. A particular merchant's acceptance, delivered quote
+and user approval still need checking when a purchase is actually proposed.
+This does not increase the budget or authorize software, equipment, parts or
+board orders. Do not record card numbers or other payment credentials here.
+
 ## Purchase Readiness
+
+These are checks for when hardware procurement resumes, not the current work queue.
 
 | Group | Next Step Before Buying |
 |---|---|
-| Assembly essentials | Finalize exact listings, consumable specification, stand/tip compatibility, safe work area, quantities and delivered total. This basket can proceed before R1's circuit is finished. |
+| Assembly essentials | Start from the confirmed inventory; check stand/tip compatibility, consumable specifications and safe work area, then price only missing items. Do not reorder an iron, solder or wick from the historical list by default. |
 | Power supplies and harness | Hold the named supply candidates until their manuals explicitly support the required series operation and current-limit procedure. Select a clearly keyed power connection. |
 | Meter and precision measurements | Separate a basic continuity/rail meter from the instruments needed to substantiate CV accuracy. Check actual DC accuracy, range and uncertainty, not just display counts. |
 | Audio interface and cables | Select for real line inputs/outputs and supported levels. User owns no 6.35 mm equipment; external audio is 3.5 mm TRS stereo. Buy a 6.35 mm adapter only for an explicitly chosen instrument that requires it. |
 | PD accessories and scope | Derive R1's PD profiles, current and switching/stability measurement needs first. Do not assume any USB-C meter or inexpensive scope can perform those checks. |
 
-The agent's next procurement deliverable is an exact, priced assembly basket and
-verified instrument recommendations in this file, not another shopping document.
-The user need only approve spending and report what they already own or bought.
+When procurement resumes, the agent's deliverable is an exact, priced basket of
+remaining needs and verified instrument recommendations in this file, not
+another shopping document. The user approves spending and reports further
+purchases; card availability does not turn this deferred task into approval.
 
 How to read the price column:
 
@@ -79,7 +115,7 @@ price pass; neither present availability nor the whole basket is verified.
 |---|---|---|---|---|---|
 | Soldering station | A temperature-controlled 50 W iron in a base. Temperature control is what lets you solder a big ground pad without melting the jack next to it. 50 W is enough for 2.54 mm and 3.5 mm pads on a two-layer board. | 1 | Velleman soldeerstation instelbaar 50 W, 175-480 °C (VGBrandShop) | EUR 29.95, verified | Ships with one tip; buy a finer conical tip later if the stock one feels clumsy. A 48 W no-name at EUR 37.50 (Cotubex) is the fallback if this sells out. |
 | Solder | Lead-free, 1.0 mm, 100 g, rosin core. Confirm alloy, flux and the supplier's recommended soldering temperature. | 1 | Loodvrije soldeertin Ø 1,0 mm, spoel 100 g (Cotubex) | EUR 23.99, verified | Alternative historical candidate: Stannol HS10 0.5 mm at EUR 26.28, seen 2026-09-12; verify alloy and flux before choosing. |
-| Desoldering pump | A spring-loaded syringe that sucks molten solder out of a filled hole. This is how a jack comes out again. | 1 | Desoldeer pomp - extreme (Prolech.nl) | EUR 8.95, verified 2026-09-12 | Wick (EUR 16) can wait until a bridge actually needs it. |
+| Desoldering pump | A spring-loaded syringe that sucks molten solder out of a filled hole. This is how a jack comes out again. | 1 | Desoldeer pomp - extreme (Prolech.nl) | EUR 8.95, verified 2026-09-12 | A pump is distinct from wick; consult the confirmed inventory and actual rework need before buying. |
 | Silicone soldering mat | Heat-resistant, non-slip work surface; check its temperature rating and secure the board. | 1 | MMOBIEL siliconen soldeermat 35 x 22 cm (MMOBIEL NL) | EUR 10.59, verified | Not ESD-rated. A wrist strap does not make an insulating surface ESD-safe. |
 | ESD wrist strap | Current-limited ESD strap used with a manufacturer-approved grounding arrangement. | 1 | Kotebonk antistatische ESD polsband (EFshop.nl) | EUR 7.95, verified 2026-09-12 | Verify the safety resistor and ground connection. Do not use an arbitrary radiator or mains contact. |
 | Flush side cutters | Small pliers that cut leads flat against the board. | 1 | Compacte zij-kniptang 125 mm (WH!.be) | EUR 8.29, verified | A EUR 47 Knipex does the same to a 2.54 mm lead. |
@@ -92,7 +128,9 @@ price pass; neither present availability nor the whole basket is verified.
 | Power connection / jumper wires | First-power wiring needs secured, identified conductors and verified header polarity. Select the harness with the board-specific procedure. | 2, 4 | Historical candidate: Dupont kabels voor breadboard, 65 stuks (Conrad.be) | EUR 15.39, verified 2026-09-12 | Generic loose jumpers are not an approved substitute for a keyed power harness; exact connectors, wire ratings and insulation still need selection. |
 
 **Historical Stage A subtotal: EUR 299.30.** This includes the unverified supply
-pair and jumper candidate; it is not the final basket or a safety approval.
+pair and jumper candidate; it is not the final basket, the remaining spend or
+a safety approval. Do not substitute these candidate prices for the unrecorded
+costs of the user's actual purchases.
 
 **For R1's USB-C PD board only, not for the attenuverter:**
 
@@ -142,7 +180,7 @@ need and total probe/accessory cost; do not select by scriptability or price alo
 
 | Group | Price Status |
 |---|---|
-| Stage A candidates | EUR 299.30 at historical prices; suitability checks and final harness selection open. |
+| Stage A candidates | EUR 299.30 for the historical empty-bench list, not the remaining basket; account for confirmed purchases and verify suitability and harness selection. |
 | PD charger and inline meter | Old estimate EUR 35-70, dependent on owned equipment and the selected power design. |
 | Measurement setup | Not yet fully costed; audio interface, protection, precision DC method, scope/probes and appropriate cables must be matched to the tests. |
 | Delivered total | Not established. Include VAT, shipping and accessories, subtract confirmed owned items, and ask before exceeding the agreed budget. |
@@ -219,8 +257,9 @@ remains a draft under review and must not be followed unchanged.
 - Items marked "verified 2026-09-12" were read from product pages by the
   first pass and were not re-checked.
 - Behringer interfaces were not found on bol.com (.be or .nl) under any model
-  name; the EUR 60-70 figure is from memory of Thomann's pricing. Whether
-  Thomann or Bax take Bancontact was not checked. A generic "USB audio
+  name; the EUR 60-70 figure is from memory of Thomann's pricing. Merchant
+  payment acceptance was not checked; current payment readiness is recorded
+  above. A generic "USB audio
   interface" search on bol.com was not run and may turn up an equivalent.
 - No Eurorack power supply or ribbon cable is listed on bol.com; Thomann
   (Doepfer) is the source when a case exists, which is a separate budget.

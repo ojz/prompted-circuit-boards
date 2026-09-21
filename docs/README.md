@@ -12,13 +12,16 @@ retire_when: "a replacement index is agreed and all incoming links are updated"
 
 This is the single document register. The folder is `docs/`; there is no parallel
 `notes/` tree. You do not need to read the code or every technical report to
-follow the project. Each active track has one owning document:
+follow the project. **VCV Rack musical prototypes are the current priority**;
+hardware design and further procurement are deferred under the roadmap's V0
+gate. Each current or retained track has one owning document:
 
 | Track | Open This | What You Decide |
 |---|---|---|
-| Sketch module ideas in a local HTML editor | [SKETCHER.md](SKETCHER.md) | What goes where on a module. Open `sketcher/index.html`, put components on a grid, exchange the JSON. The agent owns the format and derives the grid limits; the generator bridge (S3) is not built. |
-| Finish the first module, R1 IO + Mixer | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | Musical behavior and meaningful scope/cost tradeoffs. The agent owns the circuit, parts, calculations and checks. |
-| Prepare the home lab for its first boards | [HOMELAB.md](HOMELAB.md) | Approve the exact purchase basket and confirm what arrived. The agent checks equipment capability, compatibility and the delivered total first. |
+| Play digital module prototypes and test the instrument balance | [ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current) | What works when played, which functions run short or go unused, and which composition should become hardware. The agent builds reproducible prototypes and accounts for shared resources. |
+| Sketch control ideas, when useful | [SKETCHER.md](SKETCHER.md) | What goes where on a module. The local grid editor is not an audio simulator; the generator bridge (S3) remains deferred. |
+| Retained R1 IO + Mixer requirements | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | Existing behavior informs virtual prototypes; physical connector, circuit and layout decisions resume after the musical gate. |
+| Equipment inventory and deferred lab procurement | [HOMELAB.md](HOMELAB.md) | Confirm owned equipment and approve any later spending. The inventory and payment readiness are recorded separately from unverified historical shopping candidates. |
 
 [HANDOFF.md](HANDOFF.md) holds current progress and the next actions.
 [decisions/README.md](decisions/README.md) explains the inbox for new, genuinely
@@ -29,22 +32,22 @@ and deleted after the checkpoint, not kept as another set of notes.
 
 | Document | Authoritative purpose |
 |---|---|
-| [../README.md](../README.md) | Repository introduction and code-first workflow. |
+| [../README.md](../README.md) | Repository introduction, virtual-first workflow and retained hardware pipeline. |
 | [../AGENTS.md](../AGENTS.md) | Standing operating rules, document lifecycle and decision processing. |
 | [../CLAUDE.md](../CLAUDE.md) | Thin entry point importing the shared agent rules. |
 | [HANDOFF.md](HANDOFF.md) | Current checkpoint, verified evidence, limitations and next action. |
 | [ORDER-READINESS.md](ORDER-READINESS.md) | Current hold verdict, electrical and bring-up findings, review coverage and requirements before a prototype order. |
-| [ROADMAP.md](ROADMAP.md) | Direction, constraints, hardware rounds and S1-S3 programming milestones for the panel model, local HTML sketcher and generator/export bridge. Agent-maintained. |
-| [SETUP.md](SETUP.md) | Installation, reproduction commands and known tool pitfalls. |
-| [HOMELAB.md](HOMELAB.md) | Staged lab procurement: historical candidates, capability checks still needed, safety boundaries and the next exact purchase basket. Not an instruction to buy everything unchanged. |
+| [ROADMAP.md](ROADMAP.md) | Direction, V0 digital prototypes and musical acceptance, retained hardware constraints/rounds and S1-S3 panel milestones. Agent-maintained. |
+| [SETUP.md](SETUP.md) | VCV Rack setup status and reproduction requirements; retained hardware toolchain, commands and known pitfalls. |
+| [HOMELAB.md](HOMELAB.md) | Confirmed equipment purchases, payment readiness, deferred procurement, historical candidates and safety/capability checks. Not a buy-all basket. |
 | [JLCPCB.md](JLCPCB.md) | What the fab actually charges for, and which routing objectives that justifies. |
 | [MECHANICAL.md](MECHANICAL.md) | Adopted sparse panel language, provisional grid and laser-material fit gate, panel-to-board stack, module depth and hardware catalogue; distinguishes in-use parts, proposals and unmeasured fit. |
 | [SKETCHER.md](SKETCHER.md) | The module sketcher: how to use it, the `module-sketch` format, how a sketch is exchanged, and why the grid is at most six by six. |
 | [decisions/README.md](decisions/README.md) | Editable decision inbox: how the user answers and the agent integrates answers. |
-| [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md) | Partly integrated hardware inbox: persistent-switch policy settled; R1 normalling and exact hardware variants still unanswered. |
+| [decisions/2026-09-14-panel-hardware.md](decisions/2026-09-14-panel-hardware.md) | Retained, deferred hardware inbox: persistent-switch policy settled; R1 normalling and exact hardware variants still unanswered. Does not block V0. |
 | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | R1's approved four-channel mono/DC behavior and 3.5 mm stereo consumer audio boundary; implementation requirements. |
 | [modules/boolean-clock/SPEC.md](modules/boolean-clock/SPEC.md) | R5's draft plan from the user's 2026-09-15 notes: `A AND NOT B`, proposed behavior table, budget items to derive, and the staged plan. Not approved behavior. |
-| [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md) | Pending: how R5's multi-input digital part and trigger sequencer are realised; recommendation is hardwired CMOS with a diode matrix. |
+| [decisions/2026-09-15-logic-module-architecture.md](decisions/2026-09-15-logic-module-architecture.md) | Unanswered hardware architecture choice, deferred during V0; desktop prototypes do not select CMOS, ROM, programmable logic or firmware for the board. |
 | [modules/attenuverter/SPEC.md](modules/attenuverter/SPEC.md) | Attenuverter intent, the option B decision record, the precision circuit, simulated results against the adopted limits, parts. |
 | [modules/attenuverter/ERROR-BUDGET.md](modules/attenuverter/ERROR-BUDGET.md) | Attenuverter precision error budget: envelope, datasheet evidence, first versus adopted parts, the adopted acceptance limits. |
 | [modules/attenuverter/POWER-UP.md](modules/attenuverter/POWER-UP.md) | Draft first-power-up procedure; do not use unchanged until the safety and measurement findings in ORDER-READINESS.md are closed. |
@@ -69,7 +72,8 @@ background process that automatically removes stale files.
 
 ## Where The Code Lives
 
-These are laptop design tools, not firmware inside the analog modules.
+These are the existing laptop hardware-design tools and sketcher, not firmware
+inside the modules or an implementation of the planned VCV Rack prototypes.
 
 | Example | What It Does |
 |---|---|
@@ -86,7 +90,7 @@ These are laptop design tools, not firmware inside the analog modules.
 The sketcher is a local HTML page under `sketcher/`, two of whose files the
 generator writes. It places components on a grid and nothing more: no KiCad
 file, no circuit, no cutting file. The bridge that would consume a reviewed
-sketch is [S3 in the roadmap](ROADMAP.md#s3-generator-bridge-and-panel-exports-planned).
+sketch is [S3 in the roadmap](ROADMAP.md#s3-generator-bridge-and-panel-exports-deferred).
 
 ## What Stays Outside Docs
 

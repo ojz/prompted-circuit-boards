@@ -1,19 +1,27 @@
 ---
-status: "draft plan derived from the user's 2026-09-15 notes; behavior not approved, circuit not designed, no parts verified"
+status: "draft behavior for VCV Rack evaluation; hardware architecture deferred; no circuit or parts verified"
 owner: "collaborating design agents; the user owns musical behavior and the architecture answer in docs/decisions/"
-read_when: "planning or designing R5, answering the logic-module architecture decision, or checking what a chained clock/divider must provide"
+read_when: "prototyping R5 in VCV Rack, resuming hardware design, answering its architecture decision, or checking clock/divider behavior"
 update_when: "the user approves or changes behavior, the architecture decision is answered, or implementation evidence exists; do not duplicate run results"
 retire_when: "R5 is removed or a replacement specification takes ownership; preserve approved decisions and build-revision evidence"
 ---
 
 # R5: Boolean + Clock
 
-The fifth planned board: shared-threshold Boolean logic, edge-to-trigger
+The earlier hardware plan's fifth board: shared-threshold Boolean logic, edge-to-trigger
 converters and a clock divider with reset, and now a candidate hardwired
 trigger sequencer. This is the plan for the module, not an orderable circuit.
-The roadmap row is in [ROADMAP.md](../../ROADMAP.md#p2-five-rounds); R5 is
-built last because nothing depends on it, but its behavior is decided now so
-that R2's triggers and the divider chain are designed to the same logic levels.
+The retained hardware round is in
+[ROADMAP.md](../../ROADMAP.md#p2-hardware-rounds-deferred).
+
+**Current phase, 2026-09-21:** explore the candidate logic, divider and pattern
+behaviors in VCV Rack under
+[V0](../../ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)
+before choosing hardware. Check truth tables, normalling, clock/reset behavior
+and the demand for a separate clock when a slope is already serving as a voice
+or LFO. The proposed table remains unapproved. Virtual code does not select a
+microcontroller, CMOS, ROM or programmable logic for the physical module, and
+the unanswered hardware architecture file does not block this exploration.
 
 ## User Input, 2026-09-15
 
@@ -53,10 +61,10 @@ means the patterns are fixed at design time and chosen with a visible switch,
 which is exactly what the [visible, persistent controls rule](../../../AGENTS.md#rules)
 permits and a menu-driven programmable sequencer would violate. How that part
 is realised (hardwired CMOS and a diode matrix, a ROM, a CPLD or a
-microcontroller) is an architecture choice with consequences for the analog-first
-plan, the toolchain and the lab, so it is asked in
+microcontroller) is a hardware architecture choice with consequences for the
+toolchain and the lab, so it is retained in
 [decisions/2026-09-15-logic-module-architecture.md](../../decisions/2026-09-15-logic-module-architecture.md)
-with the agent's recommendation. Nothing below assumes the answer.
+with the agent's recommendation, deferred during V0. Nothing below assumes the answer.
 
 ### Diagonally offset LEDs
 
@@ -64,8 +72,9 @@ Read as a panel convention: each logic output's state LED sits diagonally
 offset from its jack, close enough to read as belonging to it, without taking
 a grid cell of its own. The convention is recorded as a provisional rule in
 [MECHANICAL.md](../../MECHANICAL.md#panel-layout-language); the exact offset
-comes out of S1's geometry checks against the jack nut on the front and the
-jack courtyard on the back, not from this specification. R5 is the first board
+needs later mechanical checks against the jack nut on the front and the
+jack courtyard on the back. The simplified sketcher does not establish that
+fit. R5 is the first planned board
 with LEDs, so the per-board LED indication the user chose on 2026-09-13 is
 decided here; there is still no LED driver block until a second board needs
 one.
@@ -114,8 +123,10 @@ evidence; none of them are numbers for the user to supply.
 
 ## Plan
 
-Each step names its gate. The steps are in dependency order; none of them
-runs between sessions.
+The current task is V0's playable behavior evaluation, not a chip choice.
+The steps below are retained for **hardware after V0** and must be reconciled
+with the accepted behavior and composition then. Each step names its gate;
+none runs between sessions.
 
 1. **Architecture answer.** The user answers the decision file. The
    recommended option keeps R5 in the analog-first phase with no firmware and
@@ -128,8 +139,8 @@ runs between sessions.
    comparator, CMOS logic, edge-detector and counter circuits with sources and
    licences, and verify every part on JLCPCB. Gate: a provenance table like the
    attenuverter's, with unverified items marked.
-4. **Digital modelling.** R5 is the roadmap's first digital-logic modelling
-   step. Add two checks that fall out of the same `Module`: an exhaustive
+4. **Hardware logic modelling.** Independently of any Rack implementation,
+  add two checks that fall out of the same `Module`: an exhaustive
    truth-table and cycle check of the combinational logic and counters in
    Haskell, and ngspice decks using XSPICE digital code models with A/D bridges
    for the comparator and trigger timing. Gate: a deliberately wrong gate

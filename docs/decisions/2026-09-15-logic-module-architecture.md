@@ -1,5 +1,5 @@
 ---
-status: "pending"
+status: "unanswered hardware architecture; deferred during V0"
 owner: "user answer; agent research and integration"
 read_when: "working on R5 Boolean + Clock or after the user edits this file"
 update_when: "the user answers, evidence changes, or the agent records the outcome"
@@ -7,6 +7,14 @@ retire_when: "the answer and rationale are integrated into docs/modules/boolean-
 ---
 
 # R5 Logic Module: How The Multi-Input Digital Part Is Realised
+
+**Deferred, 2026-09-21:** prototype and play the logic and pattern behaviors in
+VCV Rack under
+[V0](../ROADMAP.md#v0-playable-digital-modules-and-function-balance-current)
+before choosing physical hardware. Desktop DSP or a Rack plugin does not imply
+option D or bring the embedded digital control plane forward. The answer
+fields remain unanswered; revisit when hardware resumes or the user explicitly
+answers. This file does not block virtual prototyping.
 
 ## Decision Needed
 
@@ -16,7 +24,7 @@ pre-programmed trigger sequencer)" in the logic module. The rest of the note is
 integrated into the [R5 plan](../modules/boolean-clock/SPEC.md) without a
 question. This one is an architecture choice: it decides whether the fifth
 analog board carries firmware or a programming step, what the lab needs, and
-whether the digital control plane starts early. Nothing in the roadmap's R5
+whether the embedded digital control plane starts early. Nothing in the roadmap's R5
 row depends on it except the sequencer.
 
 The standing rules constrain every option the same way: pattern selection is
@@ -30,7 +38,7 @@ comes back doing the same thing after a power cycle.
 | **A. Hardwired CMOS with a diode matrix (recommended)** | A CMOS counter steps through 8 positions; a diode matrix is the pattern memory, one diode per beat; a rotary or toggle switch selects one of a few pattern banks. The Baby-8 lineage, documented for fifty years. | No firmware, no programmer, every part factory-placed by JLCPCB. The patterns are literally visible in the copper and in the Haskell design, and pcbgen can generate the matrix from a pattern list (Euclidean rhythms, for instance). About 8 steps × 4 outputs × 4 banks = up to 128 cheap diodes, fewer in practice since only set beats need one. Patterns cannot change after fabrication. |
 | B. Parallel ROM | The counter addresses an EEPROM; its data bits are the outputs; the switch selects the bank on high address lines. | Patterns are richer and more numerous, still no firmware. Needs a device programmer in the lab and a hand-programming step per board; suitable parallel EEPROMs are old, large packages with uncertain JLCPCB stock. |
 | C. Small CPLD or FPGA | The logic, counters and patterns as a synthesised bitstream. | The whole board's logic in one part with any function. Needs a 3.3 V or lower core rail, a fine-pitch package, a configuration flash and a programming step, and a synthesis toolchain in the repo. Heavy for the analog-first phase. |
-| D. Microcontroller | Firmware implements patterns, dividers and logic. | Cheapest and most flexible, but it is the digital control plane arriving in R5. Firmware is a second thing to design, verify and flash, and the temptation to add modes is exactly what the visible-controls rule forbids. The roadmap parks sequencing until P4 for this reason. |
+| D. Microcontroller | Firmware implements patterns, dividers and logic. | Cheapest and most flexible, but it is the embedded digital control plane arriving in R5. Firmware is a second thing to design, verify and flash, and hidden operating modes remain forbidden by the visible-controls rule. The separate chainable pot sequencer is parked until P4; that is not a decision on this fixed-pattern candidate. |
 | E. Defer | Keep R5 as the roadmap row: logic, edges and divider only. | Nothing new; the sequencer waits for the control plane. |
 
 **Recommendation: A.** It answers the note (several inputs, several outputs,
@@ -77,3 +85,8 @@ and provided in both orders in the [R5 plan](../modules/boolean-clock/SPEC.md),
 and the diagonally offset LED convention is recorded provisionally in
 [MECHANICAL.md](../MECHANICAL.md#panel-layout-language). No circuit or part
 was chosen.
+
+2026-09-21: retained without selecting an option. Hardware architecture is
+deferred while VCV Rack establishes useful behavior and function balance; its
+software implementation is not an answer to this hardware question. Next
+trigger: the user answers explicitly or hardware work resumes after V0.
