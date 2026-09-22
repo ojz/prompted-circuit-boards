@@ -9,9 +9,14 @@
 // Built and run by rack/build.sh before the plugin is packaged.
 #include "../src/QuadAmpDsp.hpp"
 #include "../src/DriveFilterDsp.hpp"
+#include "../src/BreakDsp.hpp"
+#include "../src/PanelGrid.hpp"
 
 #include <cstdio>
 #include <cmath>
+#include <cstring>
+#include <string>
+#include <vector>
 
 using namespace quadamp;
 
@@ -165,7 +170,8 @@ int main() {
 		float distOut = 0.f, hpfOut = 0.f, lpfOut = 0.f;
 		proc.reset();
 		// Feed a 200 Hz sine wave through the normalled chain
-		// HPF open (-5 V ~16 Hz), LPF open (+5 V ~16 kHz), clean drive (0 V, level unity)
+		// HPF open (-5 V, floored at 10 Hz), LPF open (+5 V, 8.4 kHz),
+		// clean drive (0 V, level unity)
 		float maxLpf = 0.f;
 		for (int i = 0; i < 480; i++) {
 			float in = 2.0f * std::sin(2.0f * float(M_PI) * 200.f * i / sr);
@@ -240,23 +246,226 @@ int main() {
 			failures++;
 		}
 
-		std::printf("\n-- resonance stability --\n");
-		// Feed impulse with resonance at maximum (10 V)
-		SvfFilter ringFilter;
-		float maxRing = 0.f;
-		bool hasNan = false;
-		for (int i = 0; i < 2000; i++) {
-			float in = (i == 0) ? 5.0f : 0.f;
+		std::printf("\n-- resonance: it has to sustain, not just stay finite --\n");
+		{
+			// The test this replaces only checked that the filter stayed finite,
+			// which a filter decaying to nothing also does -- so it passed while
+			// nothing could self-oscillate at all. Measure the tail instead.
+			SvfFilter f;
 			float lp, hp, bp;
-			ringFilter.process(in, 1000.f, 10.f, sr, lp, hp, bp);
-			if (std::isnan(lp) || std::isinf(lp)) hasNan = true;
-			if (std::fabs(lp) > maxRing) maxRing = std::fabs(lp);
+			const int n = 40000;               // 0.83 s at 48 kHz
+			float tail[3] = {0.f, 0.f, 0.f};
+			float res[3] = {10.f, 5.f, 10.f / RES_SPAN * 0.95f};
+			bool bad = false;
+			for (int k = 0; k < 3; k++) {
+				f.reset();
+				float peak = 0.f;
+				for (int i = 0; i < n; i++) {
+					float in = (i == 0) ? 5.0f : 0.f;
+					f.process(in, 1000.f, res[k], sr, lp, hp, bp);
+					if (std::isnan(lp) || std::isinf(lp))
+						bad = true;
+					if (i > n - 4000) {
+						float a = lp < 0.f ? -lp : lp;
+						if (a > peak) peak = a;
+					}
+				}
+				tail[k] = peak;
+			}
+
+			checks++;
+			if (!bad && tail[0] > 0.5f)
+				std::printf("ok    %-58s %8.3f V\n", "at full resonance it sustains", tail[0]);
+			else {
+				std::printf("FAIL  full resonance does not sustain: tail %.6f V\n", tail[0]);
+				failures++;
+			}
+
+			eq("at half resonance it rings down to nothing", tail[1], 0.f);
+			eq("and still nothing just below the oscillation onset", tail[2], 0.f);
+
+			checks++;
+			if (tail[0] < 5.f && tail[0] > 0.f)
+				std::printf("ok    %-58s %8.3f V\n", "the saturated feedback bounds the limit cycle", tail[0]);
+			else {
+				std::printf("FAIL  limit cycle not bounded sensibly: %.6f V\n", tail[0]);
+				failures++;
+			}
+		}
+	}
+
+	std::printf("\nPanel grid\n\n");
+	{
+		// The grid the modules share. If the fit gate moves the row pitch these
+		// numbers move with it, which is the point of having one home for them.
+		panel::Grid quad = {16, 5};
+		panel::Grid drive = {10, 3};
+		panel::Grid brk = {8, 2};
+
+		eq("16 HP is 80.90 mm wide", quad.widthMM(), 80.90f);
+		eq("10 HP is 50.50 mm wide", drive.widthMM(), 50.50f);
+		eq("8 HP is 40.30 mm wide", brk.widthMM(), 40.30f);
+
+		eq("five columns on 16 HP start at 10.45 mm", quad.colX(0), 10.45f);
+		eq("and end at 70.45 mm", quad.colX(4), 70.45f);
+		eq("three columns on 10 HP start at 10.25 mm", drive.colX(0), 10.25f);
+		eq("two columns on 8 HP start at 12.65 mm", brk.colX(0), 12.65f);
+
+		// Rows are identical across every module: that is the standing rule.
+		eq("row 1 is at 33.77 mm", quad.rowY(0), 33.77f);
+		eq("row 3 is the panel centre", quad.rowY(2), 64.25f);
+		eq("row 5 is at 94.73 mm", quad.rowY(4), 94.73f);
+		checks++;
+		if (drive.rowY(0) == quad.rowY(0) && brk.rowY(4) == quad.rowY(4))
+			std::printf("ok    %-58s\n", "all three modules put their rows in the same places");
+		else {
+			std::printf("FAIL  row positions differ between modules\n");
+			failures++;
+		}
+	}
+
+	std::printf("\nWAV reader\n\n");
+	{
+		// Built here rather than committed: the point of the loader is that the
+		// sample stays the user's own file. See BreakDsp.hpp.
+		std::vector<uint8_t> w;
+		struct Put {
+			static void u32(std::vector<uint8_t>& v, uint32_t x) {
+				v.push_back(uint8_t(x)); v.push_back(uint8_t(x >> 8));
+				v.push_back(uint8_t(x >> 16)); v.push_back(uint8_t(x >> 24));
+			}
+			static void u16(std::vector<uint8_t>& v, uint16_t x) {
+				v.push_back(uint8_t(x)); v.push_back(uint8_t(x >> 8));
+			}
+			static void tag(std::vector<uint8_t>& v, const char* t) {
+				for (int i = 0; i < 4; i++) v.push_back(uint8_t(t[i]));
+			}
+		};
+		// 16-bit stereo, 4 frames; the last frame's channels differ so the
+		// downmix is visible rather than assumed.
+		Put::tag(w, "RIFF"); Put::u32(w, 0); Put::tag(w, "WAVE");
+		Put::tag(w, "fmt "); Put::u32(w, 16);
+		Put::u16(w, 1); Put::u16(w, 2); Put::u32(w, 44100);
+		Put::u32(w, 176400); Put::u16(w, 4); Put::u16(w, 16);
+		Put::tag(w, "data"); Put::u32(w, 16);
+		int16_t frames[4][2] = {{0, 0}, {32767, 32767}, {-32768, -32768}, {16384, 0}};
+		for (int f = 0; f < 4; f++)
+			for (int c = 0; c < 2; c++) Put::u16(w, uint16_t(frames[f][c]));
+
+		wav::Audio a;
+		std::string err;
+		checks++;
+		if (wav::parse(w.data(), w.size(), a, err))
+			std::printf("ok    %-58s\n", "a 16-bit stereo file parses");
+		else {
+			std::printf("FAIL  valid WAV rejected: %s\n", err.c_str());
+			failures++;
+		}
+		eq("its sample rate is read", float(a.sampleRate), 44100.f);
+		eq("its frame count is read", float(a.frames()), 4.f);
+		eq("silence stays silence", a.mono[0], 0.f);
+		eq("full scale positive is about +1", a.mono[1], 0.99997f);
+		eq("full scale negative is -1", a.mono[2], -1.f);
+		eq("the channels are averaged, not summed", a.mono[3], 0.25f);
+
+		// Malformed input must come back as a diagnostic, never a crash.
+		std::vector<uint8_t> empty;
+		std::vector<uint8_t> shortHdr(w.begin(), w.begin() + 20);
+		std::vector<uint8_t> notRiff = w; notRiff[0] = 'X';
+		std::vector<uint8_t> badBits = w; badBits[34] = 7;
+		std::vector<uint8_t> badFmt = w; badFmt[20] = 2;
+		const char* names[5] = {"an empty buffer", "a truncated header",
+			"a file that is not RIFF", "an unsupported sample width",
+			"an unsupported encoding"};
+		const std::vector<uint8_t>* bads[5] = {&empty, &shortHdr, &notRiff, &badBits, &badFmt};
+		for (int i = 0; i < 5; i++) {
+			wav::Audio out;
+			std::string e;
+			checks++;
+			const uint8_t* p = bads[i]->empty() ? NULL : bads[i]->data();
+			if (!wav::parse(p, bads[i]->size(), out, e))
+				std::printf("ok    %-58s %s\n", names[i], e.c_str());
+			else {
+				std::printf("FAIL  %s was accepted\n", names[i]);
+				failures++;
+			}
+		}
+		{
+			// A data chunk claiming far more bytes than the file holds: the usual
+			// shape of a truncated download. Read what is there, do not run off.
+			std::vector<uint8_t> over = w;
+			over[42] = 0xFF; over[43] = 0xFF; over[44] = 0xFF; over[45] = 0x7F;
+			wav::Audio out;
+			std::string e;
+			checks++;
+			if (wav::parse(over.data(), over.size(), out, e) && out.frames() == 4)
+				std::printf("ok    %-58s\n", "an overlong data chunk is clamped to the file");
+			else {
+				std::printf("FAIL  overlong data chunk mishandled (%s)\n", e.c_str());
+				failures++;
+			}
+		}
+	}
+
+	std::printf("\nBreak engine\n\n");
+	{
+		using namespace brk;
+		BreakEngine e;
+		e.reset();
+		float mix = 0.f, env = 0.f, peak = 0.f, envPeak = 0.f;
+		const float sr2 = 48000.f;
+		// Two bars at 174 BPM on the internal clock.
+		int n = int(2.f * 4.f * 60.f / 174.f * sr2);
+		for (int i = 0; i < n; i++) {
+			e.process(false, false, false, 174.f, brk::FULL_SCALE, 1.f, sr2, mix, env);
+			float a = mix < 0.f ? -mix : mix;
+			if (a > peak) peak = a;
+			if (env > envPeak) envPeak = env;
 		}
 		checks++;
-		if (!hasNan && maxRing < 10.0f) {
-			std::printf("ok    %-58s %8.3f V\n", "max resonance self-oscillates stably without runaway", maxRing);
-		} else {
-			std::printf("FAIL  filter resonance unstable or NaN: max=%.3f\n", maxRing);
+		if (peak > 1.f && peak < 12.f)
+			std::printf("ok    %-58s %8.3f V\n", "the built-in break makes a usable signal", peak);
+		else {
+			std::printf("FAIL  built-in break peak out of range: %.3f V\n", peak);
+			failures++;
+		}
+		checks++;
+		if (envPeak > 0.5f && envPeak <= brk::FULL_SCALE)
+			std::printf("ok    %-58s %8.3f V\n", "the envelope follower tracks it", envPeak);
+		else {
+			std::printf("FAIL  envelope follower out of range: %.3f V\n", envPeak);
+			failures++;
+		}
+
+		// LEVEL is the same convention as the other modules: unity at 10 V.
+		e.reset();
+		float halfPeak = 0.f;
+		for (int i = 0; i < n; i++) {
+			e.process(false, false, false, 174.f, brk::FULL_SCALE / 2.f, 1.f, sr2, mix, env);
+			float a = mix < 0.f ? -mix : mix;
+			if (a > halfPeak) halfPeak = a;
+		}
+		eq("level at half gives half the amplitude", halfPeak, peak / 2.f);
+
+		// An external clock drives the steps, and reset returns to the start.
+		e.reset();
+		for (int i = 0; i < 5; i++)
+			e.process(true, true, false, 174.f, brk::FULL_SCALE, 1.f, sr2, mix, env);
+		eq("five clock edges reach step 5", float(e.step), 4.f);
+		e.process(true, false, true, 174.f, brk::FULL_SCALE, 1.f, sr2, mix, env);
+		eq("reset returns to before the first step", float(e.step), -1.f);
+
+		// The pattern is the length it claims to be.
+		int hits = 0;
+		for (int i = 0; i < STEPS; i++)
+			hits += (hitAt(kickPattern(), i) ? 1 : 0)
+			      + (hitAt(snarePattern(), i) ? 1 : 0)
+			      + (hitAt(hatPattern(), i) ? 1 : 0);
+		checks++;
+		if (int(std::strlen(kickPattern())) == STEPS && hits > 40)
+			std::printf("ok    %-58s %8d\n", "four bars of sixteen, with hits in them", hits);
+		else {
+			std::printf("FAIL  pattern length or density wrong: %d hits\n", hits);
 			failures++;
 		}
 	}

@@ -24,11 +24,55 @@ The module contains three functional stages:
    saturation curve up to an 8.5 V ceiling, CV modulation input, and an output level
    control.
 2. **Resonant HPF**: 2-pole (12 dB/oct) high-pass filter with 1 V/Oct cutoff CV
-   tracking and variable resonance Q with saturating feedback up to clean
-   self-oscillation.
-3. **Resonant LPF**: 2-pole (12 dB/oct) low-pass filter with 1 V/Oct cutoff CV
-   tracking and variable resonance Q with saturating feedback up to clean
-   self-oscillation.
+   tracking and variable resonance, reaching self-oscillation at the top of the
+   knob. See [Resonance](#resonance) for what that means and what it measured.
+3. **Resonant LPF**: the same filter, low-pass.
+
+## Resonance
+
+**Corrected 2026-09-22.** This document, a code comment and a test all claimed
+the filter reached "clean self-oscillation". It did not. The damping floor was
+`R = 1 - 0.98 * res`, so R bottomed out at +0.02 and the filter was always
+stable: at full resonance an impulse decayed to nothing in about 80 ms. The test
+that was supposed to cover it measured only that the output stayed finite, which
+a filter decaying to zero also does, so it passed throughout.
+
+The fix is one constant. The damping now travels past zero
+(`R = 1 - RES_SPAN * res`, `RES_SPAN = 1.10`), which is safe only because the
+resonance feedback is saturated: the tanh bounds the limit cycle that negative
+damping would otherwise grow without limit.
+
+`RES_SPAN` was chosen from a sweep at 1 kHz, measuring the sustained amplitude
+0.75 s after an impulse. The knob position where damping crosses zero is
+`1 / RES_SPAN`, so the same number sets both how much of the travel oscillates
+and how loud it gets:
+
+| RES_SPAN | oscillates over | amplitude at full |
+|---|---|---|
+| 1.02 | top 2.0% | 0.51 V |
+| **1.10** | **top 9.1%** | **1.14 V** |
+| 1.20 | top 16.7% | 1.62 V |
+| 1.40 | top 28.6% | 2.36 V |
+
+1.10 keeps nine tenths of the knob as ordinary resonance while still reaching a
+clean sine. If that sliver proves too narrow to find in play, 1.20 is the next
+stop. The amplitude is set by the feedback saturation constant (`RES_SAT_V`),
+not by the span, so that is the separate lever if it should be louder.
+
+This matters beyond tidiness: [ROADMAP.md](../../ROADMAP.md) states the
+instrument hypothesis as "Serge-style: the slope and filter can be oscillators".
+As first built, this filter could not be one.
+
+**Not verified:** none of these numbers is measured against hardware, and no
+circuit is proposed. 1.14 V is also quiet next to a typical 5 V signal; whether
+the self-oscillation is loud and findable enough is a playtest question.
+
+### Cutoff range
+
+The knob spans five octaves either side of middle C, so **-5 V is 8.2 Hz**
+(raised to the module's 10 Hz floor) and **+5 V is 8.4 kHz**. Earlier comments
+in the source and tests said 16 Hz and 16 kHz; both were an octave out and have
+been corrected.
 
 ### Normalled Signal Flow
 

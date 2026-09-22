@@ -19,7 +19,8 @@ gate. Each current or retained track has one owning document:
 | Track | Open This | What You Decide |
 |---|---|---|
 | Play digital module prototypes and test the instrument balance | [ROADMAP.md](ROADMAP.md#v0-playable-digital-modules-and-function-balance-current) | What works when played, which functions run short or go unused, and which composition should become hardware. The agent builds reproducible prototypes and accounts for shared resources. |
-| Play or change the first Rack prototype | [modules/quad-amp/SPEC.md](modules/quad-amp/SPEC.md) | The behaviour being tested and its open questions. Build it with `rack/build.sh`; toolchain in [SETUP.md](SETUP.md#vcv-rack). |
+| Play or change the first Rack prototype | [modules/break/SPEC.md](modules/break/SPEC.md) | Break, the bench tool that feeds the others: what it plays, why no audio is committed with it, and why it is not counted in the function balance. |
+| [modules/quad-amp/SPEC.md](modules/quad-amp/SPEC.md) | The behaviour being tested and its open questions. Build it with `rack/build.sh`; toolchain in [SETUP.md](SETUP.md#vcv-rack). |
 | Sketch control ideas, when useful | [SKETCHER.md](SKETCHER.md) | What goes where on a module. The local grid editor is not an audio simulator; the generator bridge (S3) remains deferred. |
 | Retained R1 IO + Mixer requirements | [modules/io-mixer/SPEC.md](modules/io-mixer/SPEC.md) | Existing behavior informs virtual prototypes; physical connector, circuit and layout decisions resume after the musical gate. |
 | Equipment inventory and deferred lab procurement | [HOMELAB.md](HOMELAB.md) | Confirm owned equipment and approve any later spending. The inventory and payment readiness are recorded separately from unverified historical shopping candidates. |

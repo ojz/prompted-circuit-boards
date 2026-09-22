@@ -22,7 +22,7 @@
 // prototype does not model": no multiplier error, offset, drift or noise.
 #pragma once
 
-#include <cmath>
+#include "Saturate.hpp"
 
 namespace quadamp {
 
@@ -55,15 +55,9 @@ const float CEILING_V = 11.5f;
 
 const int CHANNELS = 4;
 
-/** Linear to LINEAR_V, then a tanh knee asymptotic to CEILING_V. Continuous in
-value and in slope at the join, so there is no corner to hear. */
+/** The shared curve in Saturate.hpp, at this module's two constants. */
 inline float saturate(float v) {
-	float a = v < 0.f ? -v : v;
-	if (a <= LINEAR_V)
-		return v;
-	const float knee = CEILING_V - LINEAR_V;
-	float out = LINEAR_V + knee * std::tanh((a - LINEAR_V) / knee);
-	return v < 0.f ? -out : out;
+	return sat::soft(v, LINEAR_V, CEILING_V);
 }
 
 /** The gain a channel is set to, before the signal is applied. Can exceed

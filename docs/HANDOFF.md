@@ -8,9 +8,9 @@ retire_when: "the project ends or another current-state record takes over; Git i
 
 # Current Handoff
 
-Updated 2026-09-21: the first playable VCV Rack prototype exists. Quad Amp is
-built, installed and loading in Rack; no circuit, part, layout or manufacturing
-output was produced, and no playtesting has happened yet.
+Updated 2026-09-22: three Rack modules now exist -- Quad Amp, Drive Filter and
+Break -- and patch together. No circuit, part, layout or manufacturing output
+was produced, and **no playtesting has happened yet.**
 Use [README.md](README.md) as the document register and short code map. This
 handoff holds current evidence and next actions, not a session history.
 
@@ -37,6 +37,14 @@ handoff holds current evidence and next actions, not a session history.
   output of HPF is normalled to LPF input; patching either filter input breaks
   that normal. Built and verified with 44 headless transfer tests, installed
   into Rack with C-runtime parity checked.
+- **Drive Filter came from the work laptop** on 2026-09-22: distortion into a
+  resonant high-pass and low-pass in series, chained by normals, 10 HP.
+  Reviewed here and corrected -- see Latest Change.
+- **Break is a bench tool, not a candidate module**
+  ([spec](modules/break/SPEC.md)). It feeds the other two with a drum loop and
+  must not be counted in V0's function balance. It loads a WAV from disk rather
+  than shipping one: the Amen recording is under copyright, and the licensed
+  pack the user supplied forbids redistributing individual files.
 - **Five rows is now a standing rule** ([AGENTS.md](../AGENTS.md#rules)). The
   derivation still owns the maximum (six rows, six columns); the rule fixes the
   project's choice inside it. Row pitch remains a candidate, not a verified fit.
@@ -63,25 +71,23 @@ handoff holds current evidence and next actions, not a session history.
 
 ## Latest Change
 
-- Added the five-row standing rule and reconciled [MECHANICAL.md](MECHANICAL.md)
-  with it, including the three legal row pitches for five rows and which one the
-  prototype uses.
-- Wrote [Quad Amp's specification](modules/quad-amp/SPEC.md) from the user's
-  description, including the one multiplier per channel the arithmetic actually
-  needs and the pitch-CV boundary with its numbers.
-- Revised it the same evening on the user's call: the fine level trim becomes a
-  bias on the gain, MOD loses its normal, gain may exceed unity and saturates
-  through a tanh knee rather than a hard corner. That removed a real defect --
-  with a CV patched, the first version could never sit half open.
-- Built the Rack plugin in `rack/`, set up the SDK and MSYS2 MINGW64 toolchain,
-  and recorded both in [SETUP.md](SETUP.md#vcv-rack).
-- **One trap cost most of the session and is written down so it cannot recur:**
-  a plugin built with MSYS2's UCRT64 toolchain links a different C runtime from
-  Rack, which links msvcrt. It compiles, links, loads and reports its version,
-  then segfaults in RtlFreeHeap inside the module widget's constructor -- so
-  right-clicking the rack closed Rack, with a stack trace pointing at innocent
-  code. `rack/build.sh` now compares the two binaries' CRT imports and refuses
-  to install a mismatch.
+- Reviewed the incoming Drive Filter and fixed three findings.
+  **It could not self-oscillate**, while a code comment, a test name and its
+  specification all said it could: the damping floor left it stable, so a full
+  resonance impulse decayed to nothing in 80 ms, and the test only checked that
+  the output stayed finite -- which a filter decaying to zero also does. The
+  damping now travels past zero, bounded by the saturated feedback, with the
+  constant chosen from a measured sweep. ROADMAP.md wants the filter usable as
+  an oscillator, so this was a gap against stated intent, not a tidy-up.
+- Removed two duplications that had appeared with the second module: the
+  saturation curve (now `rack/src/Saturate.hpp`) and the whole panel grid (now
+  `rack/src/PanelGrid.hpp`, with tests that all three modules place their rows
+  identically). The grid mattered most: the row pitch is still a candidate, and
+  it had been copied into each module with nothing to catch a divergence.
+- Corrected cutoff comments that were an octave out in three places.
+- Added Break, with a WAV reader written here because the SDK has none. It is
+  bounds-checked against malformed input and tested against truncated, corrupt
+  and overlong-chunk files, since it parses files the user chose.
 
 ## Recovery Retained
 
@@ -98,21 +104,23 @@ and new experiments are not claimed to impose equivalent numerical limits.
 
 ## Verification
 
-Home laptop, 2026-09-21, for the Rack prototype. Rack Free 2.6.6 Windows x64,
-Fundamental 2.6.4, Rack SDK 2.6.6, MSYS2 MINGW64 g++ 16.2.0:
+Home laptop, 2026-09-22. Rack Free 2.6.6 Windows x64, Fundamental 2.6.4,
+Rack SDK 2.6.6, MSYS2 MINGW64 g++ 16.2.0:
 
 | Check | Result |
 |---|---|
-| `rack/build.sh` panel SVG parse (NanoSVG, the one Rack uses) | 240.00 x 380.00 px, 26 shapes, matches the expected page size |
-| `rack/build.sh` transfer-function tests | 30 checked, 0 failed: four patch states, unity gain, knobs reading in volts, gain above unity, the tanh saturation curve and its slope continuity, the normalled break and the four-at-10 V headroom case |
-| C runtime parity, plugin against Rack.exe | `Rack=msvcrt plugin=msvcrt`; the same check fails closed on a UCRT build |
-| Plugin loads in Rack | `Loaded plugin PromptedCircuitBoards 2.0.0` |
-| Module instantiates from a saved patch | module and widget created, all seven component SVGs loaded, window running, autosave written, **0 fatal signals** |
+| `rack/build.sh` panel SVG parse, three panels | all parse at their expected page sizes |
+| `rack/build.sh` transfer-function tests | **77 checked, 0 failed**: Quad Amp's four patch states and saturation, Drive Filter's distortion, normalled chain, normalled breaks, filter responses and resonance, the shared panel grid, the WAV reader including malformed input, and the Break engine |
+| Resonance, measured rather than asserted | sustains at 1.139 V at full; decays to 0.000 V at half and just below the onset |
+| C runtime parity, plugin against Rack.exe | `Rack=msvcrt plugin=msvcrt` |
+| Three modules in one patch, cabled together | all three modules and widgets created, **0 fatal signals** |
+| WAV reader against the user's licensed pack | four files read: 44.1 kHz, correct durations; the 174 BPM cut is 1.379 s, exactly one bar |
 
 **No playtesting was done, and no sound was heard.** Nothing is known about how
-the module feels, whether four channels is enough, or whether any of it is
-musically right. Screenshot verification of the rendered panel was not obtained
-(the display slept); the geometry is verified numerically, not visually.
+any of these feel, whether four channels is enough, whether the self-oscillation
+is loud or findable enough, or whether any of it is musically right. No
+rendered panel has been inspected: the geometry is verified numerically, not
+visually.
 
 No hardware, circuit, layout, simulation or fabrication work was performed, and
 no board, netlist or benchmark was regenerated. Earlier documentation checks
@@ -171,17 +179,21 @@ measurement was made; software/hardware tests were not rerun for this docs-only 
 
 ## Next Action
 
-**Play Quad Amp.** It is installed and loads; nothing about how it feels is
-known. The questions it was built to answer are in its
-[specification](modules/quad-amp/SPEC.md): whether four channels is enough,
-whether FINE earns its grid cell, whether the offset mode (nothing patched) gets
-reached for or forgotten, and whether the normalled-break bus behaves the way
-the instrument wants. Then save and reopen a patch with its dependencies, as
-[SETUP.md](SETUP.md#vcv-rack) item 3 requires.
+**Play them.** All three load and patch together and nothing about how they feel
+is known. A reasonable first patch is Break's MIX into Drive Filter's DIST IN,
+Drive Filter's LPF OUT into a Quad Amp channel, and Break's ENV into that
+channel's MOD -- which exercises every normalled break in one go. Load the
+licensed Amen cut into Break at 174 BPM for real material.
 
-Five open questions wait on that playtest, the first being whether SUM is a
-panel jack or an inter-module bus -- the user's description says the sum is
-"sent to the next module", which may mean a bus. Do not resume R1 circuitry, S3
-exports or lab shopping as the default next task. Preserve the hardware review
-and CI obligations for that later stage.
-There is no automatic work between sessions.
+The questions each module was built to answer are at the end of its
+specification. The ones most likely to change a design:
+
+- Is Quad Amp's `SUM` a panel jack or an inter-module bus? Still open question 1.
+- Is Drive Filter's self-oscillation sliver findable, and is 1.14 V loud enough?
+- Does Quad Amp's scale-and-shift mode get reached for, or forgotten?
+
+Then save and reopen a patch with its dependencies, as
+[SETUP.md](SETUP.md#vcv-rack) item 3 requires -- Break stores a sample path, so
+that is worth checking deliberately. Do not resume R1 circuitry, S3 exports or
+lab shopping as the default next task. Preserve the hardware review and CI
+obligations for that later stage. There is no automatic work between sessions.

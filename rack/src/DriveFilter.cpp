@@ -15,28 +15,18 @@
 // can be tested without the Rack runtime.
 #include "plugin.hpp"
 
+#include "PanelGrid.hpp"
+
 #include "DriveFilterDsp.hpp"
 
-// Panel geometry in millimetres from the panel's top-left corner.
-static const float PANEL_W_MM = 50.50f;   // Doepfer 10 HP
-static const float PANEL_H_MM = 128.50f;  // Doepfer 3U
-static const float COL_PITCH_MM = 15.00f;
-static const float ROW_PITCH_MM = 15.24f; // three nominal HP
-static const int COLS = 3;
-static const int ROWS = 5;
-
-static float colX(int i) {
-	float span = (COLS - 1) * COL_PITCH_MM;
-	return (PANEL_W_MM - span) / 2.f + i * COL_PITCH_MM;
-}
-
-static float rowY(int i) {
-	float span = (ROWS - 1) * ROW_PITCH_MM;
-	return (PANEL_H_MM - span) / 2.f + i * ROW_PITCH_MM;
-}
+// Panel geometry. The grid itself is in PanelGrid.hpp so there is one home for
+// the pitches and the row count; this names only what is this module's own:
+// how wide it is and how many columns it uses.
+// One column per stage -- distortion, high pass, low pass: 10 HP.
+static const panel::Grid GRID = {10, 3};
 
 static math::Vec cell(int col, int row) {
-	return mm2px(math::Vec(colX(col), rowY(row)));
+	return mm2px(math::Vec(GRID.colX(col), GRID.rowY(row)));
 }
 
 struct DriveFilter : Module {

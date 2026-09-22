@@ -32,6 +32,17 @@
         "Filter",
         "Dual"
       ]
+    },
+    {
+      "slug": "Break",
+      "name": "Break",
+      "description": "A drum loop to test the other modules with: plays a WAV you choose, or a synthesised break when no file is loaded. A bench tool, not a candidate module.",
+      "manualUrl": "https://github.com/olmoz/prompted-circuit-boards/blob/main/docs/modules/break/SPEC.md",
+      "tags": [
+        "Drum",
+        "Sampler",
+        "Utility"
+      ]
     }
   ]
 }

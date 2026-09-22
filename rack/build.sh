@@ -149,6 +149,7 @@ mkdir -p build   # `make clean` has just removed it
 gcc -O1 -o build/svgcheck.exe tools/svgcheck.c -I"$sdk/dep/include" -lm
 ./build/svgcheck.exe --expect 240x380 res/QuadAmp.svg
 ./build/svgcheck.exe --expect 150x380 res/DriveFilter.svg
+./build/svgcheck.exe --expect 120x380 res/Break.svg
 
 # The transfer function, which Rack Free cannot be driven headlessly to check.
 printf '
