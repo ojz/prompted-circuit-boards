@@ -58,6 +58,10 @@ done
 # A UCRT64 g++ also reports x86_64-w64-mingw32, so the triple alone is not
 # enough to tell the two environments apart. Its sysroot is.
 have_toolchain() {
+  # Git Bash presents its own tree as /mingw64 too (C:\Program Files\Git\mingw64),
+  # so the path test below cannot tell the two shells apart on its own. pacman
+  # is in MSYS2 and not in Git Bash, which can.
+  [ -x /usr/bin/pacman ] || return 1
   command -v g++ >/dev/null 2>&1 || return 1
   [ "$(g++ -dumpmachine 2>/dev/null)" = "x86_64-w64-mingw32" ] || return 1
   case "$(command -v g++)" in /mingw64/*|"$msys_root"/mingw64/*) return 0 ;; *) return 1 ;; esac
