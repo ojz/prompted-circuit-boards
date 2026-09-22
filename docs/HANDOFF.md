@@ -30,6 +30,13 @@ handoff holds current evidence and next actions, not a session history.
   Five columns by five rows, 16 HP, the fifth column holding SUM and four cells
   reserved for I/O. Built as a Rack plugin in `rack/`, installed and confirmed
   loading; **not yet played.**
+- **The second prototype is [Drive Filter](modules/drive-filter/SPEC.md):**
+  distortion into resonant high-pass filter and resonant low-pass filter in
+  a normalled series chain, from the user's 2026-09-22 description. Three
+  columns by five rows, 10 HP. Output of distortion is normalled to HPF input;
+  output of HPF is normalled to LPF input; patching either filter input breaks
+  that normal. Built and verified with 44 headless transfer tests, installed
+  into Rack with C-runtime parity checked.
 - **Five rows is now a standing rule** ([AGENTS.md](../AGENTS.md#rules)). The
   derivation still owns the maximum (six rows, six columns); the rule fixes the
   project's choice inside it. Row pitch remains a candidate, not a verified fit.

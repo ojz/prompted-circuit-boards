@@ -21,6 +21,17 @@
         "Utility",
         "Quad"
       ]
+    },
+    {
+      "slug": "DriveFilter",
+      "name": "Drive Filter",
+      "description": "Distortion stage normalled into a resonant high-pass filter and resonant low-pass filter in series.",
+      "manualUrl": "https://github.com/olmoz/prompted-circuit-boards/blob/main/docs/modules/drive-filter/SPEC.md",
+      "tags": [
+        "Distortion",
+        "Filter",
+        "Dual"
+      ]
     }
   ]
 }

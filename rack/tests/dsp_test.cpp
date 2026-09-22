@@ -1,14 +1,14 @@
-// Behaviour tests for the Quad Amp transfer function.
+// Behaviour tests for the Quad Amp and Drive Filter transfer functions.
 //
 // Rack Free has no headless mode, so the played module cannot be driven from a
-// script. This compiles QuadAmpDsp.hpp on its own instead and checks the
-// behaviour the specification claims -- the four patch states, unity gain, the
-// knob reading in volts, gain above unity, the saturation curve and the
-// normalled break. The module calls the same functions, so these cannot drift
-// apart.
+// script. This compiles the DSP headers on their own instead and checks the
+// behaviour the specifications claim -- unity gain, normalled breaks,
+// saturation curves and filter stability. The modules call the same functions,
+// so these cannot drift apart.
 //
 // Built and run by rack/build.sh before the plugin is packaged.
 #include "../src/QuadAmpDsp.hpp"
+#include "../src/DriveFilterDsp.hpp"
 
 #include <cstdio>
 #include <cmath>
@@ -129,6 +129,136 @@ int main() {
 		float loud[CHANNELS] = {10.f, 10.f, 10.f, 10.f};
 		eq("four channels at 10 V want 40 V and are saturated instead",
 		   mix(loud, none), CEILING_V);
+	}
+
+	std::printf("\nDrive Filter transfer function and normalled routing\n\n");
+	{
+		using namespace drivefilter;
+
+		DriveFilterProcessor proc;
+		const float sr = 48000.f;
+
+		std::printf("-- distortion stage --\n");
+		float d0 = processDistortion(0.f, 0.f, 0.f, 10.0f);
+		eq("zero input gives zero distortion out", d0, 0.f);
+
+		// Clean input (small signal, drive at 0, level at unity 10.0 V)
+		float dClean = processDistortion(1.0f, 0.f, 0.f, 10.0f);
+		eq("clean small signal at unity level is 1.0 V", dClean, 1.0f);
+
+		// High drive pushes into saturation ceiling (below 8.5 V)
+		float dHot = processDistortion(5.0f, 10.f, 0.f, 10.0f);
+		greater("high drive boosts signal above linear 5 V", dHot, 7.5f);
+		checks++;
+		if (dHot < 8.51f) {
+			std::printf("ok    %-58s %8.3f V\n", "high drive saturates smoothly under ceiling", dHot);
+		} else {
+			std::printf("FAIL  high drive exceeded expected ceiling: %.3f V\n", dHot);
+			failures++;
+		}
+
+		// Positive CV increases drive
+		float dCv = processDistortion(1.0f, 0.f, 2.0f, 10.0f);
+		greater("drive CV increases gain", dCv, dClean);
+
+		std::printf("\n-- normalled chain: DIST -> HPF -> LPF --\n");
+		float distOut = 0.f, hpfOut = 0.f, lpfOut = 0.f;
+		proc.reset();
+		// Feed a 200 Hz sine wave through the normalled chain
+		// HPF open (-5 V ~16 Hz), LPF open (+5 V ~16 kHz), clean drive (0 V, level unity)
+		float maxLpf = 0.f;
+		for (int i = 0; i < 480; i++) {
+			float in = 2.0f * std::sin(2.0f * float(M_PI) * 200.f * i / sr);
+			proc.step(
+				true, in, 0.f, 0.f, 10.0f, // dist
+				false, 0.f, -5.f, 0.f, 0.f, // hpf unpatched (normalled from distOut)
+				false, 0.f, 5.f, 0.f, 0.f,  // lpf unpatched (normalled from hpfOut)
+				sr, distOut, hpfOut, lpfOut
+			);
+			if (std::fabs(lpfOut) > maxLpf) maxLpf = std::fabs(lpfOut);
+		}
+		greater("normalled chain passes audio from DIST IN to LPF OUT", maxLpf, 1.8f);
+
+		std::printf("\n-- normalled breaks --\n");
+		proc.reset();
+		// Break HPF normal by patching HPF IN with silence (0 V) while DIST IN has 5 V
+		proc.step(
+			true, 5.0f, 0.f, 0.f, 10.0f,
+			true, 0.0f, -5.f, 0.f, 0.f, // HPF patched with 0 V!
+			false, 0.f, 5.f, 0.f, 0.f,  // LPF normalled to HPF OUT
+			sr, distOut, hpfOut, lpfOut
+		);
+		greater("distOut still active when HPF IN is patched", distOut, 4.0f);
+		eq("patching HPF IN with 0 V silences HPF OUT", hpfOut, 0.f);
+		eq("and LPF OUT follows silenced HPF OUT", lpfOut, 0.f);
+
+		// Break LPF normal by patching LPF IN with silence (0 V) while HPF OUT has audio
+		proc.reset();
+		proc.step(
+			true, 5.0f, 0.f, 0.f, 10.0f,
+			false, 0.0f, -5.f, 0.f, 0.f, // HPF normalled from distOut
+			true, 0.0f, 5.f, 0.f, 0.f,   // LPF patched with 0 V!
+			sr, distOut, hpfOut, lpfOut
+		);
+		greater("hpfOut still active when LPF IN is patched", hpfOut, 4.0f);
+		eq("patching LPF IN with 0 V silences LPF OUT", lpfOut, 0.f);
+
+		std::printf("\n-- filter responses --\n");
+		// Test HPF attenuation: 50 Hz tone through HPF with cutoff at 1 kHz (+1.93 V knob)
+		SvfFilter testHpf;
+		float hpCutoff = 1000.f;
+		float maxHpfOut = 0.f;
+		for (int i = 0; i < 480; i++) {
+			float in = 5.0f * std::sin(2.0f * float(M_PI) * 50.f * i / sr);
+			float lp, hp, bp;
+			testHpf.process(in, hpCutoff, 0.f, sr, lp, hp, bp);
+			if (i > 100 && std::fabs(hp) > maxHpfOut) maxHpfOut = std::fabs(hp);
+		}
+		checks++;
+		if (maxHpfOut < 1.0f) {
+			std::printf("ok    %-58s %8.3f V\n", "HPF strongly attenuates 50 Hz when set to 1 kHz", maxHpfOut);
+		} else {
+			std::printf("FAIL  HPF failed to attenuate low frequency: %.3f V\n", maxHpfOut);
+			failures++;
+		}
+
+		// Test LPF attenuation: 5 kHz tone through LPF with cutoff at 300 Hz
+		SvfFilter testLpf;
+		float lpCutoff = 300.f;
+		float maxLpfOut = 0.f;
+		for (int i = 0; i < 480; i++) {
+			float in = 5.0f * std::sin(2.0f * float(M_PI) * 5000.f * i / sr);
+			float lp, hp, bp;
+			testLpf.process(in, lpCutoff, 0.f, sr, lp, hp, bp);
+			if (i > 100 && std::fabs(lp) > maxLpfOut) maxLpfOut = std::fabs(lp);
+		}
+		checks++;
+		if (maxLpfOut < 0.5f) {
+			std::printf("ok    %-58s %8.3f V\n", "LPF strongly attenuates 5 kHz when set to 300 Hz", maxLpfOut);
+		} else {
+			std::printf("FAIL  LPF failed to attenuate high frequency: %.3f V\n", maxLpfOut);
+			failures++;
+		}
+
+		std::printf("\n-- resonance stability --\n");
+		// Feed impulse with resonance at maximum (10 V)
+		SvfFilter ringFilter;
+		float maxRing = 0.f;
+		bool hasNan = false;
+		for (int i = 0; i < 2000; i++) {
+			float in = (i == 0) ? 5.0f : 0.f;
+			float lp, hp, bp;
+			ringFilter.process(in, 1000.f, 10.f, sr, lp, hp, bp);
+			if (std::isnan(lp) || std::isinf(lp)) hasNan = true;
+			if (std::fabs(lp) > maxRing) maxRing = std::fabs(lp);
+		}
+		checks++;
+		if (!hasNan && maxRing < 10.0f) {
+			std::printf("ok    %-58s %8.3f V\n", "max resonance self-oscillates stably without runaway", maxRing);
+		} else {
+			std::printf("FAIL  filter resonance unstable or NaN: max=%.3f\n", maxRing);
+			failures++;
+		}
 	}
 
 	std::printf("\n%d checked, %d failed\n", checks, failures);

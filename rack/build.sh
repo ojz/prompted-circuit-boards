@@ -147,7 +147,8 @@ printf '  toolchain  %s g++ %s\n' "${MSYSTEM:-?}" "$(g++ -dumpversion)"
 # panel surfaces as a segfault in a constructor rather than as a parse error.
 mkdir -p build   # `make clean` has just removed it
 gcc -O1 -o build/svgcheck.exe tools/svgcheck.c -I"$sdk/dep/include" -lm
-./build/svgcheck.exe --expect 240x380 res/*.svg
+./build/svgcheck.exe --expect 240x380 res/QuadAmp.svg
+./build/svgcheck.exe --expect 150x380 res/DriveFilter.svg
 
 # The transfer function, which Rack Free cannot be driven headlessly to check.
 printf '
