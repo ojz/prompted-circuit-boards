@@ -60,7 +60,7 @@ done
 have_toolchain() {
   command -v g++ >/dev/null 2>&1 || return 1
   [ "$(g++ -dumpmachine 2>/dev/null)" = "x86_64-w64-mingw32" ] || return 1
-  case "$(command -v g++)" in */mingw64/*) return 0 ;; *) return 1 ;; esac
+  case "$(command -v g++)" in /mingw64/*|"$msys_root"/mingw64/*) return 0 ;; *) return 1 ;; esac
 }
 if [ "$reexec" -eq 0 ] && ! have_toolchain; then
   msys_bash="$msys_root/usr/bin/bash.exe"
@@ -103,7 +103,7 @@ machine="$(g++ -dumpmachine)"
 # the usual install locations as well.
 node_bin="$(command -v node 2>/dev/null || true)"
 if [ -z "$node_bin" ]; then
-  for candidate in "/c/Program Files/nodejs/node.exe" "$local_app/Programs/nodejs/node.exe"; do
+  for candidate in "/c/Program Files/nodejs/node.exe" "$local_app/Programs/nodejs/node.exe" "/c/nvm4w/nodejs/node.exe"; do
     [ -x "$candidate" ] && { node_bin="$candidate"; break; }
   done
 fi
